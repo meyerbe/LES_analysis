@@ -36,8 +36,8 @@ def main():
     nqt = 11
     s = np.linspace(6500,7500,ns)
     qt = np.linspace(0.0,0.05,nqt)
-    qv = np.zeros((nqt))
-    pd = np.zeros((nqt))
+    qv = np.zeros((ns,nqt))
+    pd = np.zeros((ns,nqt))
     pv = np.zeros((nqt))
     T = np.zeros((ns,nqt))
     pv_star_1 = np.zeros((ns,nqt))
@@ -47,15 +47,15 @@ def main():
         (1) starting point (first guess): pv, pd, T
             - assumption: no liquid, i.e. qv=qt
     '''
-    qv = qt
+    for i in xrange(ns):
+        qv[i,:] = qt[:]
     pv = pv_c(p0,qt,qv)
     pd = p0*np.ones((nqt))-pv
     plot_pd(T,pd)
     # --> pv, pd well behaved
     for i in xrange(ns):
         for j in xrange(nqt):
-            #        T = temperature_no_ql(pd[i,j],pv[i,j],s[i],qt[j])
-            T[i,j] = temperature_no_ql(pd[j],pv[j],s[i],qt[j])
+            T[i,j] = temperature_no_ql(pd[i,j],pv[i,j],s[i],qt[j])
             pv_star_1[i,j] = CC_Magnus(T[i,j])
             qv_star_1[i,j] = qv_star_c(p0,qt[j],pv_star_1[i,j])
 
@@ -69,11 +69,12 @@ def main():
     '''
         (2) Check if saturated or not
     '''
-    sigma_1 = np.ones((ns,nqt))
     sigma_1 = qt - qv_star_1
     s_1 = np.zeros((ns,nqt))
     pv_star_2 = np.zeros((ns,nqt))
     qv_star_2 = np.zeros((ns,nqt))
+    pv_star_3 = np.zeros((ns,nqt))
+    qv_star_3 = np.zeros((ns,nqt))
     T_2 = np.zeros((ns,nqt))
     delta_T12 = np.zeros((ns,nqt))
     # test variables
@@ -86,19 +87,34 @@ def main():
                 ql = 0.0
                 qi = 0.0
             else:
-                print("saturated: (s,qt)=", round(s[i],2), round(qt[j],4))
-#                print("saturated: (s,qt)=", round(s[i],2), round(qt[i,j],4), "pv=", pv[i,j])
-#                T_1 = T[i,j]
-#                pd_1 = pd[i,j]
-#                pv_1 = pv[i,j]
-#                lam_1 = 1.0
-#                L_1 = latent_heat(T_1)
-#
-#                s_1[i,j] = sd_c(pd_1,T_1)*(1.0-qt[i,j]) + sv_c(pv_1,T_1)*qt[i,j] + sc_c(L_1,T_1)*sigma_1[i,j]
-#                # test
-#                sd[i,j] = sd_c(pd_1,T_1)*(1.0-qt[i,j])
-#                sc[i,j] = sc_c(L_1,T_1)*sigma_1[i,j]
-#                # --
+                print("saturated: (s,qt)=", round(s[i],2), round(qt[j],4), "pv=", pv[i,j])
+                T_1 = T[i,j]
+                pd_1 = pd[i,j]
+                pv_1 = pv[i,j]
+                lam_1 = 1.0
+                L_1 = latent_heat(T_1)
+
+                s_1[i,j] = sd_c(pd_1,T_1)*(1.0-qt[j]) + sv_c(pv_1,T_1)*qt[j] + sc_c(L_1,T_1)*sigma_1[i,j]
+                # test
+                sd[i,j] = sd_c(pd_1,T_1)*(1.0-qt[j])
+                sc[i,j] = sc_c(L_1,T_1)*sigma_1[i,j]
+                # --
+                f_1 = s[i] - s_1[i,j]
+                T_2[i,j] = T_1 + sigma_1[i,j]*L_1 / ((1.0-qt[j])*cpd + qv_star_1[i,j]*cpv)
+                delta_T12[i,j] = np.fabs(T_2[i,j]-T_1)
+            
+                pv_star_2[i,j] = CC_Magnus(T_2[i,j])
+                qv_star_2[i,j] = qv_star_c(p0, qt[j], pv_star_2[i,j])
+                ql_2 = qt[j] - qv_star_2[i,j]
+                lam_2 = 1.0
+
+                count = 0
+                if (delta_T12[i,j]>= 1.0e-3 or ql_2<0.0):
+                    print("start while loop")
+                    ''' ---- T_3 ---- '''
+                    pv_star_3[i,j] = CC_Magnus(T_2[i,j])
+                    qv_star_3[i,j] = qv_star_c(p0,qt[j],pv_star_3[i,j])
+
     print(np.isnan(sigma_1).any())
 #    print(sigma_1)
 #    plot_sigma(sigma_1)
