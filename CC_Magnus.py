@@ -83,6 +83,7 @@ def main():
     for i in xrange(ns):
         for j in xrange(nqt):
             if (qt[j]<=qv_star_1[i,j]):
+#            if (qt[j]<=qv_star_1[i,j] or qv_star_1[i,j]<0.0):
                 print("not saturated: (s,qt)=", round(s[i],2), round(qt[j],4))
                 ql = 0.0
                 qi = 0.0
@@ -118,7 +119,9 @@ def main():
     print(np.isnan(sigma_1).any())
 #    print(sigma_1)
 #    plot_sigma(sigma_1)
-
+    print(s_1.shape,np.min(s_1),np.max(s_1))
+    plot_s(s_1,sd,sc)
+    plot_CC_all_2(T,pv_star_2,qv_star_2)
 
 
 
@@ -130,33 +133,55 @@ def plot_1D(data):
     return
 def plot_2D(field):
     return
+def plot_s(s_,sd_,sc_):
+    plt.figure(figsize=(15,4))
+    plt.subplot(1,3,1)
+#    plt.plot(s,s,label='s init')
+    ax1 = plt.contourf(s_.T)
+    # ax2 = plt.contour(s_,levels=np.linspace(-1e3,8e3,10),colors='k',linewidth=5)
+    ax2 = plt.contour(s_.T,levels=[-1e3,0.0,1e3],colors='k',linewidth=5)
+    plt.colorbar(ax2)
+    plt.colorbar(ax1)
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.ylabel(r'$q_t$ moisture',fontsize=12)
+    plt.title('s new')
+    plt.subplot(1,3,2)
+    plt.contourf(sd_.T)
+    plt.colorbar()
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.title('s dry')
+    plt.subplot(1,3,3)
+    plt.contourf(sc_.T)
+    plt.colorbar()
+    plt.title('s liquid',fontsize=15)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.savefig('figures/5_s1.png')
+    plt.close()
 def plot_sigma(sigma):
     plt.figure()
 #    plt.contour(sigma,levels=np.linspace(-2e-1,1,10))
-    plt.contourf(sigma)
+    plt.contourf(sigma.T)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.ylabel(r'$q_t$ moisture',fontsize=12)
     plt.colorbar()
-#    plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
-#    plt.ylabel(r'$s$'+' entropy',fontsize=12)
-#    plt.title('sigma 1',fontsize=15)
-#    ax = plt.gca()
-#    labels = ax.get_xticks()
-#    for i in range(labels.shape[0]):
-#        labels[i] = qt[int(labels[i])]
-#    ax.set_xticklabels(labels)
-#    labels = ax.get_yticks().astype(int)
-#    for i in range(labels.shape[0]):
-#        labels[i] = np.round(s[labels[i]], 2)
-#    ax.set_yticklabels(labels)
     plt.savefig('figures/4_sigma1.png')
 #    plt.close()
     return
-
-def plot_CC_all(T,pv_star_1,qv_star_1):
-    a = pv_star_1-p0
+def plot_CC_all_2(T,pv_star_,qv_star_):
+    a = pv_star_-p0
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
     ax1 = plt.contourf(T)
-    ax2 = plt.contour(pv_star_1-p0,levels=[0.0])
+    ax2 = plt.contour(pv_star_-p0,levels=[0.0])
 #    plt.text(qt[3],s[10],'jo',fontsize=20)
     plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
     plt.ylabel(r'$s$'+' entropy',fontsize=12)
@@ -169,11 +194,10 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
     ax.set_xticklabels(labels)
     labels = ax.get_yticks().astype(int)
     for i in range(labels.shape[0]):
-        labels[i] = np.round(s[labels[i]], 2)
+        labels[i] = np.round(s[int(labels[i])], 2)
     ax.set_yticklabels(labels)
     plt.subplot(1,4,2)
-    plt.contourf(pv_star_1)
-    #plt.contour(1e5)
+    plt.contourf(pv_star_)
     plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
     #plt.ylabel(r'$s$'+' entropy',fontsize=12)
     plt.title('Magnus Formula: pv_star',fontsize=15)
@@ -188,9 +212,9 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
         labels[i] = np.round(s[labels[i]], 2)
     ax.set_yticklabels(labels)
     plt.subplot(1,4,3)
-    ax1 = plt.contourf(pv_star_1-p0)
+    ax1 = plt.contourf(pv_star_-p0)
     cont = np.linspace(0.0,1)
-    ax2 = plt.contour(pv_star_1-p0, levels = cont)
+    ax2 = plt.contour(pv_star_-p0, levels = cont)
     #plt.contour(1e5)
     plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
     #plt.ylabel(r'$s$'+' entropy',fontsize=12)
@@ -206,11 +230,11 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
         labels[i] = np.round(s[labels[i]], 2)
     ax.set_yticklabels(labels)
     plt.subplot(1,4,4)
-    ax1 = plt.contourf(qv_star_1)
-    ax2 = plt.contour(qv_star_1,levels=[0.0],linewidth=2)
+    ax1 = plt.contourf(qv_star_)
+    ax2 = plt.contour(qv_star_,levels=[0.0],linewidth=2)
     plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
     #plt.ylabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('qv_star_1',fontsize=15)
+    plt.title('qv_star_2',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels = ax.get_xticks()
@@ -222,8 +246,81 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
         labels[i] = np.round(s[labels[i]], 2)
     ax.set_yticklabels(labels)
     #plt.show()
-    plt.savefig('figures/3_CC_all_Magnus.png')
+    plt.savefig('figures/6_CC_all_Magnus_secondguess.png')
 #    plt.close()
+    return
+def plot_CC_all(T,pv_star_1,qv_star_1):
+    a = pv_star_1-p0
+    plt.figure(figsize=(20,5))
+    plt.subplot(1,4,1)
+    ax1 = plt.contourf(T.T)
+    ax2 = plt.contour(pv_star_1.T-p0,levels=[0.0])
+    #    plt.text(qt[3],s[10],'jo',fontsize=20)
+    plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
+    plt.xlabel(r'$s$'+' entropy',fontsize=12)
+    plt.title('temperature (no ql)',fontsize=15)
+    plt.colorbar(ax1)
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)
+    plt.subplot(1,4,2)
+    plt.contourf(pv_star_1.T)
+    #plt.contour(1e5)
+    plt.xlabel(r'$s$'+' entropy',fontsize=12)
+    #plt.ylabel(r'$s$'+' entropy',fontsize=12)
+    plt.title('Magnus Formula: pv_star',fontsize=15)
+    plt.colorbar()
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)
+    plt.subplot(1,4,3)
+    ax1 = plt.contourf(pv_star_1.T-p0)
+    cont = np.linspace(0.0,1)
+    ax2 = plt.contour(pv_star_1.T-p0, levels = cont)
+    #plt.contour(1e5)
+    plt.xlabel(r'$s$'+' entropy',fontsize=12)
+    #plt.ylabel(r'$s$'+' entropy',fontsize=12)
+    plt.title('pv_star-p0',fontsize=15)
+    plt.colorbar(ax1)
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)
+    plt.subplot(1,4,4)
+    ax1 = plt.contourf(qv_star_1.T)
+    ax2 = plt.contour(qv_star_1.T,levels=[0.0],linewidth=2)
+    plt.xlabel(r'$q_t$'+' moisture',fontsize=12)
+    #plt.ylabel(r'$s$'+' entropy',fontsize=12)
+    plt.title('qv_star_1',fontsize=15)
+    plt.colorbar(ax1)
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)    #plt.show()
+    plt.savefig('figures/3_CC_all_Magnus_firstguess.png')
+    #    plt.close()
     return
 def plot_pd(T,pd):
     plt.figure()
@@ -235,6 +332,15 @@ def plot_pd(T,pd):
 def plot_temp(T):
     plt.figure()
     plt.contourf(T.T)
+    ax = plt.gca()
+    labels = ax.get_xticks()
+    for i in range(labels.shape[0]):
+        labels[i] = s[int(labels[i])]
+    ax.set_xticklabels(labels)
+    labels = ax.get_yticks()#.astype(int)
+    for i in range(labels.shape[0]):
+        labels[i] = qt[int(labels[i])]
+    ax.set_yticklabels(labels)
     plt.xlabel(r'$s$'+' entropy',fontsize=18)
     plt.ylabel(r'$q_t$'+' moisture',fontsize=18)
     plt.title('temperature (no ql)',fontsize=21)
