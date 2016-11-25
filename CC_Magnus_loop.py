@@ -32,8 +32,8 @@ def main():
     ''' (S,qt)->T & CC Magnus: (S,qt) --> T --> pv_star '''
     from thermo_aux import temperature_no_ql
     from thermo_aux import pv_c, qv_star_c
-    ns = 150
-    nqt = 100
+    ns = 3
+    nqt = 3
     s = np.linspace(6800,7400,ns)
     qt = np.linspace(0.0,0.05,nqt)
     qv = np.zeros((ns,nqt))
@@ -47,11 +47,8 @@ def main():
     s_2 = np.zeros((ns,nqt))
     pv_star_2 = np.zeros((ns,nqt))
     qv_star_2 = np.zeros((ns,nqt))
-    pv_star_3 = np.zeros((ns,nqt))
-    qv_star_3 = np.zeros((ns,nqt))
     T_2 = np.zeros((ns,nqt))
-    T_3 = np.zeros((ns,nqt))
-    delta_T12 = np.zeros((ns,nqt))
+    delta_T = np.zeros((ns,nqt))
     pv_2 = np.zeros((ns,nqt))
     pd_2 = np.zeros((ns,nqt))
     ql_2 = np.zeros((ns,nqt))
@@ -101,7 +98,7 @@ def main():
         for j in xrange(nqt):
 #            if (qt[j]<=qv_star_1[i,j]):
             if (qt[j]<=qv_star_1[i,j] or qv_star_1[i,j]<0.0):
-                # print("not saturated: (s,qt)=", round(s[i],2), round(qt[j],4))
+                print("not saturated: (s,qt)=", round(s[i],2), round(qt[j],4),i,j)
                 sat_index[i,j] = 0
                 ql = 0.0
                 qi = 0.0
@@ -120,7 +117,7 @@ def main():
                 # --
                 f_1 = s[i] - s_1[i,j]
                 T_2[i,j] = T_1 + sigma_1[i,j]*L_1 / ((1.0-qt[j])*cpd + qv_star_1[i,j]*cpv)
-                delta_T12[i,j] = np.fabs(T_2[i,j]-T_1)
+                delta_T[i,j] = np.fabs(T_2[i,j]-T_1)
             
                 pv_star_2[i,j] = CC_Magnus(T_2[i,j])
                 qv_star_2[i,j] = qv_star_c(p0, qt[j], pv_star_2[i,j])
@@ -128,13 +125,14 @@ def main():
                 lam_2 = 1.0
 
                 count = 0
-                print(ql_2[i,j])
-                if (delta_T12[i,j]>= 1.0e-3 or ql_2[i,j]<0.0):
-                    print("start while loop")
-                    ''' ---- T_3 ---- '''
-                    pv_star_3[i,j] = CC_Magnus(T_2[i,j])
-                    qv_star_3[i,j] = qv_star_c(p0,qt[j],pv_star_3[i,j])
-                    pv_2[i,j] = pv_c(p0,qt[j],qv_star_3[i,j])
+                print(i,j,delta_T[i,j],ql_2[i,j])
+                while(delta_T[i,j]>= 1.0e-3 or ql_2[i,j]<0.0):
+                    print('a',i,j,delta_T[i,j],ql_2[i,j])
+#                    print("start while loop")
+                    pv_star_2[i,j] = CC_Magnus(T_2[i,j])
+                    qv_star_2[i,j] = qv_star_c(p0,qt[j],pv_star_2[i,j])
+                    ql_2[i,j] = qt[j] - qv_star_2[i,j]
+                    pv_2[i,j] = pv_c(p0,qt[j],qv_star_2[i,j])
                     pd_2[i,j] = p0 - pv_2[i,j]
                     # --> pd_2 can be negative !!!!
 
@@ -144,15 +142,23 @@ def main():
                         s_2[i,j] = sd_c(pd_2[i,j],T_2[i,j])*(1.0 - qt[j]) + sv_c(pv_2[i,j],T_2[i,j])*qt[j] + sc_c(L_2,T_2[i,j])*ql_2[i,j]
                     
                         f_2 = s[i] - s_2[i,j]
-                        # T_n = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
-                        # T_1 = T_2[i,j]
-                        # T_2[i,j] = T_n
-                        T_3[i,j] = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
+                        if np.isnan(s_2[i,j]) or np.isnan(f_2):
+                            print('nannnn')
+                        T_n = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
+                        T_1 = T_2[i,j]
+                        T_2[i,j] = T_n
                         f_1 = f_2
-                        delta_T23  = np.abs(T_2[i,j] - T_1)
-                        count += 1
+                        
+                        delta_T[i,j] = np.abs(T_2[i,j] - T_1)
                     else:
+                        delta_T[i,j] = 1e-5
+                        ql_2[i,j] = 0.0
                         print('!! pd_2<0')
+
+#                    delta_T[i,j] = 1e-5
+#                    ql_2[i,j] = 0.0
+                    count += 1
+
 
 
     plot_sigma(sigma_1)
@@ -160,7 +166,6 @@ def main():
     plot_s(s_1,sd,sv,sc)
     plot_CC_all_2(T_2,pv_star_2,qv_star_2)
     plot_sat()
-    plot_CC_all_3(T_3,pv_star_3,qv_star_3)
 
 
 
@@ -276,67 +281,6 @@ def plot_sigma(sigma):
 #    plt.close()
     return
 
-def plot_CC_all_3(T,pv_star_,qv_star_):
-    global ns
-    plt.figure(figsize=(20,5))
-    plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(0,np.amax(T),250))
-    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0])
-    ax3 = plt.contour(T.T,levels=[373],colors='w')
-    plt.clabel(ax2)
-    plt.clabel(ax3,inline=1)
-    plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
-    plt.title('temperature T_3 (no ql)',fontsize=15)
-    plt.colorbar(ax1)
-    ax = plt.gca()
-    labels_x = ax.get_xticks().astype(int)
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx)
-    ax.set_yticklabels(ly)
-    plt.subplot(1,4,2)
-    ax1 = plt.contourf(pv_star_.T)
-    ax2 = plt.contour(pv_star_.T , levels = [1e5], text='1e5')
-    plt.clabel(ax2,inline=1)
-    plt.colorbar(ax1)
-    plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('Magnus Formula: '+r'$p_{v,3}^*$',fontsize=15)
-    ax = plt.gca()
-    labels_x = ax.get_xticks().astype(int)
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx)
-    ax.set_yticklabels(ly)
-    plt.subplot(1,4,3)
-    ax1 = plt.contourf(p0-pv_star_.T)
-    ax2 = plt.contour(p0-pv_star_.T , levels = [0.0])
-    plt.clabel(ax2,inline=1)
-    #plt.contour(1e5)
-    plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('p0-pv_star_3',fontsize=15)
-    plt.colorbar(ax1)
-    ax = plt.gca()
-    labels_x = ax.get_xticks().astype(int)
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx)
-    ax.set_yticklabels(ly)
-    plt.subplot(1,4,4)
-    ax1 = plt.contourf(qv_star_.T)
-    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0],linewidth=2)
-    plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('qv_star_3',fontsize=15)
-    plt.colorbar(ax1)
-    ax = plt.gca()
-    labels_x = ax.get_xticks().astype(int)
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx)
-    ax.set_yticklabels(ly)
-    plt.savefig('figures/7_CC_all_Magnus_secondguess.png')
-    #    plt.close()
-    return
 
 def plot_CC_all_2(T,pv_star_,qv_star_):
     global ns
