@@ -1,3 +1,18 @@
+???????????
+- entropies.py: sv_c() -- correct to set it to zero if pv=0?
+
+- pv_star_1 > p0 --> qv_star_1<0 (bcs. in calculation qv_star_c: pd<0) --> qt>qv_star_1 (saturated even for qt=0) but pv=0 
+    --> changed formulation for (saturated && pv==0) to s_1 = s (initial entropy)
+- if continuing saturated thermodynamics with qt=0, pv=0:  
+    --> pv_star_2 >> pv_star_1 >> p0 --> qv_star_2 << qv_star_1
+
+
+- s_1 negative for 
+
+
+
+
+
 # LES_analysis
 
 parameters: LES parameters
@@ -22,9 +37,13 @@ compatibility: check compatibility of scalar tracer convergence according to Chr
 
 # Fluctuations and Correlations
 
-EddyField_output: compute Eddy Fields (fluctuations) from LES field output and save as new NC-files
+EddyField_output: 
+    - compute Eddy Fields (fluctuations) from LES field output
+    - save as new NC-files
 
-Correlations: compute Correlations from LES output fields and output as NC-files
+Correlations: 
+    - compute Correlations from Eddy Fields
+    - output as NC-files 
 
 
 
@@ -36,3 +55,6 @@ Vis_fields:
     - compute Correlations
     - compute 
 
+
+
+# Thermodynamic

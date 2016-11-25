@@ -30,5 +30,9 @@ sv_tilde = 10513.6
 # define gamma_m 15.0
 # define gamma_h 9.0
 
+''' thermodynamic function parameters '''
+Tt = 273.16
+pv_star_t = 611.7
+
 
 # //End generated code
