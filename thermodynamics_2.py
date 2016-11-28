@@ -20,12 +20,12 @@ def main():
     ns = 250
     nqt = 250
 
-    s = np.linspace(6800,7400,ns)
+    s = np.linspace(6800,7200,ns)
     qt = np.linspace(0,0.045,nqt)
     T = np.zeros(shape=(ns, nqt))
     ql = np.zeros(shape=(ns, nqt))
 
-    name = 'sat_adj_ql'
+    name = 'sat_adj_'
     for i in range(ns):
         for j in range(nqt):
             T[i,j], ql[i,j], qi = sat_adj(p0, s[i], qt[j])
@@ -34,7 +34,7 @@ def main():
             if np.isnan(ql[i,j]):
                 print('ql is nan for s,qt =', s[i], qt[j])
     # print('ns', ns, 'nqt', nqt)
-    plot_ql(T,ql,s,qt,name)
+    plot(T,ql,s,qt,name+'corr_qvstar')
 
     return
 
@@ -78,11 +78,10 @@ def sat_adj(p0, s, qt):
     qv_star_1 = qv_star_c(p0, qt, pv_star_1)    # eos_c: same
 
      # If not saturated
-    if(qt <= qv_star_1):
+    if(qt <= qv_star_1 or qv_star_1 < 0.0):
         T = T_1
         ql = 0.0
         qi = 0.0
-        # print("not saturated: no iteration");
         if np.isnan(T):
             print('T is nan')
         print("not saturated: (s,qt)=", round(s,2), round(qt,4))
@@ -90,15 +89,11 @@ def sat_adj(p0, s, qt):
     else:
         # print("saturated: start iterations");
         sigma_1 = qt - qv_star_1           # eos_c: same; thermo.py = ql_1
-        lam_1 = lam_fp(T_1);                # eos_c: lam_fp gives the liquid fraction for mixed - phase clouds(fraction of supercooled liquid)
+        lam_1 = lam_fp(T_1);                # eos_c: lam_fp gives the liquid fraction for mixed - phase clouds(fraction of supercooled liquid); here lam_fp = 1.0
         L_1 = latent_heat(T_1)              # eos_c: L_1 = L_fp(T_1, lam_1)
-        # print('T_1, pd_1', T_1, pd_1)
         s_1 = sd_c(pd_1,T_1)*(1.0 - qt) + sv_c(pv_1,T_1)*qt + sc_c(L_1,T_1)*sigma_1
         f_1 = s - s_1
         T_2 = T_1 + sigma_1 * L_1 /((1.0 - qt)*cpd + qv_star_1 * cpv)
-        # thermo.py: t_2 = t_1 + ql_1 * lv / cpd
-        # T_2 = T_1 + sigma_1 * L(T_1) / cp
-        # cp = (1.0 - qt)*cpd + qv_star_1 * cpv
         delta_T = np.fabs(T_2 - T_1)
 
         count = 0
@@ -219,14 +214,13 @@ def sat_adj_firstguess(p0, s, qt):
         T = T_1
         ql = 0.0
         qi = 0.0
-        # print("not saturated: no iteration");
+        print("not saturated: no iteration");
         if np.isnan(T):
             print('T is nan')
         return T, ql, qi
     else:
         sigma_1 = qt - qv_star_1  # eos_c: same; thermo.py = ql_1
         lam_1 = lam_fp(T_1);  # eos_c: lam_fp gives the liquid fraction for mixed - phase clouds(fraction of supercooled liquid)
-
         T = T_1
         ql = lam_1 * sigma_1
         qi = (1.0-lam_1) * sigma_1
@@ -234,7 +228,7 @@ def sat_adj_firstguess(p0, s, qt):
         return T, ql, qi
 
 # ---------------------------------------------------------------------------
-# from entropies.h
+''' entropies.h '''
 def sd_c(pd, T):
     print('pd', pd, 'T', T)
     if T<0 or pd<0:
@@ -254,32 +248,30 @@ def pv_c(p0, qt, qv):
 def qv_star_c(p0, qt, pv):
     return eps_v * (1.0 - qt) * pv / (p0 - pv)
 
-# from Microphysics.pxd - lambda_constant(T)
+''' Microphysics.pxd - lambda_constant(T) '''
 def lam_fp(T):
     return 1.0
 
-# from Microphysics.pxd - L_fp(T,lambda)
+''' Microphysics.pxd - L_fp(T,lambda) '''
 def latent_heat(T):
     TC = T - 273.15
     return (2500.8 - 2.36 * TC + 0.0016 * TC *
             TC - 0.00006 * TC * TC * TC) * 1000.0
 
+'''  Magnus formula '''
 def get_pv_star(T):
-#    Magnus formula
     T = T - 273.15
     pv_star = 6.1094*np.exp((17.625*T)/float(T+243.04))*100
     return pv_star
 
-#from thermodynamics_sa.h
+''' thermodynamics_sa.h '''
 def temperature_no_ql(pd, pv, s, qt):
     # print('temperature_no_ql')
     if pv > 0:
-        # print('pv>0')
         temp = T_tilde * np.exp(  (s - (1.0-qt)*(sd_tilde - Rd * np.log(pd/p_tilde))
                             - qt * (sv_tilde - Rv * np.log(pv/p_tilde)))
                             /((1.0-qt)*cpd + qt * cpv)  )
     elif pv == 0:
-        # print('pv=0')
         cp = ((1.0 - qt) * cpd + qt * cpv)
         temp = T_tilde * np.exp(  (s - (1.0-qt)*(sd_tilde - Rd * np.log(pd/p_tilde)) ) / cp) \
                * np.exp( -qt*sv_tilde / cp ) \
@@ -291,13 +283,17 @@ def temperature_no_ql(pd, pv, s, qt):
 
 # ---------------------------------------------------------------------------
 
-def plot_ql(T,ql,s,qt,name):
-#    levels_t = np.linspace(283,365,250)
-    levels_t = np.linspace(270,400,250)
+def plot(T,ql,s,qt,name):
+    levels_t = np.linspace(270,420,250)
     plt.figure(figsize=(25,8))
     plt.subplot(1,3,1)
+    i_ = 0
+    for i in xrange(ns):
+        if s[i] < 7060:
+            i_ = i
+    plt.plot([i_,i_],[0,nqt],'k',linewidth=2)
     plt.contourf(T.T,levels=levels_t)
-    # plt.contourf(T.T)
+
     plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=18)
     plt.xlabel('entropy s',fontsize=15)
     plt.ylabel('qt',fontsize=15)
@@ -314,6 +310,11 @@ def plot_ql(T,ql,s,qt,name):
     plt.subplot(1, 3, 2)
     levels_ql = np.linspace(0, np.amax(qt), 250)
     plt.contourf(ql.T,levels=levels_ql)
+    ax2 = plt.contour(ql.T,levels=np.append([0.0,0.01,0.02,0.03],np.linspace(0.2,1.0,5)),colors='w')
+    plt.clabel(ax2,inline=1)
+    plt.title('ql',fontsize=24)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
     plt.title('ql (min/max: '+np.str(np.round(np.nanmin(ql),1))+', '+np.str(np.round(np.nanmax(ql),1))+')',fontsize=18)
     plt.xlabel('entropy s',fontsize=18)
     plt.ylabel('qt',fontsize=18)
@@ -327,11 +328,9 @@ def plot_ql(T,ql,s,qt,name):
     ax.set_yticklabels(ly,fontsize=9)
 
     plt.subplot(1, 3, 3)
-    levels_ql = np.linspace(0, 700, 250)
-    levels_ql = np.linspace(-10, 10, 250)
+    levels_ql = np.linspace(0, 50, 250)
     ax1 = plt.contourf(ql.T, levels=levels_ql)
-#    ax2 = plt.contour(ql.T,levels=[0.0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.8,2.0,10.0])
-    ax2 = plt.contour(ql.T,levels=np.append([0.0,0.01,0.02,0.03],np.linspace(0.2,1.0,5)),colors='k')
+    ax2 = plt.contour(ql.T,levels=np.append([0.0,0.01,0.02,0.03],np.linspace(0.2,1.0,5)),colors='w')
     plt.clabel(ax2,inline=1)
     plt.title('ql',fontsize=24)
     plt.xlabel('entropy s',fontsize=18)
@@ -353,88 +352,6 @@ def plot_ql(T,ql,s,qt,name):
     
     return
 
-def plot_full(T,ql,s,qt,name):
-    #levels_t = np.linspace(270,330,250)
-    levels_ql = np.linspace(0, 0.018, 250)
-    plt.figure(figsize=(20,5))
-    plt.subplot(1,3,1)
-    #plt.contourf(T,levels=levels_t)
-    plt.contourf(T.T)
-    plt.title('temperature T',fontsize=24)
-    plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=21)
-    plt.xlabel('entropy s',fontsize=18)
-    plt.ylabel('qt',fontsize=18)
-    plt.colorbar()
-    
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels_x = ax.get_xticks()
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx,fontsize=9)
-    ax.set_yticklabels(ly,fontsize=9)
-    #    i = int(0)
-    #    for i in range(labels.shape[0] - 1):
-    #        labels[i] = np.round(qt[labels[i]], 4)
-    #    ax.set_xticklabels(labels)
-    #    labels = ax.get_yticks()
-    #    for i in range(labels.shape[0] - 1):
-    #        labels[i] = np.round(s[labels[i]], 2)
-    #    ax.set_yticklabels(labels)
-    
-    plt.subplot(1, 3, 2)
-    plt.contourf(ql.T,levels=levels_ql)
-    plt.title('ql',fontsize=24)
-    plt.xlabel('entropy s',fontsize=18)
-    plt.ylabel('qt',fontsize=18)
-    plt.colorbar()
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels_x = ax.get_xticks()
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx,fontsize=9)
-    ax.set_yticklabels(ly,fontsize=9)
-    #    i = int(0)
-    #    for i in range(labels.shape[0] - 1):
-    #        labels[i] = np.round(qt[labels[i]], 4)
-    #    ax.set_xticklabels(labels)
-    #    labels = ax.get_yticks()
-    #    for i in range(labels.shape[0] - 1):
-    #        labels[i] = np.round(s[labels[i]], 2)
-    #    ax.set_yticklabels(labels)
-    
-    plt.subplot(1, 3, 3)
-    levels_ql = np.linspace(0, 0.008, 250)
-    plt.contourf(ql.T, levels=levels_ql)
-    plt.title('ql', fontsize=24)
-    plt.xlabel('entropy s',fontsize=18)
-    plt.ylabel('qt',fontsize=18)
-    plt.colorbar()
-    
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels_x = ax.get_xticks()
-    labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
-    ax.set_xticklabels(lx,fontsize=9)
-    ax.set_yticklabels(ly,fontsize=9)
-#    i = int(0)
-#    for i in range(labels.shape[0] - 1):
-#        labels[i] = np.round(qt[labels[i]], 4)
-#    ax.set_xticklabels(labels)
-#    labels = ax.get_yticks()
-#    for i in range(labels.shape[0] - 1):
-#        labels[i] = np.round(s[labels[i]], 2)
-#    ax.set_yticklabels(labels)
-
-    plt.savefig('./figures/' + name + '.png')
-    # plt.show()
-    
-    print('sss', s[0])
-    
-    plt.close()
-    return
 
 # ------------------------------------------------
 def set_ticks(labels_x,labels_y):

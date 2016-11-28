@@ -344,6 +344,11 @@ def plot_ql(T,ql,s,qt,name):
     levels_t = np.linspace(270,400,250)
     plt.figure(figsize=(25,8))
     plt.subplot(1,3,1)
+    i_ = 0
+    for i in xrange(ns):
+        if s[i] < 7060:
+            i_ = i
+    plt.plot([i_,i_],[0,nqt],'k',linewidth=2)
     plt.contourf(T.T,levels=levels_t)
     # plt.contourf(T.T)
     plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=18)
