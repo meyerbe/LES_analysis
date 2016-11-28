@@ -60,6 +60,16 @@ Vis_fields:
 # Thermodynamics
 thermodynamics_1: offline saturation adjustment with normal loop --> gives nan in T
 
-thermodynamics_2: same as thermodynamics_1, but with correction on iteration loop (qv_star_1 > 0)
+thermodynamics_2: same as thermodynamics_1, but with correction on first iteration loop (qv_star_1 > 0)
+
+thermodynamics_3: same as thermodynamics_1, but with additional corrections on all iteration loop (qv_star_i > 0, or equivalently T<373K or pd>0)
+
+thermodynamics_4: 
 
 CC_Magnus: Clausius Clapeyron with Magnus formula and from PyCLES; saturation adjustment 'step by step' 
+
+thermo_plot: simple file for plotting thermodynamic relations (e.g. defined in thermo_aux)
+
+
+
+

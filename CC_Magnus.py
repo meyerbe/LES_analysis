@@ -40,18 +40,20 @@ def main():
     pd_1 = np.zeros((ns,nqt))
     pv_1 = np.zeros((nqt))
     T = np.zeros((ns,nqt))
-    pv_star_1 = np.zeros((ns,nqt))
-    qv_star_1 = np.zeros((ns,nqt))
+
     
     s_1 = np.zeros((ns,nqt))
     s_2 = np.zeros((ns,nqt))
     s_3 = np.zeros((ns,nqt))
+    pv_star_1 = np.zeros((ns,nqt))
+    qv_star_1 = np.zeros((ns,nqt))
     pv_star_2 = np.zeros((ns,nqt))
     qv_star_2 = np.zeros((ns,nqt))
     pv_star_3 = np.zeros((ns,nqt))
     qv_star_3 = np.zeros((ns,nqt))
     pv_star_4 = np.zeros((ns,nqt))
     qv_star_4 = np.zeros((ns,nqt))
+    sigma_1 = np.zeros((ns,nqt))
     T_1 = np.zeros((ns,nqt))
     T_2 = np.zeros((ns,nqt))
     T_3 = np.zeros((ns,nqt))
@@ -70,7 +72,7 @@ def main():
     sd = np.zeros((ns,nqt))
     sv = np.zeros((ns,nqt))
     sc = np.zeros((ns,nqt))
-    
+    cpd_ = np.zeros((ns,nqt))
     #
     global nan_index, sat_index, nan_index2
     global plt_count
@@ -81,6 +83,8 @@ def main():
     nan_index3 = np.zeros((ns,nqt))
     count = np.zeros((ns,nqt))
     #
+            
+    
     
     '''
         (1) starting point (first guess): pv, pd, T
@@ -90,7 +94,6 @@ def main():
         qv[i,:] = qt[:]
     pv_1 = pv_c(p0,qt,qv)
     pd_1 = p0*np.ones((nqt))-pv_1
-    plot_pd(T,pd_1)
     # --> pv, pd well behaved
     for i in xrange(ns):
         for j in xrange(nqt):
@@ -102,8 +105,7 @@ def main():
             else:                       # meaning all ok
                 nan_index[i,j] = 0
 
-    plot_temp(T_1)
-    plot_CC_all(T_1,pv_star_1,qv_star_1)
+    # RESULTS:
     # T well defined for all s, qt
     # pv_star<p0 & negative qv_star_1 occur for high s (and low qt)
 
@@ -112,7 +114,6 @@ def main():
     '''
         (2) Check if saturated or not
     '''
-    sigma_1 = qt - qv_star_1
     for i in xrange(ns):
         for j in xrange(nqt):
 #            if (qt[j]<=qv_star_1[i,j]):
@@ -126,6 +127,7 @@ def main():
                 sat_index[i,j] = 1.0
                 lam_1 = 1.0
                 L_1 = latent_heat(T_1[i,j])
+                sigma_1[i,j] = qt[j] - qv_star_1[i,j]
 
                 ''' ---- s_1 ---- '''
                 s_1[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j]) + sv_c(pv_1[i,j],T_1[i,j])*qt[j] + sc_c(L_1,T_1[i,j])*sigma_1[i,j]
@@ -133,6 +135,7 @@ def main():
                 sd[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j])
                 sv[i,j] = sv_c(pv_1[i,j],T_1[i,j])*qt[j]
                 sc[i,j] = sc_c(L_1,T_1[i,j])*sigma_1[i,j]
+                cpd_[i,j] = (1.0-qt[j])*cpd + qv_star_1[i,j]*cpv
                 # --
                 f_1 = s[i] - s_1[i,j]
                 ''' ---- T_2 ---- '''
@@ -151,11 +154,11 @@ def main():
                     qv_star_2[i,j] = qv_star_c(p0,qt[j],pv_star_2[i,j])
                     pv_2[i,j] = pv_c(p0,qt[j],qv_star_2[i,j])
                     pd_2[i,j] = p0 - pv_2[i,j]
-                    # --> pv_star_2 and hence pd_2 can be negative !!!!
+                    # --> qv_star_2 and hence pd_2 can be negative !!!!
 
                     lam_2 = 1.0
                     L_2 = latent_heat(T_2[i,j])
-                    if qv_star_2[i,j]>0:
+                    if qv_star_2[i,j]>0:    # equivalent to "if pd_2<0"; problem: sd(pd) not well-defined for pd<0 since sd~log(pd)
                         ''' ---- s_2 ---- '''
                         s_2[i,j] = sd_c(pd_2[i,j],T_2[i,j])*(1.0 - qt[j]) + sv_c(pv_2[i,j],T_2[i,j])*qt[j] + sc_c(L_2,T_2[i,j])*ql_2[i,j]
                     
@@ -170,7 +173,10 @@ def main():
                         count[i,j] += 1
                     else:
                         nan_index2 [i,j] = 1
+                        ''' ???? --> need to define T_3!! what to do?? --> new definition of qv_star_2??? '''
                         print('!! qv_star_2<0')
+                        T_3[i,j] = T_2[i,j]
+                        delta_T32[i,j]  = np.abs(T_3[i,j] - T_2[i,j])       # will be zero
             
                 if (delta_T32[i,j] >= 1.0e-3 or ql_2[i,j]<0.0):
                     pv_star_3[i,j] = CC_Magnus(T_3[i,j])
@@ -195,14 +201,17 @@ def main():
                         print('!! qv_star_3<0')
 
 
-
-    plot_sigma(sigma_1)
+    plot_CC_all(T_1,pv_star_1,qv_star_1)
     plot_s(s_1,sd,sv,sc,'s1')
+    plot_sigma(sigma_1)
+    plot_cp(cpd_,'cpd_tilde')
+    plot_1D(L_1*sigma_1/cpd_,'sigma_1_cpd')
     plot_CC_all_2(T_2,pv_star_2,qv_star_2)
+    plot_temp(delta_T21,'deltaT_12')
     plot_sat(sat_index,nan_index,pd_1,'index1')
     plot_CC_all_3(T_3,pv_star_3,qv_star_3,'T3')
+    plot_temp(delta_T32,'deltaT_23')
     plot_sat(sat_index,nan_index2,pd_2,'index2')
-    plot_temp(delta_T32)
 #    plot_temp(-f_2*(T_2-T_1)/(f_2-f_1))
     plot_s(s_3, sd, sv, sc,'s3')
     plot_CC_all_3(T_4,pv_star_4,qv_star_4,'T4')
@@ -235,6 +244,21 @@ def plot_1D(data,title):
     return
 def plot_2D(field):
     return
+def plot_cp(data,title):
+    global plt_count
+    plt.contourf(data.T,levels=np.append([0.0,1.0],np.linspace(900,1050,16)))
+    plt.colorbar()
+    ax = plt.gca()
+    labels_x = ax.get_xticks().astype(int)
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx)
+    ax.set_yticklabels(ly)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.ylabel(r'$q_t$ moisture',fontsize=12)
+    plt.savefig('figures/'+str(plt_count)+'_'+title+'.png')
+    plt.close()
+    plt_count += 1
 def plot_sat(sat_index,nan_index,pd_,name):
     global ns, plt_count
     plt.figure(figsize=(12,4))
@@ -491,8 +515,10 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
     global ns, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(0,500,250))
-    ax2 = plt.contour(p0-pv_star_1.T)#,levels=[0.0])
+    ax1 = plt.contourf(T.T,levels=np.linspace(0,550,250))
+    ax2 = plt.contour(p0-pv_star_1.T,levels=[0.0],colors='k',linewidths=2)
+    ax3 = plt.contour(T.T,levels=np.linspace(0,500,6),colors='k',linestyle='--')
+    plt.clabel(ax3,inline=1)
     plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
     plt.title('temperature T1 (no ql)',fontsize=15)
@@ -555,7 +581,7 @@ def plot_pd(T,pd):
     plt_count += 1
     return
 
-def plot_temp(T):
+def plot_temp(T,name):
     global plt_count
     global ns, nqt
     plt.figure()
@@ -578,7 +604,7 @@ def plot_temp(T):
 #    ax.set_yticklabels(lab_y)
     plt.xlabel(r'$s$'+' entropy',fontsize=18)
     plt.ylabel(r'$q_t$'+' moisture',fontsize=18)
-    plt.title('temperature (no ql)',fontsize=21)
+    plt.title(name,fontsize=21)
     plt.colorbar()
     plt.savefig('figures/'+str(plt_count)+'_temp.png')
     plt_count += 1
@@ -589,7 +615,8 @@ def plot_CC(T,pv_star):
     global plt_count
     plt.figure()
     plt.plot(T,pv_star,linewidth=2)
-    plt.plot([373,373],[0.1,max(pv_star)])
+    plt.plot(T_ref,pv_star_ref,'--',linewidth=2)
+    plt.plot([373,373],[min(pv_star),max(pv_star)])
     plt.plot([min(T),max(T)],[1e5,1e5],linewidth=2)
     plt.grid(b=True, which='major', color='grey', linestyle='-')
     plt.grid(b=True, which='minor', color='grey', linestyle='--')
@@ -603,7 +630,6 @@ def plot_CC(T,pv_star):
     #plt.show()
     plt.savefig('figures/CC_Magnus.png')
     plt.close()
-    plt_count += 1
     return
 
 # ------------------------------------------------

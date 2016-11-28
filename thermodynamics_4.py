@@ -124,7 +124,14 @@ def sat_adj(p0, s, qt):
                 delta_T  = np.abs(T_2 - T_1)
                 count += 1
             else:
-                delta_T = 1e-5
+                ''' !!!!!!!?????????!!!!!!!!!!!!! '''
+                qv_star_2 = 0.0
+                a = qv_star_2*eps_vi/(1.0-qt)
+                pv_star_2 = a*p0 / (1.0+a)
+                T2 = T_1 + sigma_1 * L_1/((1.0 - qt)*cpd + qv_star_1 * cpv)
+                delta_T = np.fabs(T_2 - T_1)
+                ql_2 = qt-qv_star_2
+#                delta_T = 1e-5
                 ''' !!!!!!!?????????!!!!!!!!!!!!! '''
         T  = T_2
         qv = qv_star_2
