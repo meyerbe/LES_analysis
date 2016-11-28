@@ -1,6 +1,12 @@
+
+''' offline thermodynamic computations as in LES '''
+
+
 from parameters import *
 import numpy as np
 import pylab as plt
+
+
 
 
 def main():
@@ -18,8 +24,10 @@ def main():
     # def eos_c(lam_fp, L_fp, p0, s, qt):
     p0 = 1e5
 
-    ns = 30
-    nqt = 20
+    global ns, nqt, s, qt
+    ns = 10
+    nqt = 10
+    
 
 
     T = np.zeros(shape=(ns, nqt))
@@ -27,6 +35,8 @@ def main():
 
     # QL
     s = np.linspace(6900,7060,ns)
+    #ns = 1
+    #s = [6950]
     qt = np.linspace(0,0.045,nqt)
     name = 'sat_adj_ql'
     for i in range(ns):
@@ -77,151 +87,7 @@ def main():
     #     T[0,i], ql[0,i], qi = sat_adj(p0,s,qt[i])
     #     # print('qt: ', qt[i], 'ql: ', ql[0,i], 'T:', T[0,i])
 
-
-
-
     return
-
-
-
-def plot_ql(T,ql,s,qt,name):
-    levels_t = np.linspace(283,365,250)
-    levels_ql = np.linspace(-300, 700, 250)
-    plt.figure(figsize=(30,10))
-    plt.subplot(1,3,1)
-    plt.contourf(T,levels=levels_t)
-    #plt.contourf(T)
-    plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=21)
-    plt.xlabel('qt',fontsize=18)
-    plt.ylabel('entropy s',fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(labels.shape[0]-1):
-        labels[i] = np.round(qt[labels[i]], 4)
-    ax.set_xticklabels(labels)
-
-    labels = ax.get_yticks()
-    i = int(0)
-    for i in range(0,labels.shape[0]-1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.subplot(1, 3, 2)
-    plt.contourf(ql,levels=levels_ql)
-    plt.title('ql',fontsize=24)
-    plt.xlabel('qt',fontsize=18)
-    plt.ylabel('entropy s',fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(labels.shape[0]- 1):
-        labels[i] = np.round(qt[labels[i]],4)
-    ax.set_xticklabels(labels)
-    labels = ax.get_yticks()
-    for i in range(labels.shape[0]-1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.subplot(1, 3, 3)
-    levels_ql = np.linspace(0, 700, 250)
-    plt.contourf(ql, levels=levels_ql)
-    plt.title('ql',fontsize=24)
-    plt.xlabel('qt',fontsize=18)
-    plt.ylabel('entropy s',fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(labels.shape[0]-1):
-        labels[i] = np.round(qt[labels[i]], 4)
-    ax.set_xticklabels(labels)
-    labels = ax.get_yticks()
-    for i in range(labels.shape[0]-1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.savefig('./' + name + '.png')
-    # plt.show()
-
-    plt.close()
-
-    return
-
-def plot_full(T,ql,s,qt,name):
-    #levels_t = np.linspace(270,330,250)
-    levels_ql = np.linspace(0, 0.018, 250)
-    plt.figure(figsize=(30,10))
-    plt.subplot(1,3,1)
-    #plt.contourf(T,levels=levels_t)
-    plt.contourf(T)
-    plt.title('temperature T',fontsize=24)
-    plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=21)
-    plt.xlabel('qt',fontsize=18)
-    plt.ylabel('entropy s',fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    i = int(0)
-    for i in range(labels.shape[0]- 1):
-        labels[i] = np.round(qt[labels[i]], 4)
-    ax.set_xticklabels(labels)
-    labels = ax.get_yticks()
-    for i in range(labels.shape[0]- 1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.subplot(1, 3, 2)
-    plt.contourf(ql,levels=levels_ql)
-    plt.title('ql',fontsize=24)
-    plt.xlabel('qt',fontsize=18)
-    plt.ylabel('entropy s',fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(labels.shape[0] - 1):
-        labels[i] = np.round(qt[labels[i]], 4)
-    ax.set_xticklabels(labels)
-    labels = ax.get_yticks()
-    for i in range(labels.shape[0] - 1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.subplot(1, 3, 3)
-    levels_ql = np.linspace(0, 0.008, 250)
-    plt.contourf(ql, levels=levels_ql)
-    plt.title('ql', fontsize=24)
-    plt.xlabel('qt', fontsize=18)
-    plt.ylabel('entropy s', fontsize=18)
-    plt.colorbar()
-
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    i = int(0)
-    for i in range(labels.shape[0] - 1):
-        labels[i] = np.round(qt[labels[i]], 4)
-    ax.set_xticklabels(labels)
-    labels = ax.get_yticks()
-    for i in range(labels.shape[0] - 1):
-        labels[i] = np.round(s[labels[i]], 2)
-    ax.set_yticklabels(labels)
-
-    plt.savefig('./' + name + '.png')
-    # plt.show()
-
-    plt.close()
-    return
-
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +121,7 @@ def sat_adj(p0, s, qt):
     # Compute temperature
     pv_1 = pv_c(p0,qt,qt)                       # eos_c: same
     pd_1 = p0 - pv_1                            # eos_c: same
+    print('p0, pv_1, pd_1', p0, pv_1, pd_1)
     T_1 = temperature_no_ql(pd_1,pv_1,s,qt)     # eos_c: same
     #Compute saturation vapor pressure
     pv_star_1 = get_pv_star(T_1)                # eos_c: pv_star_1 = lookup(LT, T_1) # ???
@@ -269,6 +136,7 @@ def sat_adj(p0, s, qt):
         # print("not saturated: no iteration");
         if np.isnan(T):
             print('T is nan')
+        print("not saturated: (s,qt)=", round(s,2), round(qt,4))
         return T, ql, qi
     else:
         # print("saturated: start iterations");
@@ -332,7 +200,7 @@ def sat_adj(p0, s, qt):
         qv = qv_star_2
         ql = lam_2 * ql_2           # ??? lam_2
         qi = (1.0 - lam_2) * ql_2   # ??? lam_2
-        print("saturated: iterations = ",count)
+        print("saturated: (s,qt)=", round(s,2), round(qt,4)," iterations = ",count)
         # if np.isnan(T):
         #     print('T is nan', pd_1, pd_2)
         # if np.isnan(ql):
@@ -419,7 +287,9 @@ def sat_adj_firstguess(p0, s, qt):
 # ---------------------------------------------------------------------------
 # from entropies.h
 def sd_c(pd, T):
-    # print('pd', pd, 'T', T)
+    print('pd', pd, 'T', T)
+    if T<0 or pd<0:
+        print('sd: negative pd or T', pd, T)
     return sd_tilde + cpd*np.log(T/T_tilde) - Rd*np.log(pd/p_tilde)
 
 def sv_c(pv, T):
@@ -471,6 +341,161 @@ def temperature_no_ql(pd, pv, s, qt):
 
 
 # ---------------------------------------------------------------------------
+
+def plot_ql(T,ql,s,qt,name):
+    levels_t = np.linspace(283,365,250)
+    levels_ql = np.linspace(-300, 700, 250)
+    plt.figure(figsize=(25,8))
+    plt.subplot(1,3,1)
+    plt.contourf(T.T,levels=levels_t)
+    #plt.contourf(T)
+    plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=21)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+    
+    plt.subplot(1, 3, 2)
+    plt.contourf(ql.T,levels=levels_ql)
+    plt.title('ql',fontsize=24)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+
+    plt.subplot(1, 3, 3)
+    levels_ql = np.linspace(0, 700, 250)
+    plt.contourf(ql.T, levels=levels_ql)
+    plt.title('ql',fontsize=24)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+    
+    plt.savefig('./figures/' + name + '.png')
+    # plt.show()
+    
+    plt.close()
+    
+    return
+
+def plot_full(T,ql,s,qt,name):
+    #levels_t = np.linspace(270,330,250)
+    levels_ql = np.linspace(0, 0.018, 250)
+    plt.figure(figsize=(20,5))
+    plt.subplot(1,3,1)
+    #plt.contourf(T,levels=levels_t)
+    plt.contourf(T.T)
+    plt.title('temperature T',fontsize=24)
+    plt.title('temperature T (min/max: '+np.str(np.round(np.nanmin(T),1))+', '+np.str(np.round(np.nanmax(T),1))+')',fontsize=21)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+    #    i = int(0)
+    #    for i in range(labels.shape[0] - 1):
+    #        labels[i] = np.round(qt[labels[i]], 4)
+    #    ax.set_xticklabels(labels)
+    #    labels = ax.get_yticks()
+    #    for i in range(labels.shape[0] - 1):
+    #        labels[i] = np.round(s[labels[i]], 2)
+    #    ax.set_yticklabels(labels)
+    
+    plt.subplot(1, 3, 2)
+    plt.contourf(ql.T,levels=levels_ql)
+    plt.title('ql',fontsize=24)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+    #    i = int(0)
+    #    for i in range(labels.shape[0] - 1):
+    #        labels[i] = np.round(qt[labels[i]], 4)
+    #    ax.set_xticklabels(labels)
+    #    labels = ax.get_yticks()
+    #    for i in range(labels.shape[0] - 1):
+    #        labels[i] = np.round(s[labels[i]], 2)
+    #    ax.set_yticklabels(labels)
+    
+    plt.subplot(1, 3, 3)
+    levels_ql = np.linspace(0, 0.008, 250)
+    plt.contourf(ql.T, levels=levels_ql)
+    plt.title('ql', fontsize=24)
+    plt.xlabel('entropy s',fontsize=18)
+    plt.ylabel('qt',fontsize=18)
+    plt.colorbar()
+    
+    ax = plt.gca()
+    ax.tick_params(direction='out', pad=0)
+    labels_x = ax.get_xticks()
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx,fontsize=9)
+    ax.set_yticklabels(ly,fontsize=9)
+#    i = int(0)
+#    for i in range(labels.shape[0] - 1):
+#        labels[i] = np.round(qt[labels[i]], 4)
+#    ax.set_xticklabels(labels)
+#    labels = ax.get_yticks()
+#    for i in range(labels.shape[0] - 1):
+#        labels[i] = np.round(s[labels[i]], 2)
+#    ax.set_yticklabels(labels)
+
+    plt.savefig('./figures/' + name + '.png')
+    # plt.show()
+    
+    print('sss', s[0])
+    
+    plt.close()
+    return
+
+# ------------------------------------------------
+def set_ticks(labels_x,labels_y):
+    global plt_count
+    lab_x = [s[0]]
+    lab_y = [qt[0]]
+    for i in range(1,labels_x.shape[0]):
+        if labels_x[i] < ns:
+            lab_x= np.append(lab_x,int(s[int(labels_x[i])]))
+    lab_x = lab_x.astype(int)
+    for i in range(1,labels_y.shape[0]):
+        if labels_y[i] < nqt:
+            lab_y = np.append(lab_y,np.round(qt[int(labels_y[i])],3))
+    return lab_x, lab_y
 
 if __name__ == '__main__':
     main()
