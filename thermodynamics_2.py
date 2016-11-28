@@ -7,19 +7,11 @@ import numpy as np
 import pylab as plt
 
 
-
-
 def main():
     # sat_adj modified for qt = 0:
     #   --> pv = 0 for qt=qv=0 (from pv_c(p0,qt,qv)
     #       --> temperature_no_ql(pv=0) ill-defined, due to T~log(pv/p_tilde)
     #           --> redefined in terms of (pv/p_tilde)**a
-
-    ijk_ = 13841
-
-    case_name = 'Bomex'
-    path = './../Output.' + case_name + '.e0f33/'
-    print(path)
 
     # def eos_c(lam_fp, L_fp, p0, s, qt):
     p0 = 1e5
@@ -27,14 +19,12 @@ def main():
     global ns, nqt, s, qt
     ns = 250
     nqt = 250
-    
+
+    s = np.linspace(6800,7400,ns)
+    qt = np.linspace(0,0.045,nqt)
     T = np.zeros(shape=(ns, nqt))
     ql = np.zeros(shape=(ns, nqt))
 
-    # QL
-#    s = np.linspace(6900,7060,ns)
-    s = np.linspace(6800,7400,ns)
-    qt = np.linspace(0,0.045,nqt)
     name = 'sat_adj_ql'
     for i in range(ns):
         for j in range(nqt):
@@ -45,44 +35,6 @@ def main():
                 print('ql is nan for s,qt =', s[i], qt[j])
     # print('ns', ns, 'nqt', nqt)
     plot_ql(T,ql,s,qt,name)
-
-    # name = 'sat_adj_T1_ql'
-    # print(name)
-    # for i in range(ns):
-    #     for j in range(nqt):
-    #         T[i, j], ql[i, j], qi = sat_adj_firstguess(p0, s[i], qt[j])
-    #         if np.isnan(T[i, j]):
-    #             print('T is nan for s,qt =', s[i], qt[j])
-    #         if np.isnan(ql[i, j]):
-    #             print('ql is nan for s,qt =', s[i], qt[j])
-    # plot_ql(T, ql, s, qt, name)
-
-    # full
-    s = np.linspace(6900, 6970, ns)
-    qt = np.linspace(0, 0.02, nqt)
-    name = 'sat_adj_full'
-    for i in range(ns):
-        for j in range(nqt):
-            T[i, j], ql[i, j], qi = sat_adj(p0, s[i], qt[j])
-    plot_full(T, ql, s, qt, name)
-    #
-    # name = 'sat_adj_T1_full'
-    # print(name)
-    # for i in range(ns):
-    #     for j in range(nqt):
-    #         T[i, j], ql[i, j], qi = sat_adj_firstguess(p0, s[i], qt[j])
-    #         if np.isnan(T[i, j]):
-    #             print('T is nan for s,qt =', s[i], qt[j])
-    #         if np.isnan(ql[i, j]):
-    #             print('ql is nan for s,qt =', s[i], qt[j])
-    # plot_full(T, ql, s, qt, name)
-
-    # nqt = 2
-    # qt = np.linspace(0.04,0.045,2)
-    # s = 6980
-    # for i in range(nqt):
-    #     T[0,i], ql[0,i], qi = sat_adj(p0,s,qt[i])
-    #     # print('qt: ', qt[i], 'ql: ', ql[0,i], 'T:', T[0,i])
 
     return
 
