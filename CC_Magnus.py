@@ -50,9 +50,15 @@ def main():
     qv_star_2 = np.zeros((ns,nqt))
     pv_star_3 = np.zeros((ns,nqt))
     qv_star_3 = np.zeros((ns,nqt))
+    pv_star_4 = np.zeros((ns,nqt))
+    qv_star_4 = np.zeros((ns,nqt))
+    T_1 = np.zeros((ns,nqt))
     T_2 = np.zeros((ns,nqt))
     T_3 = np.zeros((ns,nqt))
-    delta_T12 = np.zeros((ns,nqt))
+    T_4 = np.zeros((ns,nqt))
+    delta_T21 = np.zeros((ns,nqt))
+    delta_T32 = np.zeros((ns,nqt))
+    delta_T43 = np.zeros((ns,nqt))
     pv_2 = np.zeros((ns,nqt))
     pd_2 = np.zeros((ns,nqt))
     ql_2 = np.zeros((ns,nqt))
@@ -72,6 +78,8 @@ def main():
     nan_index = np.zeros((ns,nqt))
     sat_index = np.zeros((ns,nqt))
     nan_index2 = np.zeros((ns,nqt))
+    nan_index3 = np.zeros((ns,nqt))
+    count = np.zeros((ns,nqt))
     #
     
     '''
@@ -86,16 +94,16 @@ def main():
     # --> pv, pd well behaved
     for i in xrange(ns):
         for j in xrange(nqt):
-            T[i,j] = temperature_no_ql(pd_1[i,j],pv_1[i,j],s[i],qt[j])
-            pv_star_1[i,j] = CC_Magnus(T[i,j])
+            T_1[i,j] = temperature_no_ql(pd_1[i,j],pv_1[i,j],s[i],qt[j])
+            pv_star_1[i,j] = CC_Magnus(T_1[i,j])
             qv_star_1[i,j] = qv_star_c(p0,qt[j],pv_star_1[i,j])
             if qv_star_1[i,j]<0:        # meaning problem
                 nan_index[i,j] = 1
             else:                       # meaning all ok
                 nan_index[i,j] = 0
 
-    plot_temp(T)
-    plot_CC_all(T,pv_star_1,qv_star_1)
+    plot_temp(T_1)
+    plot_CC_all(T_1,pv_star_1,qv_star_1)
     # T well defined for all s, qt
     # pv_star<p0 & negative qv_star_1 occur for high s (and low qt)
 
@@ -116,101 +124,124 @@ def main():
             else:
                 print("saturated: (s,qt)=", round(s[i],2), round(qt[j],4), "pv=", pv_1[i,j])
                 sat_index[i,j] = 1.0
-                T_1 = T[i,j]
                 lam_1 = 1.0
-                L_1 = latent_heat(T_1)
+                L_1 = latent_heat(T_1[i,j])
 
-                s_1[i,j] = sd_c(pd_1[i,j],T_1)*(1.0-qt[j]) + sv_c(pv_1[i,j],T_1)*qt[j] + sc_c(L_1,T_1)*sigma_1[i,j]
+                ''' ---- s_1 ---- '''
+                s_1[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j]) + sv_c(pv_1[i,j],T_1[i,j])*qt[j] + sc_c(L_1,T_1[i,j])*sigma_1[i,j]
                 # test
-                sd[i,j] = sd_c(pd_1[i,j],T_1)*(1.0-qt[j])
-                sv[i,j] = sv_c(pv_1[i,j],T_1)*qt[j]
-                sc[i,j] = sc_c(L_1,T_1)*sigma_1[i,j]
+                sd[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j])
+                sv[i,j] = sv_c(pv_1[i,j],T_1[i,j])*qt[j]
+                sc[i,j] = sc_c(L_1,T_1[i,j])*sigma_1[i,j]
                 # --
                 f_1 = s[i] - s_1[i,j]
-                T_2[i,j] = T_1 + sigma_1[i,j]*L_1 / ((1.0-qt[j])*cpd + qv_star_1[i,j]*cpv)
-                delta_T12[i,j] = np.fabs(T_2[i,j]-T_1)
+                ''' ---- T_2 ---- '''
+                T_2[i,j] = T_1[i,j] + sigma_1[i,j]*L_1 / ((1.0-qt[j])*cpd + qv_star_1[i,j]*cpv)
+                delta_T21[i,j] = np.fabs(T_2[i,j]-T_1[i,j])
             
                 pv_star_2[i,j] = CC_Magnus(T_2[i,j])
                 qv_star_2[i,j] = qv_star_c(p0, qt[j], pv_star_2[i,j])
                 ql_2[i,j] = qt[j] - qv_star_2[i,j]
                 lam_2 = 1.0
 
-                count = 0
-                if (delta_T12[i,j]>= 1.0e-3 or ql_2[i,j]<0.0):
+                count[i,j] = 0
+                if (delta_T21[i,j]>= 1.0e-3 or ql_2[i,j]<0.0):
                     print("start while loop (ql_2="+ str(ql_2[i,j])+")" )
-                    ''' ---- T_3 ---- '''
                     pv_star_2[i,j] = CC_Magnus(T_2[i,j])
                     qv_star_2[i,j] = qv_star_c(p0,qt[j],pv_star_2[i,j])
                     pv_2[i,j] = pv_c(p0,qt[j],qv_star_2[i,j])
                     pd_2[i,j] = p0 - pv_2[i,j]
-                    # --> pd_2 can be negative !!!!
+                    # --> pv_star_2 and hence pd_2 can be negative !!!!
 
                     lam_2 = 1.0
                     L_2 = latent_heat(T_2[i,j])
-                    if pd_2[i,j]>0:
+                    if qv_star_2[i,j]>0:
+                        ''' ---- s_2 ---- '''
                         s_2[i,j] = sd_c(pd_2[i,j],T_2[i,j])*(1.0 - qt[j]) + sv_c(pv_2[i,j],T_2[i,j])*qt[j] + sc_c(L_2,T_2[i,j])*ql_2[i,j]
                     
                         f_2 = s[i] - s_2[i,j]
                         # T_n = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
                         # T_1 = T_2[i,j]
                         # T_2[i,j] = T_n
-                        T_3[i,j] = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
+                        ''' ---- T_3 ---- '''
+                        T_3[i,j] = T_2[i,j] - f_2*(T_2[i,j] - T_1[i,j])/(f_2 - f_1)
                         f_1 = f_2
-                        delta_T23  = np.abs(T_2[i,j] - T_1)
-                        count += 1
+                        delta_T32[i,j]  = np.abs(T_3[i,j] - T_2[i,j])
+                        count[i,j] += 1
                     else:
                         nan_index2 [i,j] = 1
-                        print('!! pd_2<0')
+                        print('!! qv_star_2<0')
             
-                if (delta_T23 >= 1.0e-3 or ql_2[i,j]<0.0):
-                    ''' ---- T_4 ---- '''
+                if (delta_T32[i,j] >= 1.0e-3 or ql_2[i,j]<0.0):
                     pv_star_3[i,j] = CC_Magnus(T_3[i,j])
                     qv_star_3[i,j] = qv_star_c(p0,qt[j],pv_star_3[i,j])
                     pv_3[i,j] = pv_c(p0,qt[j],qv_star_3[i,j])
                     pd_3[i,j] = p0 - pv_3[i,j]
-                    # --> pd_2 can be negative !!!!
                     
                     lam_2 = 1.0
-                    L_3 = latent_heat(T_3[i,j])
-                    if pd_3[i,j]>0:
+                    L_3 = latent_heat(T_2[i,j])
+                    if qv_star_3[i,j]>0:
+                        ''' ---- s_3 ---- '''
                         s_3[i,j] = sd_c(pd_3[i,j],T_3[i,j])*(1.0 - qt[j]) + sv_c(pv_3[i,j],T_3[i,j])*qt[j] + sc_c(L_3,T_3[i,j])*ql_3[i,j]
-#
-#                        f_2 = s[i] - s_2[i,j]
-#                        # T_n = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
-#                        # T_1 = T_2[i,j]
-#                        # T_2[i,j] = T_n
-#                        T_3[i,j] = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
-#                        f_1 = f_2
-#                        delta_T23  = np.abs(T_2[i,j] - T_1)
-                        count += 1
-#                    else:
-#                        nan_index2 [i,j] = 1
-#                        print('!! pd_2<0')
+
+                        f_2 = s[i] - s_3[i,j]
+                        ''' ---- T_4 ---- '''
+                        T_4[i,j] = T_3[i,j] - f_2*(T_3[i,j] - T_2[i,j])/(f_2 - f_1)
+                        f_1 = f_2
+                        delta_T43[i,j]  = np.abs(T_4[i,j] - T_3[i,j])
+                        count[i,j] += 1
+                    else:
+                        nan_index3 [i,j] = 1
+                        print('!! qv_star_3<0')
 
 
-                print('count', count)
+
     plot_sigma(sigma_1)
-    print(s_1.shape,np.min(s_1),np.max(s_1))
-    plot_s(s_1,sd,sv,sc)
+    plot_s(s_1,sd,sv,sc,'s1')
     plot_CC_all_2(T_2,pv_star_2,qv_star_2)
-    plot_sat(sat_index,nan_index)
-    plot_CC_all_3(T_3,pv_star_3,qv_star_3)
-    plot_sat(sat_index,nan_index2)
+    plot_sat(sat_index,nan_index,pd_1,'index1')
+    plot_CC_all_3(T_3,pv_star_3,qv_star_3,'T3')
+    plot_sat(sat_index,nan_index2,pd_2,'index2')
+    plot_temp(delta_T32)
+#    plot_temp(-f_2*(T_2-T_1)/(f_2-f_1))
+    plot_s(s_3, sd, sv, sc,'s3')
+    plot_CC_all_3(T_4,pv_star_4,qv_star_4,'T4')
+    plot_sat(sat_index,nan_index3,pd_3,'index3')
+    plot_1D(count,'iterations')
+
 
 
 
 # ------------------------------------------------
 
 
-def plot_1D(data):
+def plot_1D(data,title):
+    global plt_count
+    plt.figure()
+    plt.contourf(data.T)
+    plt.colorbar()
+    plt.title(title)
+    ax = plt.gca()
+    labels_x = ax.get_xticks().astype(int)
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx)
+    ax.set_yticklabels(ly)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.ylabel(r'$q_t$ moisture',fontsize=12)
+    plt.savefig('figures/'+str(plt_count)+'_'+title+'.png')
+    plt.close()
+    plt_count += 1
     return
 def plot_2D(field):
     return
-def plot_sat(sat_index,nan_index):
+def plot_sat(sat_index,nan_index,pd_,name):
     global ns, plt_count
-    plt.figure(figsize=(12,5))
-    plt.subplot(1,2,1)
-    ax1 = plt.contourf(nan_index.T)
+    plt.figure(figsize=(12,4))
+    plt.subplot(1,3,1)
+    ax1 = plt.contourf(pd_.T)
+    ax2 = plt.contour(pd_.T,levels=[0.0],linewidths=2)
+    plt.clabel(ax2,inline=1)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -220,8 +251,22 @@ def plot_sat(sat_index,nan_index):
     ax.set_yticklabels(ly)
     plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$ moisture',fontsize=12)
-    plt.title('nan-index (1=qt*<0,0=qt*>0')
-    plt.subplot(1,2,2)
+    plt.title('pd-'+name)
+    plt.subplot(1,3,2)
+    ax1 = plt.contourf(nan_index.T)
+    ax2 = plt.contour(pd_.T,levels=[0.0])
+    plt.clabel(ax2,inline=1)
+    plt.colorbar(ax1)
+    ax = plt.gca()
+    labels_x = ax.get_xticks().astype(int)
+    labels_y = ax.get_yticks()
+    lx, ly = set_ticks(labels_x,labels_y)
+    ax.set_xticklabels(lx)
+    ax.set_yticklabels(ly)
+    plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
+    plt.ylabel(r'$q_t$ moisture',fontsize=12)
+    plt.title('nan-'+name+' (1=qt*<0,0=qt*>0')
+    plt.subplot(1,3,3)
     ax1 = plt.contourf(sat_index.T)
     ax2 = plt.contour(nan_index.T,'k',levels=[-1.0,1.0],linewidth=5)
 #    ax3 = plt.contourf(nan_index, hatch="/")
@@ -236,13 +281,13 @@ def plot_sat(sat_index,nan_index):
     ax.set_yticklabels(ly)
     plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$ moisture',fontsize=12)
-    plt.title('sat-index (0=unsat,1=sat)')
+    plt.title('sat-index1 (0=unsat,1=sat)')
     plt.savefig('figures/'+str(plt_count)+'_sat_index.png')
     plt.close()
     plt_count += 1
     return
 
-def plot_s(s_,sd_,sv_,sc_):
+def plot_s(s_,sd_,sv_,sc_,name):
     global nan_index, ns, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
@@ -260,7 +305,7 @@ def plot_s(s_,sd_,sv_,sc_):
     ax.set_yticklabels(ly)
     plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$ moisture',fontsize=12)
-    plt.title('s_1, (cont=sd+sc, nan_index)')
+    plt.title(name +' (cont=sd+sc, nan_index)')
     plt.subplot(1,4,2)
     ax1 = plt.contourf(sd_.T)
     ax2 = plt.contour(nan_index.T,levels=[-1.0,1.0],linewidth=2)
@@ -315,20 +360,20 @@ def plot_sigma(sigma):
     plt_count += 1
     return
 
-def plot_CC_all_3(T,pv_star_,qv_star_):
+def plot_CC_all_3(T,pv_star_,qv_star_,name):
     global ns, nan_index2, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(0,np.amax(T),250))
+    ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),250))
     ax2 = plt.contour(p0-pv_star_.T,levels=[0.0])
-#    ax2 = plt.contour(nan_index2.T,levels=[0.0,1.0])
+    # ax2 = plt.contour(nan_index2.T,levels=[0.0,1.0])
     ax3 = plt.contour(T.T,levels=[int(250),int(300)],colors='w')
+    plt.colorbar(ax1)
     plt.clabel(ax2)
     plt.clabel(ax3,inline=1)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
-    plt.title('temperature T_3 (no ql)',fontsize=15)
-    plt.colorbar(ax1)
+    plt.title('temperature '+name+' (no ql)',fontsize=15)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
     labels_y = ax.get_yticks()
@@ -341,7 +386,7 @@ def plot_CC_all_3(T,pv_star_,qv_star_):
     plt.clabel(ax2,inline=1)
     plt.colorbar(ax1)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('Magnus Formula: '+r'$p_{v,3}^*$',fontsize=15)
+    plt.title('Magnus Formula: '+r'$p_{v}^*$',fontsize=15)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
     labels_y = ax.get_yticks()
@@ -354,7 +399,7 @@ def plot_CC_all_3(T,pv_star_,qv_star_):
     plt.clabel(ax2,inline=1)
     #plt.contour(1e5)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('p0-pv_star_3',fontsize=15)
+    plt.title('p0-pv_star',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -366,7 +411,7 @@ def plot_CC_all_3(T,pv_star_,qv_star_):
     ax1 = plt.contourf(qv_star_.T)
     ax2 = plt.contour(p0-pv_star_.T,levels=[0.0],linewidth=2)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('qv_star_3',fontsize=15)
+    plt.title('qv_star',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -374,7 +419,7 @@ def plot_CC_all_3(T,pv_star_,qv_star_):
     lx, ly = set_ticks(labels_x,labels_y)
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
-    plt.savefig('figures/'+str(plt_count)+'_CC_all_Magnus_secondguess.png')
+    plt.savefig('figures/'+str(plt_count)+'_CC_all_Magnus_'+name+'_guess.png')
     plt.close()
     plt_count += 1
     return
@@ -426,7 +471,7 @@ def plot_CC_all_2(T,pv_star_,qv_star_):
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
     plt.subplot(1,4,4)
-    ax1 = plt.contourf(qv_star_.T)
+    ax1 = plt.contourf(qv_star_.T,levels=np.linspace(-10,10,250))
     ax2 = plt.contour(p0-pv_star_.T,levels=[0.0],linewidth=2)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
     plt.title('qv_star_2',fontsize=15)
@@ -450,7 +495,7 @@ def plot_CC_all(T,pv_star_1,qv_star_1):
     ax2 = plt.contour(p0-pv_star_1.T)#,levels=[0.0])
     plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('temperature (no ql)',fontsize=15)
+    plt.title('temperature T1 (no ql)',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -539,19 +584,6 @@ def plot_temp(T):
     plt_count += 1
     return
 
-def set_ticks(labels_x,labels_y):
-    global plt_count
-    lab_x = [s[0]]
-    lab_y = [qt[0]]
-    for i in range(1,labels_x.shape[0]):
-        if labels_x[i] < ns:
-            lab_x= np.append(lab_x,int(s[int(labels_x[i])]))
-    lab_x = lab_x.astype(int)
-    for i in range(1,labels_y.shape[0]):
-        if labels_y[i] < nqt:
-            lab_y = np.append(lab_y,np.round(qt[int(labels_y[i])],2))
-    return lab_x, lab_y
-
 
 def plot_CC(T,pv_star):
     global plt_count
@@ -573,6 +605,21 @@ def plot_CC(T,pv_star):
     plt.close()
     plt_count += 1
     return
+
+# ------------------------------------------------
+def set_ticks(labels_x,labels_y):
+    global plt_count
+    lab_x = [s[0]]
+    lab_y = [qt[0]]
+    for i in range(1,labels_x.shape[0]):
+        if labels_x[i] < ns:
+            lab_x= np.append(lab_x,int(s[int(labels_x[i])]))
+    lab_x = lab_x.astype(int)
+    for i in range(1,labels_y.shape[0]):
+        if labels_y[i] < nqt:
+            lab_y = np.append(lab_y,np.round(qt[int(labels_y[i])],2))
+    return lab_x, lab_y
+
 
 # ------------------------------------------------
 if __name__ == '__main__':
