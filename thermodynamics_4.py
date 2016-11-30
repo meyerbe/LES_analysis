@@ -34,7 +34,7 @@ def main():
             if np.isnan(ql[i,j]):
                 print('ql is nan for s,qt =', s[i], qt[j])
     # print('ns', ns, 'nqt', nqt)
-    plot(T,ql,s,qt,name+'corr2_qvstar')
+    plot(T,ql,s,qt,name+'corr3_T2')
 
     return
 
@@ -67,6 +67,10 @@ def sat_adj(p0, s, qt):
             --> defined in Csrc/entropies.h
     '''
 
+    '''
+        (1) starting point (first guess): pv, pd, T
+            - assumption: no liquid, i.e. qv=qt
+    '''
     # Compute temperature
     pv_1 = pv_c(p0,qt,qt)                       # eos_c: same
     pd_1 = p0 - pv_1                            # eos_c: same
@@ -77,7 +81,9 @@ def sat_adj(p0, s, qt):
     #Compute saturation mixing ratio
     qv_star_1 = qv_star_c(p0, qt, pv_star_1)    # eos_c: same
 
-     # If not saturated
+    '''
+        (2) Check if saturated or not
+    '''
     if(qt <= qv_star_1 or qv_star_1 < 0.0):
         T = T_1
         ql = 0.0
@@ -87,22 +93,30 @@ def sat_adj(p0, s, qt):
         print("not saturated: (s,qt)=", round(s,2), round(qt,4))
         return T, ql, qi
     else:
+        '''
+            (3) if saturated: calculate second starting point T_2
+        '''
+        ''' ---- s_1 ---- '''
         # print("saturated: start iterations");
         sigma_1 = qt - qv_star_1
         lam_1 = lam_fp(T_1);                # lam_fp gives the liquid fraction for mixed - phase clouds(fraction of supercooled liquid); here lam_fp = 1.0
         L_1 = latent_heat(T_1)              # eos_c: L_1 = L_fp(T_1, lam_1)
         s_1 = sd_c(pd_1,T_1)*(1.0 - qt) + sv_c(pv_1,T_1)*qt + sc_c(L_1,T_1)*sigma_1
         f_1 = s - s_1
+        ''' ---- T_2 ---- '''
         T_2 = T_1 + sigma_1 * L_1 /((1.0 - qt)*cpd + qv_star_1 * cpv)
-        delta_T = np.fabs(T_2 - T_1)
-
-        count = 0
-
         pv_star_2 = get_pv_star(T_2)  # pv_star_2 = lookup(LT, T_2)
+        if pv_star_2 >= p0:
+            T_2 = 350.0
+            pv_star_2 = get_pv_star(T_2)
+
+        delta_T = np.fabs(T_2 - T_1)
         qv_star_2 = qv_star_c(p0, qt, pv_star_2)
         ql_2 = qt - qv_star_2
         lam_2 = lam_fp(T_2)
         # while((delta_T >= 1.0e-3 or ql_2 < 0.0) and count < 2):
+
+        count = 0
         while (delta_T >= 1.0e-3 or ql_2 < 0.0):
             pv_star_2 = get_pv_star(T_2)    # pv_star_2 = lookup(LT, T_2)
             qv_star_2 = qv_star_c(p0, qt, pv_star_2)
@@ -299,7 +313,7 @@ def plot(T,ql,s,qt,name):
     plt.title('ql',fontsize=24)
     plt.xlabel('entropy s',fontsize=18)
     plt.ylabel('qt',fontsize=18)
-    plt.title('ql (min/max: '+np.str(np.round(np.nanmin(ql),1))+', '+np.str(np.round(np.nanmax(ql),1))+')',fontsize=18)
+    plt.title('ql (min/max: '+np.str(np.round(np.nanmin(ql),3))+', '+np.str(np.round(np.nanmax(ql),3))+')',fontsize=18)
     plt.xlabel('entropy s',fontsize=18)
     plt.ylabel('qt',fontsize=18)
     plt.colorbar()
@@ -312,7 +326,7 @@ def plot(T,ql,s,qt,name):
     ax.set_yticklabels(ly,fontsize=9)
 
     plt.subplot(1, 3, 3)
-    levels_ql = np.linspace(0, 50, 250)
+    levels_ql = np.linspace(0, np.amax(ql), 250)
     ax1 = plt.contourf(ql.T, levels=levels_ql)
     ax2 = plt.contour(ql.T,levels=np.append([0.0,0.01,0.02,0.03],np.linspace(0.2,1.0,5)),colors='w')
     plt.clabel(ax2,inline=1)
@@ -320,7 +334,6 @@ def plot(T,ql,s,qt,name):
     plt.xlabel('entropy s',fontsize=18)
     plt.ylabel('qt',fontsize=18)
     plt.colorbar(ax1)
-    
     ax = plt.gca()
     ax.tick_params(direction='out', pad=0)
     labels_x = ax.get_xticks()
