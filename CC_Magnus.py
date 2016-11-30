@@ -116,20 +116,22 @@ def main():
     '''
     for i in xrange(ns):
         for j in xrange(nqt):
-#            if (qt[j]<=qv_star_1[i,j]):
+            # if (qt[j]<=qv_star_1[i,j]):
             if (qt[j]<=qv_star_1[i,j] or qv_star_1[i,j]<0.0):
                 # print("not saturated: (s,qt)=", round(s[i],2), round(qt[j],4))
                 sat_index[i,j] = 0
                 ql = 0.0
                 qi = 0.0
             else:
+                '''
+                    (3) if saturated: calculate second starting point T_2
+                '''
                 print("saturated: (s,qt)=", round(s[i],2), round(qt[j],4), "pv=", pv_1[i,j])
                 sat_index[i,j] = 1.0
+                ''' ---- s_1 ---- '''
                 lam_1 = 1.0
                 L_1 = latent_heat(T_1[i,j])
                 sigma_1[i,j] = qt[j] - qv_star_1[i,j]
-
-                ''' ---- s_1 ---- '''
                 s_1[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j]) + sv_c(pv_1[i,j],T_1[i,j])*qt[j] + sc_c(L_1,T_1[i,j])*sigma_1[i,j]
                 # test
                 sd[i,j] = sd_c(pd_1[i,j],T_1[i,j])*(1.0-qt[j])
@@ -141,7 +143,7 @@ def main():
                 ''' ---- T_2 ---- '''
                 T_2[i,j] = T_1[i,j] + sigma_1[i,j]*L_1 / ((1.0-qt[j])*cpd + qv_star_1[i,j]*cpv)
                 delta_T21[i,j] = np.fabs(T_2[i,j]-T_1[i,j])
-            
+
                 pv_star_2[i,j] = CC_Magnus(T_2[i,j])
                 qv_star_2[i,j] = qv_star_c(p0, qt[j], pv_star_2[i,j])
                 ql_2[i,j] = qt[j] - qv_star_2[i,j]
@@ -152,53 +154,66 @@ def main():
                     print("start while loop (ql_2="+ str(ql_2[i,j])+")" )
                     pv_star_2[i,j] = CC_Magnus(T_2[i,j])
                     qv_star_2[i,j] = qv_star_c(p0,qt[j],pv_star_2[i,j])
+                    ''' ---- s_2 ---- '''
                     pv_2[i,j] = pv_c(p0,qt[j],qv_star_2[i,j])
                     pd_2[i,j] = p0 - pv_2[i,j]
                     # --> qv_star_2 and hence pd_2 can be negative !!!!
-
                     lam_2 = 1.0
                     L_2 = latent_heat(T_2[i,j])
-                    if qv_star_2[i,j]>0:    # equivalent to "if pd_2<0"; problem: sd(pd) not well-defined for pd<0 since sd~log(pd)
-                        ''' ---- s_2 ---- '''
+                    if 1 == 1:
+                    # if qv_star_2[i,j]>0:    # equivalent to "if pd_2<0"; problem: sd(pd) not well-defined for pd<0 since sd~log(pd)
                         s_2[i,j] = sd_c(pd_2[i,j],T_2[i,j])*(1.0 - qt[j]) + sv_c(pv_2[i,j],T_2[i,j])*qt[j] + sc_c(L_2,T_2[i,j])*ql_2[i,j]
-                    
                         f_2 = s[i] - s_2[i,j]
-                        # T_n = T_2[i,j] - f_2*(T_2[i,j] - T_1)/(f_2 - f_1)
-                        # T_1 = T_2[i,j]
-                        # T_2[i,j] = T_n
                         ''' ---- T_3 ---- '''
                         T_3[i,j] = T_2[i,j] - f_2*(T_2[i,j] - T_1[i,j])/(f_2 - f_1)
-                        f_1 = f_2
-                        delta_T32[i,j]  = np.abs(T_3[i,j] - T_2[i,j])
-                        count[i,j] += 1
-                    else:
-                        nan_index2 [i,j] = 1
-                        ''' ???? --> need to define T_3!! what to do?? --> new definition of qv_star_2??? '''
-                        print('!! qv_star_2<0')
-                        T_3[i,j] = T_2[i,j]
-                        delta_T32[i,j]  = np.abs(T_3[i,j] - T_2[i,j])       # will be zero
+                        delta_T32[i, j] = np.abs(T_3[i, j] - T_2[i, j])
+                        count[i, j] += 1
+                    ''''''
+                    if qv_star_2[i,j] < 0:
+                        nan_index2[i,j] = 1
+                    ''''''
+                    # else:
+                    #     nan_index2[i,j] = 1
+                    #     ''' !!!!!!!?????????!!!!!!!!!!!!! '''
+                    #     qv_star_2 = 0.0
+                    #     a = qv_star_2*eps_vi/(1.0-qt)
+                    #     pv_star_2 = a*p0 / (1.0+a)
+                    #     T3 = T_2 + sigma_1 * L_1/((1.0 - qt)*cpd + qv_star_2 * cpv)
+                    #     delta_T = np.fabs(T_2 - T_1)
+                    #     ql_2 = qt-qv_star_2
+                    #                    delta_T = 1e-5
+                    #     ''' !!!!!!!?????????!!!!!!!!!!!!! '''
+                    #
+                    #     ''' ???? --> need to define T_3!! what to do?? --> new definition of qv_star_2??? '''
+                    #     print('!! qv_star_2<0')
+                    #     T_3[i,j] = T_2[i,j]
+                    #     delta_T32[i,j]  = np.abs(T_3[i,j] - T_2[i,j])       # will be zero
             
                 if (delta_T32[i,j] >= 1.0e-3 or ql_2[i,j]<0.0):
                     pv_star_3[i,j] = CC_Magnus(T_3[i,j])
                     qv_star_3[i,j] = qv_star_c(p0,qt[j],pv_star_3[i,j])
+                    ''' ---- s_3 ---- '''
                     pv_3[i,j] = pv_c(p0,qt[j],qv_star_3[i,j])
                     pd_3[i,j] = p0 - pv_3[i,j]
                     
                     lam_2 = 1.0
                     L_3 = latent_heat(T_2[i,j])
-                    if qv_star_3[i,j]>0:
-                        ''' ---- s_3 ---- '''
+                    if 1 == 1:
+                    # if qv_star_3[i,j]>0:
                         s_3[i,j] = sd_c(pd_3[i,j],T_3[i,j])*(1.0 - qt[j]) + sv_c(pv_3[i,j],T_3[i,j])*qt[j] + sc_c(L_3,T_3[i,j])*ql_3[i,j]
-
-                        f_2 = s[i] - s_3[i,j]
+                        f_3 = s[i] - s_3[i,j]
                         ''' ---- T_4 ---- '''
-                        T_4[i,j] = T_3[i,j] - f_2*(T_3[i,j] - T_2[i,j])/(f_2 - f_1)
-                        f_1 = f_2
+                        T_4[i,j] = T_3[i,j] - f_3*(T_3[i,j] - T_2[i,j])/(f_3 - f_2)
                         delta_T43[i,j]  = np.abs(T_4[i,j] - T_3[i,j])
                         count[i,j] += 1
-                    else:
-                        nan_index3 [i,j] = 1
-                        print('!! qv_star_3<0')
+                    # else:
+                    #     nan_index3 [i,j] = 1
+                    #     print('!! qv_star_3<0')
+                    ''''''
+                    if qv_star_3[i, j] < 0:
+                        nan_index3[i, j] = 1
+                    ''''''
+
 
 
     plot_CC_all(T_1,pv_star_1,qv_star_1)
@@ -275,7 +290,7 @@ def plot_sat(sat_index,nan_index,pd_,name):
     ax.set_yticklabels(ly)
     plt.xlabel(r'$s_{init}$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$ moisture',fontsize=12)
-    plt.title('pd-'+name)
+    plt.title('pd_'+name[-1])
     plt.subplot(1,3,2)
     ax1 = plt.contourf(nan_index.T)
     ax2 = plt.contour(pd_.T,levels=[0.0])
@@ -388,7 +403,8 @@ def plot_CC_all_3(T,pv_star_,qv_star_,name):
     global ns, nan_index2, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),250))
+    # ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),250))
+    ax1 = plt.contourf(T.T)
     ax2 = plt.contour(p0-pv_star_.T,levels=[0.0])
     # ax2 = plt.contour(nan_index2.T,levels=[0.0,1.0])
     ax3 = plt.contour(T.T,levels=[int(250),int(300)],colors='w')
@@ -452,7 +468,7 @@ def plot_CC_all_2(T,pv_star_,qv_star_):
     global ns, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(0,np.amax(T),250))
+    ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),250))
     ax2 = plt.contour(p0-pv_star_.T,levels=[0.0])
     ax3 = plt.contour(T.T,levels=[373],colors='w')
     plt.clabel(ax2)
