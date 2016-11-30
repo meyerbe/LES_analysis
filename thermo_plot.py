@@ -7,9 +7,11 @@ from math import *
 from thermo_aux import pv_c
 from thermo_aux import CC_Magnus
 from CC_PyCLES import ClausiusClapeyron
+from thermo_aux import qv_star_c
 
 def main():
-    plot_CC()
+    # plot_CC()
+    plot_qv_sat()
     return
 
 ''' Clausius Clapeyron: Magnus vs. PyCLES: T --> pv_star '''
@@ -75,6 +77,26 @@ def plot_pvsat(T,pv_star):
     plt.ylabel('vapor pressure '+r'$p_v$')
     plt.title('vapor pressure')
     plt.savefig('figures/vapor_pressure.png')
+
+''' Saturation moisture '''
+def plot_qv_sat():
+    qt_ = [0.0, 0.01, 0.02, 0.03, 0.045]
+    p0 = 1e5
+    Tmin = 250
+    Tmax = 371
+    T = np.linspace(Tmin, Tmax, 121)
+    pv_star = CC_Magnus(T)
+
+    plt.figure()
+    for qt in qt_:
+        qv_star = qv_star_c(p0, qt, pv_star)
+        plt.plot(T,qv_star,label='qt='+str(qt),linewidth=2)
+    plt.plot([373,373],[0,np.amin(qv_star)],'k')
+    plt.legend(loc=2)
+    plt.xlabel('Temperature')
+    plt.ylabel('saturation moisture '+r'$q_v^*$')
+    plt.title('saturation moisture')
+    plt.savefig('figures/saturation_moisture.png')
 
 ''' Liquid potential temperature '''
 
