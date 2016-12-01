@@ -48,7 +48,7 @@ Correlations:
 
 
 # Visualization
-Vis: plot from pickle
+Vis: plot from Visualization outputs (pickle files)
 
 Vis_fields: 
     - plot from LES output fields and profiles
