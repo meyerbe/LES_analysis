@@ -78,7 +78,7 @@ def read_in_netcdf(variable_name, fullpath_in):
     shape = var.shape
     print('shape:',var.shape)
     data = np.ndarray(shape = var.shape)
-    
+    data = var[:]
     rootgrp.close()
     return data
 

@@ -13,9 +13,18 @@
 
 
 
-# LES_analysis
+# LES Files
 
 parameters: LES parameters
+
+
+
+# Statistics
+
+EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+
+
+
 
 # IO
 
@@ -29,9 +38,9 @@ read_in_netcdf4: example for reading in NetCDF4 files
 budget_TKE: offline TKE budget computation from LES output (old LES; hdf5 output)
 budget_Th: offline potential temperature budget (potential energy)
 
-thermodynamics_1.py: offline thermodynamic computations (Clausius Clapeyron by Magnus Formula; saturation adjustment) as in LES
-
 compatibility: check compatibility of scalar tracer convergence according to Chr. Schär
+
+
 
 
 
@@ -58,7 +67,8 @@ Vis_fields:
 
 
 # Thermodynamics
-thermodynamics_1: offline saturation adjustment with normal loop --> gives nan in T
+thermodynamics_1: offline saturation adjustment with (Clausius Clapeyron by Magnus Formula; saturation adjustment) as in LES;
+                    normal loop --> gives nan in T
 thermodynamics_2: same as thermodynamics_1, but with correction on first iteration loop (qv_star_1 > 0)
 thermodynamics_3: same as thermodynamics_1, but with additional corrections on all iteration loop (qv_star_i > 0, or equivalently T<373K or pd>0)
 thermodynamics_4: same as thermodynamics_1, but with correction in T_2 --> if pv_star_2>p0: T_2 = 371K
