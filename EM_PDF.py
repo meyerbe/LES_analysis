@@ -90,40 +90,71 @@ def main():
 
     '''
     (1) uni-variate PDF for single variable
-    (2) multi-variate PDF for (s,qt,w)
     '''
-    for var in ['s']:
-        i = 0
-        for d in files:
-            # print('t summing ' + d)
-            fullpath_in = os.path.join(args.path, 'fields', d)
-            # print(fullpath_in)
-
-            data = read_in_netcdf_fields(var,fullpath_in)
-
+    # for var in ['w','s','qt']:
+    #     i = 0
+    #     for d in files:
+    #         # print('t summing ' + d)
+    #         fullpath_in = os.path.join(args.path, 'fields', d)
+    #         print(fullpath_in)
+    #
+    #         data = read_in_netcdf_fields(var,fullpath_in)
+    #         t = np.int(d[0:-3])
     #         # i += 1
     #
-    # Gaussian_mixture(data)
+    #         means = Gaussian_mixture_univariate(data, var, t)
 
-        # plot1D(var, sum, max, average, time_av)
+    '''
+    (2) multi-variate PDF for (s,qt,w)
+    '''
+    for d in files:
+        fullpath_in = os.path.join(args.path, 'fields', d)
+        print(fullpath_in)
+        for var1 in ['w']:
+            data1 = read_in_netcdf_fields(var1,fullpath_in)
+            for var2 in ['s']:
+                data2 = read_in_netcdf_fields(var2, fullpath_in)
 
-    Gaussian_mixture_example_1D()
-    # Gaussian_mixture_example_2D()
-    # Gaussian_mixture_example2()
+                means, covariance = Gaussian_mixture_bivariate(data1, data2, var1, var2, np.int(d[0:-3]))
+
 
 
     return
 
 
 #----------------------------------------------------------------------
-def Gaussian_mixture(data_):
+def Gaussian_mixture_univariate(data_, var_name, time):
     print(data_.shape, (nx*ny), nz)
     data = data_.reshape((nx*ny), nz)
-    print(data.shape)
+    # print('data',data.shape, data[:,0].shape, np.shape(data[:,0].reshape(nx*ny,1)))
 
-    for i in range(0):
-        clf.mixture.GaussianMixture(n_components=2,covariance_type='full')
+    for i in range(1):
+        print('i', i)
+        clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
+        clf.fit(data[:,i].reshape(nx*ny,1))
 
+        n_sample = 100
+        x_max = np.amax(data[:,i])
+        x_min = np.amin(data[:,i])
+        x = np.linspace(x_min,x_max,n_sample).reshape(n_sample,1)
+        score = clf.score_samples(x)
+
+        print(var_name + ': means=' + np.str(clf.means_))
+        print(var_name + ': covar=' + np.str(clf.covariances_))
+
+        plt.subplot(3,1,1)
+        plt.hist(data[:,i])
+        plt.title(var_name + ' (data), t='+str(time)+', z='+str(i*dz))
+        plt.subplot(3,1,2)
+        plt.plot(x, np.exp(score))
+        plt.title('EM fit: likelihood')
+        plt.subplot(3, 1, 3)
+        plt.plot(x, score)
+        # plt.title(var_name)
+        # plt.show()
+        plt.title(np.str(clf.means_))
+        plt.savefig('./figs_EM/EM_PDF_'+var_name+'_'+str(time)+'.png')
+        plt.close()
     # lowest_bic = np.infty
     # bic = []
     # n_components_range = range(1, 7)
@@ -144,240 +175,77 @@ def Gaussian_mixture(data_):
     #             lowest_bic = bic[-1]
     #             best_gmm = gmm
     # bic = np.array(bic)  # convert list to array
-    return
+    return clf.means_
 
-
-def Gaussian_mixture_example_1D():
-    print('Gaussian mixture example 1D')
-    n_samples = 100
-    np.random.seed(0)
-    A = np.random.randn(n_samples).reshape(n_samples,1)
-    print(A)
-    B, bin_edges = np.histogram(A,bins=10)
-    # print(B)
-    # print(bin_edges)
-
-    clf_1 = mixture.GaussianMixture(n_components=1,covariance_type='full')
-    clf_1.fit(A)
-    D_1 = clf_1.sample(n_samples=10)
-    # print(type(D), D)
-    # print(D[0])
-    # plt.plot(D[0],'-x')
-    clf_2 = mixture.GaussianMixture(n_components=2, covariance_type='full')
-    clf_2.fit(A)
-    D_2 = clf_2.sample(n_samples=10)
-
-    n = 41
-    x = np.linspace(-3,3,n).reshape(n,1)
-    E_1 = -clf_1.score_samples(x)
-    E_2 = -clf_2.score_samples(x)
-    F_1 = clf_1.score(x)        # log-likelihood for whole sample
-    F_2 = clf_2.score(x)
-    print('F_1', np.exp(F_1))
-
-    plt.subplot(3,1,1)
-    plt.hist(A)
-    plt.subplot(3,1,2)
-    plt.plot(x, np.exp(-E_1), label='1 comp')
-    plt.plot(x, np.exp(-E_2), label='2 comp')
-    # plt.ylim([-0,1])
-    plt.subplot(3,1,3)
-    # plt.plot(x,F_1,label='1 comp')
-    # plt.plot(x,F_2, label='2 comp')
-    plt.plot(x, E_1, label='1 comp')
-    plt.plot(x, E_2, label='2 comp')
-    plt.yscale('log')
-    plt.legend(loc=4)
-    plt.show()
-
-    print('end')
-
-    return
-
-# http://scikit-learn.org/stable/auto_examples/mixture/plot_gmm_pdf.html#sphx-glr-auto-examples-mixture-plot-gmm-pdf-py
-def Gaussian_mixture_example_2D():
-    print('Gaussian mixture example 2D')
-    # (1) generate random sample (two gaussian PDF) as training data
-    n_samples = 300
-    np.random.seed(0)
-    A = np.random.randn(n_samples,2) + np.array([20,20])     # shift gaussian data
-    aux = np.array([[0.,-0.7],[3.5,.7]])
-    B = np.dot(np.random.randn(n_samples, 2), aux)              # stretched gaussian data
-    C = np.vstack([A,B])            # C.shape=(600,2)
-    print('C', C.shape)
-
-    # (2) fit GMM with two components
-    '''mixture.GaussianMixture.fit'''
-    clf = mixture.GaussianMixture(n_components=2, covariance_type='full')
-    clf.fit(C)
-
-    # (3) displace model predictions (evaluate EM-PDF)
-    '''mixture.GaussianMixture.score_samples'''
-    x = np.linspace(-20.,30.)
-    y = np.linspace(-20.,40.)
-    X,Y = np.meshgrid(x,y)
-    XY = np.array([X.ravel(),Y.ravel()]).T
-    Z = -clf.score_samples(XY)
-    Z = Z.reshape(X.shape)
-
-    plt.scatter(C[:, 0], C[:, 1], .8)  # training data
-    CS = plt.contour(X,Y,Z,norm=LogNorm(vmin=1.0,vmax=1000.0),levels=np.logspace(0,3,10))   # model prediction
-
-    plt.colorbar(CS, shrink=0.8, extend='both')
-    plt.title('Negative log-likelihood predicted by a GMM')
-    plt.axis('tight')
-
-    plt.show()
-
-    return
-
-
-
-# iterate over different number of components
-def Gaussian_mixture_example2():
-    # Number of samples per component
-    n_samples = 500
-
-    np.random.seed(0)
-    C = np.array([[0.,-0.1],[1.7,0.4]])
-    print(C)
-    '''numpy.r_: Translates slice objects to concatenation along the first axis.'''
-    b = np.random.randn(n_samples,2)
-    v1 = np.dot(b,C)    # dot product
-    print('b', b.shape, C.shape, v1.shape)
-    d = 0.7*np.random.randn(n_samples,2)
-    e = np.array([-6,3])
-    v2 = d + e
-    print(d.shape, e.shape, v2.shape)
-    X = np.r_[v1,v2]    # concatenate arrays
-
-    lowest_bic = np.infty
-    bic = []
-    n_components_range = range(1,7)     # number of gaussians in superposition
-    cv_types = ['spherical', 'tied', 'diag', 'full']
-    for cv_type in cv_types:
-        for n_components in n_components_range:
-            '''mixture.GaussianMixture'''
-            gmm = mixture.GaussianMixture(n_components=n_components,
-                                          covariance_type=cv_type)
-            '''GaussianMixture.fit'''
-            gmm.fit(X)
-            '''GaussianMixture.gmm: use BIC for avoiding under-/overfitting data'''
-            bic.append(gmm.bic(X))
-            if bic[-1] < lowest_bic:
-                lowest_bic = bic[-1]
-                best_gmm = gmm
-    bic = np.array(bic)     # convert list to array
-
-    bars = []
-    # plotting
-    pl1 = plt.subplot(2,1,1)
-    plt.xticks(n_components_range)
-
-    pl2 = plt.subplot(2,1,2)
-    '''GaussianMixture.predict'''
-    clf = best_gmm
-    Y_ = clf.predict(X)
-    m1 = clf.means_
-    m2 = clf.covariances_
-    plt.xticks(())      # no xticks and tick-labels
-    plt.yticks(())
-
-    plt.show()
-
-
-
-
-    return
-#----------------------------------------------------------------------
-def plot1D(var_name, sum_, max_, average_, time_av_):
-    global ntot, time
-    print('time', time)
-    plt.figure(figsize=(16,5))
-    plt.subplot(1,4,1)
-    plt.plot(sum_/ntot,linewidth=3,label=r'sum/n$_{tot}$')
-    plt.plot(average_,'x',label='average')
-    plt.plot(max_,linewidth=3,label='max')
-    plt.title(var_name + ': (average, maximum)')
-    plt.legend(loc=2,fontsize=10)
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(int(labels.shape[0])):
-        labels[i] = time[i + 1]
-    ax.set_xticklabels(labels, fontsize=8)
-    plt.xlabel('time [s]')
-
-    plt.subplot(1, 4, 2)
-    # plt.plot(sum_)
-    # plt.plot((sum_-average_*ntot),'r',linewidth=3,label='deviation')
-    plt.plot(sum_,linewidth=3,label='sum')
-    plt.plot(time_av_*np.ones(sum_.shape[0]),'-x', linewidth=3,label=r'<sum>$_t$')
-    # plt.plot(sum_/average_,linewidth=3,label='sum')
-    # plt.plot(ntot*np.ones(sum_.shape[0]),'-x', linewidth=3,label='average*Ntot')
-    plt.legend(loc=2,fontsize=10)
-    plt.title(var_name+r': sum vs. <sum>$_t$')
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(int(labels.shape[0])):
-        labels[i] = int(time[i + 1])
-    ax.set_xticklabels(labels, fontsize=8)
-    plt.xlabel('time [s]')
-
-    plt.subplot(1, 4, 3)
-    plt.plot(sum_/ntot, linewidth=3, label=r'sum/n$_{tot}$')
-    plt.plot(time_av_/ntot * np.ones(sum_.shape[0]), '-x', linewidth=3, label=r'<sum/n$_{tot}$>$_t$')
-    plt.legend(loc=2,fontsize=10)
-    plt.title(var_name + r': sum/n$_{tot}$ vs. <sum/n$_{tot}$>$_t$')
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(int(labels.shape[0])):
-        labels[i] = int(time[i + 1])
-    ax.set_xticklabels(labels, fontsize=8)
-    plt.xlabel('time [s]')
-
-    plt.subplot(1, 4,4)
-    plt.plot((sum_-sum_[0])/sum_[0]*100, linewidth=3, label=r'(sum-sum[t$_0$])/sum[t$_0$]*100')
-    plt.legend(loc=2, fontsize=10)
-    plt.title(var_name + r': $\Delta$sum [%]')
-    ax = plt.gca()
-    ax.tick_params(direction='out', pad=0)
-    labels = ax.get_xticks()
-    for i in range(int(labels.shape[0])):
-        labels[i] = int(time[i + 1])
-    ax.set_xticklabels(labels, fontsize=8)
-    plt.xlabel('time [s]')
-    # plt.show()
-    plt.savefig(fullpath_out + 'conservation_' + var_name + '.png')
-    plt.close()
-    return
 
 #----------------------------------------------------------------------
-def test_compatibility(data1,data2):
-    #    global nx
-    phimax = -9999.99
-    phimin = 9999.99
-    for i in xrange(1,nx-1):
-        print(i)
-        for j in xrange(1,ny-1):
-            for k in xrange(1,nz-1):
-                for di in xrange(-1,2):
-                    for dj in xrange(-1,2):
-                        for dk in xrange(-1,2):
-                            a = data1[i+di,j+dj,k+dk]
-                            if a<phimin:
-                                phimin = a
-                            elif a>max:
-                                phimax = a
-                if data2[i,j,k] < phimin:
-                    print('problem min')
-                elif data2[i,j,k] > phimax:
-                    print('problem max')
+def Gaussian_mixture_bivariate(data1_, data2_, var_name1, var_name2, time):
+    print(data1_.shape, (nx*ny), nz)
+    data1 = data1_.reshape((nx*ny), nz)
+    data2 = data2_.reshape((nx * ny), nz)
+    data = np.ndarray(shape=((nx*ny),2))
 
-    #phimin = min(data1[i+di,j+dj,k+dk])
-    return
+    print('nnnz', dz)
+    a = np.int(nz/2)
+    for i in np.linspace(0,nz-1,a):
+    # for i in range(nz):
+        print('i', i)
+        data[:,0] = data1[:,i]
+        data[:,1] = data2[:,i]
+
+        clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
+        clf.fit(data)
+        print('means=' + np.str(clf.means_))
+        print('covar=' + np.str(clf.covariances_))
+
+        # Plotting
+        n_sample = 100
+        x1_max = np.amax(data1[:,i])
+        x1_min = np.amin(data1[:,i])
+        x2_max = np.amax(data2[:,i])
+        x2_min = np.amin(data2[:,i])
+        x = np.linspace(x1_min,x1_max,n_sample)
+        y = np.linspace(x2_min,x2_max,n_sample)
+        X, Y = np.meshgrid(x,y)
+        XX = np.array([X.ravel(),Y.ravel()]).T
+        Z = clf.score_samples(XX).reshape(X.shape)
+
+        plt.figure(figsize=(8,16))
+        plt.subplot(3,1,1)
+        plt.scatter(data[:,0], data[:,1], s=5, alpha=0.5)
+        plt.title(var_name1 + var_name2 + ' (data), t='+str(time)+', z='+str(i*dz))
+        # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
+        ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
+        plt.colorbar(ax1,shrink=0.8)
+        plt.xlabel('w [m/s]')
+        plt.ylabel('entropy s [K]')
+        plt.subplot(3,1,2)
+        # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
+        # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
+        # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+        ax1 = plt.contourf(X,Y,np.exp(Z))
+        plt.colorbar(ax1,shrink=0.8)
+        plt.title('EM fit: likelihood')
+        plt.xlabel('w [m/s]')
+        plt.ylabel('entropy s [K]')
+        plt.subplot(3, 1, 3)
+        plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.4)
+        ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
+        plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
+        plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+        plt.colorbar(ax1, shrink=0.8)
+        # plt.title(var_name)
+        # plt.title(np.str(clf.means_))
+        plt.xlabel('w [m/s]')
+        plt.ylabel('entropy s [K]')
+        plt.savefig('./figs_EM/EM_PDF_bivariate_'+var_name1+'_'+var_name2+'_'+str(time)+'_z'+str(np.int(i*dz))+'.png')
+        plt.close()
+
+    return clf.means_, clf.covariances_
+
+
+
+
 
 #----------------------------------------------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
