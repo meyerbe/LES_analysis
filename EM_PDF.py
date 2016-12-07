@@ -222,7 +222,7 @@ def Gaussian_mixture_univariate(data, var_name, time, z):
         plt.subplot(3, 1, 3)
         plt.plot(x, score)
         # plt.title(np.str(clf.means_))
-        plt.savefig('./figs_EM/EM_PDF_'+var_name+'_'+str(time)+'_z'+str(np.int(z))+'.png')
+        plt.savefig('./figures_EM/EM_PDF_'+var_name+'_'+str(time)+'_z'+str(np.int(z))+'.png')
         plt.close()
 
     return clf.means_, clf.covariances_
@@ -276,7 +276,7 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     # plt.title(np.str(clf.means_))
     plt.xlabel('w [m/s]')
     plt.ylabel('entropy s [K]')
-    plt.savefig('./figs_EM/EM_PDF_bivariate_'+var_name1+'_'+var_name2+'_'+str(time)+'_z'+str(np.int(z))+'.png')
+    plt.savefig('./figures_EM/EM_PDF_bivariate_'+var_name1+'_'+var_name2+'_'+str(time)+'_z'+str(np.int(z))+'.png')
     plt.close()
 
     return clf.means_, clf.covariances_
@@ -378,7 +378,7 @@ def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
     # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
     # plt.xlabel('w [m/s]')
     # plt.ylabel('entropy s [K]')
-    plt.savefig('./figs_EM/EM_PDF_trivariate_'+var_name1+'_'+var_name2+'_'+var_name3+'_'+str(time)+'_z'+'.png')
+    plt.savefig('./figures_EM/EM_PDF_trivariate_'+var_name1+'_'+var_name2+'_'+var_name3+'_'+str(time)+'_z'+'.png')
     plt.close()
     # plt.show()
 
