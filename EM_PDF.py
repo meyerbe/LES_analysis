@@ -60,6 +60,7 @@ def main():
 
     case_name = 'Bomex'
     nml = simplejson.loads(open(args.path + case_name + '.in').read())
+    global dz
     dx = nml['grid']['dx']
     dy = nml['grid']['dy']
     dz = nml['grid']['dz']
@@ -88,34 +89,59 @@ def main():
         time = np.sort(np.append(time, np.int(d[0:-3])))
     # print(time)
 
+    # (5) IO
+    # (a) create file for eddy fields
+    var_list = ['w','s','qt']
+    for d in files:
+        time = np.int(d[0:-3])
+        nc_file_name = 'EM2_' + str(time)
+        create_statistics_file(fullpath_out, nc_file_name)
+
     '''
     (1) uni-variate PDF for single variable
     '''
-    # for var in ['w','s','qt']:
-    #     i = 0
-    #     for d in files:
-    #         # print('t summing ' + d)
-    #         fullpath_in = os.path.join(args.path, 'fields', d)
-    #         print(fullpath_in)
-    #
-    #         data = read_in_netcdf_fields(var,fullpath_in)
-    #         t = np.int(d[0:-3])
-    #         # i += 1
-    #
-    #         means = Gaussian_mixture_univariate(data, var, t)
+    data = np.ndarray(shape=((nx*ny),1))
+    zrange= range(0,30,10)
+    # means = np.ndarray(shape=(np.len(varlist)))
+    for var in var_list:
+        i = 0
+        for d in files:
+            t = np.int(d[0:-3])
+            # print('t summing ' + d)
+            fullpath_in = os.path.join(args.path, 'fields', d)
+            print(fullpath_in)
+            data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
+            for i in zrange:
+                data[:,0] = data_[:,i]
+                means, covariance = Gaussian_mixture_univariate(data, var, t, i*dz)
+
+                # # (b) dump eddy fields
+                # #    add_field(os.path.join(out_path,nc_file_name+'.nc'), var_name)
+                # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'means', u_eddy)
+                # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'v_eddy', v_eddy)
+                # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'w_eddy', w_eddy)
+                # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'phi_eddy', phi_eddy)
 
     '''
     (2) multi-variate PDF for (s,qt,w)
     '''
+    data = np.ndarray(shape=((nx*ny),2))
+    zrange= range(0,np.int(nz*dz), np.int(5*dz))
+    print('zrange', zrange)
+    zrange = np.asarray(zrange)/dz
+    print('zrange', zrange)
     for d in files:
         fullpath_in = os.path.join(args.path, 'fields', d)
         print(fullpath_in)
         for var1 in ['w']:
-            data1 = read_in_netcdf_fields(var1,fullpath_in)
+            data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
             for var2 in ['s']:
-                data2 = read_in_netcdf_fields(var2, fullpath_in)
+                data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
+                for i in range(0,nz,5):
+                    data[:,0] = data1_[:,i]
+                    data[:,1] = data2_[:, i]
 
-                means, covariance = Gaussian_mixture_bivariate(data1, data2, var1, var2, np.int(d[0:-3]))
+                    means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
 
 
 
@@ -123,11 +149,7 @@ def main():
 
 
 #----------------------------------------------------------------------
-def Gaussian_mixture_univariate(data_, var_name, time):
-    print(data_.shape, (nx*ny), nz)
-    data = data_.reshape((nx*ny), nz)
-    # print('data',data.shape, data[:,0].shape, np.shape(data[:,0].reshape(nx*ny,1)))
-
+def Gaussian_mixture_univariate(data, var_name, time, z):
     for i in range(1):
         print('i', i)
         clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
@@ -143,18 +165,22 @@ def Gaussian_mixture_univariate(data_, var_name, time):
         print(var_name + ': covar=' + np.str(clf.covariances_))
 
         plt.subplot(3,1,1)
-        plt.hist(data[:,i])
-        plt.title(var_name + ' (data), t='+str(time)+', z='+str(i*dz))
+        plt.hist(data)
+        plt.title(var_name + ' (data), t='+str(time)+', z='+str(z))
         plt.subplot(3,1,2)
         plt.plot(x, np.exp(score))
+        plt.plot([clf.means_[0], clf.means_[0]], [0, np.amax(np.exp(score))], 'k')
+        plt.plot([clf.means_[1],clf.means_[1]],[0,np.amax(np.exp(score))],'k')
+        plt.plot([clf.means_[0]-clf.covariances_[0,0], clf.means_[0]+clf.covariances_[0,0]], [np.amax(np.exp(score))/2, np.amax(np.exp(score))/2], 'k')
+        plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],[np.amax(np.exp(score)) / 2, np.amax(np.exp(score)) / 2], 'k')
         plt.title('EM fit: likelihood')
         plt.subplot(3, 1, 3)
         plt.plot(x, score)
-        # plt.title(var_name)
-        # plt.show()
-        plt.title(np.str(clf.means_))
-        plt.savefig('./figs_EM/EM_PDF_'+var_name+'_'+str(time)+'.png')
+        # plt.title(np.str(clf.means_))
+        plt.savefig('./figs_EM/EM_PDF_'+var_name+'_'+str(time)+'_z'+str(np.int(z))+'.png')
         plt.close()
+
+
     # lowest_bic = np.infty
     # bic = []
     # n_components_range = range(1, 7)
@@ -175,76 +201,109 @@ def Gaussian_mixture_univariate(data_, var_name, time):
     #             lowest_bic = bic[-1]
     #             best_gmm = gmm
     # bic = np.array(bic)  # convert list to array
-    return clf.means_
+    return clf.means_, clf.covariances_
 
 
 #----------------------------------------------------------------------
-def Gaussian_mixture_bivariate(data1_, data2_, var_name1, var_name2, time):
-    print(data1_.shape, (nx*ny), nz)
-    data1 = data1_.reshape((nx*ny), nz)
-    data2 = data2_.reshape((nx * ny), nz)
-    data = np.ndarray(shape=((nx*ny),2))
+def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
+    clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
+    clf.fit(data)
+    print('means=' + np.str(clf.means_))
+    print('covar=' + np.str(clf.covariances_))
 
-    print('nnnz', dz)
-    a = np.int(nz/2)
-    for i in np.linspace(0,nz-1,a):
-    # for i in range(nz):
-        print('i', i)
-        data[:,0] = data1[:,i]
-        data[:,1] = data2[:,i]
+    # Plotting
+    n_sample = 100
+    x1_max = np.amax(data[:,0])
+    x1_min = np.amin(data[:,0])
+    x2_max = np.amax(data[:,1])
+    x2_min = np.amin(data[:,1])
+    x = np.linspace(x1_min,x1_max,n_sample)
+    y = np.linspace(x2_min,x2_max,n_sample)
+    X, Y = np.meshgrid(x,y)
+    XX = np.array([X.ravel(),Y.ravel()]).T
+    Z = clf.score_samples(XX).reshape(X.shape)
 
-        clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
-        clf.fit(data)
-        print('means=' + np.str(clf.means_))
-        print('covar=' + np.str(clf.covariances_))
-
-        # Plotting
-        n_sample = 100
-        x1_max = np.amax(data1[:,i])
-        x1_min = np.amin(data1[:,i])
-        x2_max = np.amax(data2[:,i])
-        x2_min = np.amin(data2[:,i])
-        x = np.linspace(x1_min,x1_max,n_sample)
-        y = np.linspace(x2_min,x2_max,n_sample)
-        X, Y = np.meshgrid(x,y)
-        XX = np.array([X.ravel(),Y.ravel()]).T
-        Z = clf.score_samples(XX).reshape(X.shape)
-
-        plt.figure(figsize=(8,16))
-        plt.subplot(3,1,1)
-        plt.scatter(data[:,0], data[:,1], s=5, alpha=0.5)
-        plt.title(var_name1 + var_name2 + ' (data), t='+str(time)+', z='+str(i*dz))
-        # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
-        ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
-        plt.colorbar(ax1,shrink=0.8)
-        plt.xlabel('w [m/s]')
-        plt.ylabel('entropy s [K]')
-        plt.subplot(3,1,2)
-        # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
-        # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
-        # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
-        ax1 = plt.contourf(X,Y,np.exp(Z))
-        plt.colorbar(ax1,shrink=0.8)
-        plt.title('EM fit: likelihood')
-        plt.xlabel('w [m/s]')
-        plt.ylabel('entropy s [K]')
-        plt.subplot(3, 1, 3)
-        plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.4)
-        ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
-        plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
-        plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
-        plt.colorbar(ax1, shrink=0.8)
-        # plt.title(var_name)
-        # plt.title(np.str(clf.means_))
-        plt.xlabel('w [m/s]')
-        plt.ylabel('entropy s [K]')
-        plt.savefig('./figs_EM/EM_PDF_bivariate_'+var_name1+'_'+var_name2+'_'+str(time)+'_z'+str(np.int(i*dz))+'.png')
-        plt.close()
+    plt.figure(figsize=(8,16))
+    plt.subplot(3,1,1)
+    plt.scatter(data[:,0], data[:,1], s=5, alpha=0.5)
+    plt.title(var_name1 + var_name2 + ' (data), t='+str(time)+', z='+str(z))
+    # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
+    ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1,shrink=0.8)
+    plt.xlabel('w [m/s]')
+    plt.ylabel('entropy s [K]')
+    plt.subplot(3,1,2)
+    # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
+    # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
+    # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+    ax1 = plt.contourf(X,Y,np.exp(Z))
+    plt.colorbar(ax1,shrink=0.8)
+    plt.title('EM fit: likelihood')
+    plt.xlabel('w [m/s]')
+    plt.ylabel('entropy s [K]')
+    plt.subplot(3, 1, 3)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.4)
+    ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
+    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
+    plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+    plt.colorbar(ax1, shrink=0.8)
+    # plt.title(var_name)
+    # plt.title(np.str(clf.means_))
+    plt.xlabel('w [m/s]')
+    plt.ylabel('entropy s [K]')
+    plt.savefig('./figs_EM/EM_PDF_bivariate_'+var_name1+'_'+var_name2+'_'+str(time)+'_z'+str(np.int(z))+'.png')
+    plt.close()
 
     return clf.means_, clf.covariances_
 
 
+# ____________________
 
+def create_statistics_file(path,file_name):
+    print('create file:', path)
+    rootgrp = nc.Dataset(path+file_name+'.nc', 'w', format='NETCDF4')
+    dimgrp = rootgrp.createGroup('dims')
+    fieldgrp = rootgrp.createGroup('means')
+    fieldgrp = rootgrp.createGroup('covariances')
+    fieldgrp.createDimension('n',nx*ny*nz)
+    fieldgrp.createDimension('nx', nx)
+    fieldgrp.createDimension('ny', ny)
+    fieldgrp.createDimension('nz', nz)
+    rootgrp.close()
+    print('create file end')
+    return
+
+def dump_variables(path, var_name, var):
+    print('dump variables', path, var_name, var.shape)
+    data = np.empty((n[0],n[1],n[2]),dtype=np.double,order='c')
+    #        double[:] data = np.empty((Gr.dims.npl,), dtype=np.double, order='c')
+    add_field(path, var_name)
+    for i in range(0, n[0]):
+        for j in range(0, n[1]):
+            for k in range(0, n[2]):
+                data[i,j,k] = var[i,j,k]
+    write_field(path,var_name, data)
+    return
+
+def add_field(path, var_name):
+    print('add field: ', var_name)
+#    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    rootgrp = nc.Dataset(path, 'r+')
+    fieldgrp = rootgrp.groups['fields']
+    #    fieldgrp.createVariable(var_name, 'f8', ('n'))
+    var = fieldgrp.createVariable(var_name, 'f8', ('nx', 'ny', 'nz'))
+    rootgrp.close()
+    return
+
+def write_field(path, var_name, data):
+    print('write field:', path, var_name, data.shape)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups['fields']
+    var = fieldgrp.variables[var_name]
+    #    var[:] = np.array(data)
+    var[:, :, :] = data
+    rootgrp.close()
+    return
 
 
 #----------------------------------------------------------------------
