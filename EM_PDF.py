@@ -51,6 +51,14 @@ Methods:
 - score_samples(X): Generate random samples from the fitted Gaussian distribution.
 - set_params
 
+--------------------
+Input:
+3D fields at given time-step
+
+Output:
+means(z) = [m1(z),m2(z)] --> shape = nz x ncomp x nvar
+covars(z) = [[c11(z),c12(z)],[c21(z),c22(z)]] --> shape = nz x ncomp x nvar x nvar
+
 '''
 
 def main():
@@ -96,34 +104,34 @@ def main():
     '''
     (1) uni-variate PDF for single variable
     '''
-    # data = np.ndarray(shape=((nx*ny),1))
-    # # ---
-    # ncomp = 2
-    # nvar = 1
-    # means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    # covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    # print('means: ', means_.shape)
-    # # ---
-    # for d in files:
-    #     nc_file_name = 'EM2_univar_' + str(d)
-    #     create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
-    #     fullpath_in = os.path.join(args.path, 'fields', d)
-    #     print('fullpath_in', fullpath_in)
-    #     for var in var_list:
-    #         print('.....varvarvar', var)
-    #         data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
-    #         count = 0
-    #         for i in zrange:
-    #             data[:,0] = data_[:,i]
-    #             means, covariance = Gaussian_mixture_univariate(data, var, np.int(d[0:-3]), i*dz)
-    #             # ______________
-    #             means_[count,:,0] = means[:,0]
-    #             covariance_[count,0,0,0] = covariance[0]
-    #             covariance_[count,1,0,0] = covariance[1]
-    #             count += 1
-    #
-    #         dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var, ncomp, nvar, len(zrange))
-    #         dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var, ncomp, nvar, len(zrange))
+    data = np.ndarray(shape=((nx*ny),1))
+    # ---
+    ncomp = 2
+    nvar = 1
+    means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    print('means: ', means_.shape)
+    # ---
+    for d in files:
+        nc_file_name = 'EM2_univar_' + str(d)
+        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+        fullpath_in = os.path.join(args.path, 'fields', d)
+        print('fullpath_in', fullpath_in)
+        for var in var_list:
+            print('.....varvarvar', var)
+            data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
+            count = 0
+            for i in zrange:
+                data[:,0] = data_[:,i]
+                means, covariance = Gaussian_mixture_univariate(data, var, np.int(d[0:-3]), i*dz)
+                # ______________
+                means_[count,:,0] = means[:,0]
+                covariance_[count,0,0,0] = covariance[0]
+                covariance_[count,1,0,0] = covariance[1]
+                count += 1
+
+            dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var, ncomp, nvar, len(zrange))
+            dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var, ncomp, nvar, len(zrange))
 
 
     '''

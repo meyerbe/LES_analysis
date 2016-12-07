@@ -1,4 +1,4 @@
-# import netCDF4 as nc
+import netCDF4 as nc
 import argparse
 import os
 import json as  simplejson
@@ -8,7 +8,9 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import itertools
 from scipy import linalg
-# from sklearn import mixture
+from sklearn import mixture
+
+from arfit_py import arfit
 
 
 label_size = 8
@@ -20,19 +22,25 @@ plt.rcParams['ytick.labelsize'] = label_size
 Read in: parameters from Gaussian Mixture Model (means, stochastic, relative weights)
 
 Calculation:
-linear stochastic model for transition
+linear stochastic model for transition (auto-regression (AR) model)
 (a) from one time-step to the next at a given point in space
 (b) from one level to the next at a given time step
 --> compute transformation matrix A and stochastic noise term
 
-Method for Computing stochastic model:
-- AR model: autoregressive model
-- eigenmodes of estimated autoregressive (AR) models of first order
+AR model: autoregressive model
 v_n = w + (A_1*v_1 + ... + A_{n-1}*v_{n-1}) + eps_n
-v_n: state vector at time t_n
-w: vector of intercept terms (allows non-zero mean)
-A_i: coefficient methods (i=1, ..n-1)
-eps_n: noise term (uncorrelated random vectors)
+    v_n: state vector at time t_n
+    w: vector of intercept terms (allows non-zero mean)
+    A_i: coefficient methods (i=1, ..n-1)
+    eps_n(C): noise term (uncorrelated random vectors)
+
+Method for computing AR model:
+(1) estimpate model parameters p, A_i, w, C
+    (a) model order p: order selection criterion
+    (b) A_i, w: least squares method
+    (c) C = residual covariance matrix of the estimated model
+
+- eigenmodes of estimated autoregressive (AR) models of first order
 '''
 
 def main():
@@ -43,11 +51,39 @@ def main():
     case_name = 'Bomex'
     read_in_nml(args.path, case_name)
 
-    var = 'w'
-    means = read_in(var, 'means', fullpath_in)
-    var = 'ws'
-    covar = read_in(var, 'covariances', fullpath_in)
+    # '''(1a) Read in Univariate'''
+    # fullpath_in = os.path.join(in_path,'EM2_univar_3600.nc')
+    # print('fullpath_in', fullpath_in)
+    # var = 'w'
+    # means = read_in_netcdf(var, 'means', fullpath_in)
+    # covar = read_in_netcdf(var, 'covariances', fullpath_in)
+    # print(means.shape, covar.shape)
+    # nz_, ncomp, nvar = means.shape
+    # print(nz_, ncomp, nvar)
+    #
+    # '''(2) AR(1) Model'''
+    # # for uni-variate EM2 model: state-vector v = [means1,means2,covar1,covar2]
+    # # transition from t1=3600s to t2=7200s at fixed height z0
+    #
+    # # v = np.ndarray(shape=(ncomp*(1+)))
+    # # for i in range(ncomp):
+    # i_z = 0
+    # i_var = 0
+    # # (a) state vector
+    # v = [means[i_z,0,i_var],means[i_z,1,i_var],covar[i_z,0,i_var,i_var],covar[i_z,1,i_var,i_var]]
 
+    # -----
+    pmin = 1
+    pmax = 2
+    v = np.zeros(shape=(10,2))
+    arfit(v,pmin,pmax)
+    # -----
+
+
+
+
+    '''(3) Eigendecomposition of AR(1)'''
+    # v_n = A*v_{n-1} + eps_n
 
 
     # global time
@@ -124,6 +160,11 @@ def main():
 
 # ____________________
 
+
+
+
+
+
 def create_statistics_file(path,file_name):
     print('create file:', path)
     rootgrp = nc.Dataset(path+file_name+'.nc', 'w', format='NETCDF4')
@@ -183,30 +224,44 @@ def read_in_netcdf_fields(variable_name, fullpath_in):
     rootgrp.close()
     return data
 
+
+# ----------------------------------------------------------------------
+def read_in_netcdf(variable_name, group_name, fullpath_in):
+    rootgrp = nc.Dataset(fullpath_in, 'r')
+    var = rootgrp.groups[group_name].variables[variable_name]
+
+    shape = var.shape
+    # print('shape:',var.shape)
+    data = np.ndarray(shape=var.shape)
+    data = var[:]
+    rootgrp.close()
+    return data
+
+
 #----------------------------------------------------------------------
 def read_in(variable_name, group_name, fullpath_in):
-    # f = File(fullpath_in)
+    f = File(fullpath_in)
     
-    # #Get access to the profiles group
-    # group = f[group_name]
-    # #Get access to the variable dataset
-    # variable_dataset = group[variable_name]
-    # #Get the current shape of the dataset
-    # variable_dataset_shape = variable_dataset.shape
-    #
-    # variable = np.ndarray(shape = variable_dataset_shape)
-    # for t in range(variable_dataset_shape[0]):
-    #     if group_name == "timeseries":
-    #         variable[t] = variable_dataset[t]
-    #     elif group_name == "profiles":
-    #         variable[t,:] = variable_dataset[t, :]
-    #     elif group_name == "correlations":
-    #         variable[t,:] = variable_dataset[t, :]
-    #     elif group_name == "fields":
-    #         variable[t] = variable_dataset[t]
-    #
-    # f.close()
-    # return variable
+    #Get access to the profiles group
+    group = f[group_name]
+    #Get access to the variable dataset
+    variable_dataset = group[variable_name]
+    #Get the current shape of the dataset
+    variable_dataset_shape = variable_dataset.shape
+
+    variable = np.ndarray(shape = variable_dataset_shape)
+    for t in range(variable_dataset_shape[0]):
+        if group_name == "timeseries":
+            variable[t] = variable_dataset[t]
+        elif group_name == "profiles":
+            variable[t,:] = variable_dataset[t, :]
+        elif group_name == "correlations":
+            variable[t,:] = variable_dataset[t, :]
+        elif group_name == "fields":
+            variable[t] = variable_dataset[t]
+
+    f.close()
+    return variable
     return
 
 #----------------------------------------------------------------------
@@ -225,10 +280,10 @@ def read_in_nml(path, case_name):
     global dt
     # dt = np.int(args.time2) - np.int(args.time1)
     # print('dt', dt)
-    global fullpath_out
-    fullpath_out = path
-    global fullpath_in
-    fullpath_in = path
+    global out_path
+    out_path = path
+    global in_path
+    in_path = path
 
 
 #----------------------------------------------------------------------
