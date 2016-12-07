@@ -116,6 +116,15 @@ def main():
                 levels = np.linspace(-1e-6, 1, 100)
                 # print('levels:', levels)
                 plot_data(var, var_name)
+
+                # var_name = 'qt'
+                # print(var_name)
+                # # print('data:', data[var_name].shape)
+                # var = data[var_name]
+                # levels = np.linspace(0.0,0.02, 100)
+                # # print('levels:', levels)
+                # plot_data(var, var_name)
+                # plot_data_levels(var,var_name,levels)
             except:
                 continue
 
@@ -165,11 +174,38 @@ def read_in(variable_name, group_name, fullpath_in):
 
 
 # ----------------------------------------------------------------------
-def plot_data(data, var_name):
-    print(data.shape)
+
+def plot_data_levels_cont(var_field,var_name_field,levels_field,var_cont,var_name_cont,levels_cont):
+    print('cont print')
     plt.figure()
-    # plt.contourf(data.T, levels = level)
-    plt.contourf(data.T)
+    if var_name_field == 'w':
+        ax1 = plt.contourf(var_field.T, cmap=cm.bwr, levels=levels_field)
+    else:
+        ax1 = plt.contourf(var_field.T, levels=levels_field)
+    ax2 = plt.contour(var_cont.T, levels=levels_cont,colors='k')
+    ax3 = plt.contour(var_cont.T, levels=[0.018,0.02], colors='b',linewidths=1)
+    plt.clabel(ax2,inline=1)
+    plt.colorbar(ax1,shrink=0.8)
+    plt.colorbar(ax3,shrink=0.8)
+    plt.title(var_name_field + ', (t=' + np.str(t) + 's)')
+    plt.xlabel('x (dx=' + np.str(dx) + 'm)')
+    plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
+    # plt.savefig(fullpath_out + 'phi/' + var_name + '_' + file_name + '.png')
+    print('hoi')
+    path = fullpath_out + var_name_field + '_cont_' + file_name + '.png'
+    print('hohioi')
+    print('out: ', fullpath_out + var_name_field + '_cont_' + file_name + '.png')
+    plt.savefig(fullpath_out + var_name_field + '_cont_' + file_name + '.png')
+    plt.title(var_name)
+
+
+def plot_data(data, var_name):
+    # print(data.shape)
+    plt.figure()
+    if var_name == 'w':
+        plt.contourf(data.T,cmap = cm.bwr)
+    else:
+        plt.contourf(data.T)
     # plt.show()
     plt.colorbar()
     plt.title(var_name + ', (t=' + np.str(t) + 's)')
@@ -180,10 +216,15 @@ def plot_data(data, var_name):
     plt.title(var_name)
 
 
-def plot_data_levels(data, var_name, level):
-    print(data.shape)
+def plot_data_levels(data, var_name, levels_):
+    # print(data.shape)
     plt.figure()
-    plt.contourf(data.T, levels=level)
+    if var_name == 'w':
+        print('bwr')
+        # plt.contourf(data.T, levels=levels_, cmap=plt.cm.bwr)
+        plt.contourf(data.T, cmap=cm.bwr, levels=levels_)
+    else:
+        plt.contourf(data.T, levels=levels_)
     # plt.contourf(data.T)
     # plt.show()
     plt.colorbar()
