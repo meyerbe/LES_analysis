@@ -22,8 +22,9 @@ parameters: LES parameters
 # Statistics
 
 EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
-
-
+EM_PDF_stochastic: Fit an auto-regression (AR) model to the EM PDFs
+    - arfit_py.py
+    - arqr_py.py: QR decomposition
 
 
 # IO
