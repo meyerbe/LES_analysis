@@ -75,8 +75,12 @@ def main():
     # -----
     pmin = 1
     pmax = 2
-    v = np.zeros(shape=(10,2))
+    v = np.ones(shape=(10,2))
+    v[:,1] = np.linspace(0,9,10)
+    v[:,0] = np.linspace(0, 9, 10)
+    print(v)
     arfit(v,pmin,pmax)
+
     # -----
 
 

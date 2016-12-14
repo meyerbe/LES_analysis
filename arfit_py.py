@@ -1,5 +1,6 @@
 import sys
 from arqr_py import arqr
+from arord_py import arord
 
 '''
 %ARFIT	Stepwise least squares estimation of multivariate AR model.
@@ -54,7 +55,8 @@ from arqr_py import arqr
 # def function [w, A, C, sbc, fpe, th]=arfit(v, pmin, pmax, selector, no_const):
 def arfit(v, pmin, pmax, selector='sbc',no_const=1):
     # n: number of observations; m: dimension of state vectors
-    [n,m]   = v.shape;
+    [n,m]   = v.shape
+    print('n,m', n,m)
 
     if (pmin != round(pmin) or pmax != round(pmax)):
         print('Order must be integer.')
@@ -89,14 +91,13 @@ def arfit(v, pmin, pmax, selector='sbc',no_const=1):
         sys.exit()
 
     # (1) compute QR factorization for model of order pmax
-    # !!!
-    arqr(v, pmax, mcor)
-    # [R, scale] = arqr(v, pmax, mcor)
-    # !!!
+    [R, scale] = arqr(v, pmax, mcor)
+    # print('R', R)
 
-    # compute approximate order selection criteria for models
+    # (2) compute approximate order selection criteria for models
     # of order pmin:pmax
     # [sbc, fpe]   = arord(R, m, mcor, ne, pmin, pmax);
+    arord(R, m, mcor, ne, pmin, pmax)
 
     # get index iopt of order that minimizes the order selection
     # criterion specified by the variable selector
