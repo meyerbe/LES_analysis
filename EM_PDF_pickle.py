@@ -105,15 +105,16 @@ def main():
     nvar = 1
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    print('means: ', means_.shape)
+    out_dict = {}       # for pickle output
     # ---
     for d in files:
         nc_file_name = 'EM2_univar_' + str(d)
+        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
         create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
         fullpath_in = os.path.join(args.path, 'fields', d)
         print('fullpath_in', fullpath_in)
         for var in var_list:
-            pkl_file_name = 'EM2_univar_' + var + '_' + str(d[0:-3]) + '.pkl'
+            pkl_file_name_var = 'EM2_univar_' + var + '_' + str(d[0:-3]) + '.pkl'
             print('')
             print('...............varvarvar...............', var)
             data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
@@ -136,45 +137,30 @@ def main():
             # Python Dictionary = 'associative memories' or 'associative arrays'
             #   - indexed by keys
             #   - unordered set of 'key:value' pairs
-            out_dict = {}
-            out_dict['means'] = np.array(means_, dtype=np.double)
-            out_dict['covars'] = np.array(covariance_, dtype=np.double)
-            dump_pickle(out_dict, fullpath_out, pkl_file_name)
-            test_pickle(fullpath_out,pkl_file_name)
+            # out_dict = {}
+            var_dict = {}
+            var_dict['means'] = np.array(means_, dtype=np.double)
+            var_dict['covars'] = np.array(covariance_, dtype=np.double)
+            out_dict[var] = var_dict
+
+            dump_pickle(var_dict, fullpath_out, pkl_file_name_var)
+            test_pickle(fullpath_out, pkl_file_name_var)
+        dump_pickle(out_dict, fullpath_out, pkl_file_name)
+        test_pickle2(fullpath_out, pkl_file_name)
 
 
-    # '''
-    # (2) bi-variate PDF for (s,qt,w)
-    # '''
-    # # ncomp = 2
-    # # nvar = 2
-    # # data = np.ndarray(shape=((nx * ny), nvar))
-    # # means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    # # covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    # # # ---
-    # # for d in files:
-    # #     nc_file_name = 'EM2_bivar_' + str(d)
-    # #     create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
-    # #
-    # #     fullpath_in = os.path.join(args.path, 'fields', d)
-    # #     print(fullpath_in)
-    # #     for var1 in var_list:
-    # #         data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
-    # #         for var2 in var_list:
-    # #             data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
-    # #             count = 0
-    # #             for i in zrange:
-    # #                 data[:,0] = data1_[:,i]
-    # #                 data[:,1] = data2_[:, i]
-    # #
-    # #                 means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
-    # #
-    # #                 means_[count, :, :] = means[:, :]
-    # #                 covariance_[count,:,:,:] = covariance[:,:,:]
-    # #                 count += 1
-    # #
-    # #             dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
-    # #             dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
+    '''
+    (2) bi-variate PDF for (s,qt,w)
+    '''
+    # ncomp = 2
+    # nvar = 2
+    # data = np.ndarray(shape=((nx * ny), nvar))
+    # means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    # covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    # # ---
+    # for d in files:
+    #     nc_file_name = 'EM2_bivar_' + str(d)
+    #     create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
     #
     # # '''
     # # (3) tri - variate PDF for (s, qt, w)
@@ -414,16 +400,41 @@ def dump_pickle(data,out_path,file_name):
 def test_pickle(in_path,file_name):
     print ''
     print '------- test pickle ------'
+    print file_name
     fullpath_in = os.path.join(in_path,file_name)
     f = open(fullpath_in)
     data = pickle.load(f)
     print(data)
+    print data.keys()
+    print(data['means'])
+    print ''
+
     # var_name = 'means'
     # var = data[var_name]
     # print(var)
     print '-------------------------'
     print ''
     return
+
+def test_pickle2(in_path,file_name):
+    print ''
+    print '------- test pickle 2 ------'
+    print file_name
+    fullpath_in = os.path.join(in_path,file_name)
+    f = open(fullpath_in)
+    data = pickle.load(f)
+    print(data)
+    print data.keys()
+    print ''
+    var = data['w']
+    print(var)
+    print var.keys()
+    means = var['means']
+    print(means)
+    print '-------------------------'
+    print ''
+    return
+
 
 # ____________________
 

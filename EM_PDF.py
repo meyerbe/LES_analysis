@@ -116,6 +116,7 @@ def main():
         fullpath_in = os.path.join(args.path, 'fields', d)
         print('fullpath_in', fullpath_in)
         for var in var_list:
+            # pkl_file_name_var = 'EM2_univar_' + var + '_' + str(d[0:-3]) + '.pkl'
             print('')
             print('...............varvarvar...............', var)
             data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
@@ -143,8 +144,11 @@ def main():
             var_dict['means'] = np.array(means_, dtype=np.double)
             var_dict['covars'] = np.array(covariance_, dtype=np.double)
             out_dict[var] = var_dict
-            dump_pickle(out_dict, fullpath_out, pkl_file_name)
-            test_pickle(fullpath_out,pkl_file_name)
+
+            # dump_pickle(var_dict, fullpath_out, pkl_file_name_var)
+            # test_pickle(fullpath_out, pkl_file_name_var)
+        dump_pickle(out_dict, fullpath_out, pkl_file_name)
+        test_pickle(fullpath_out,pkl_file_name)
 
 
     '''
