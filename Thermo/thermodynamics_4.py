@@ -106,7 +106,9 @@ def sat_adj(p0, s, qt):
         ''' ---- T_2 ---- '''
         T_2 = T_1 + sigma_1 * L_1 /((1.0 - qt)*cpd + qv_star_1 * cpv)
         pv_star_2 = get_pv_star(T_2)  # pv_star_2 = lookup(LT, T_2)
-        if pv_star_2 >= p0:
+        # if pv_star_2 >= p0:
+        if T_2 >= 350:
+            print('correction: ', T_2)
             T_2 = 350.0
             pv_star_2 = get_pv_star(T_2)
 
