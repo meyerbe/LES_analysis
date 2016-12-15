@@ -5,6 +5,8 @@ import json as  simplejson
 import pylab as plt
 from matplotlib.colors import LogNorm
 
+import pickle
+
 import numpy as np
 import itertools
 from scipy import linalg
@@ -67,16 +69,7 @@ def main():
     args = parser.parse_args()
     # ______________________
     case_name = 'Bomex'
-    nml = simplejson.loads(open(args.path + case_name + '.in').read())
-    global dz
-    dx = nml['grid']['dx']
-    dy = nml['grid']['dy']
-    dz = nml['grid']['dz']
-    global nx, ny, nz, ntot
-    nx = nml['grid']['nx']
-    ny = nml['grid']['ny']
-    nz = nml['grid']['nz']
-    ntot = nx*ny*nz
+    read_in_nml(args.path, case_name)
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
     global fullpath_out
     fullpath_out = args.path
@@ -92,12 +85,16 @@ def main():
     #     time[i] = d[0:-3]
     for d in files:
         time = np.sort(np.append(time, np.int(d[0:-3])))
-    # print(time)
     # ______________________
+    # ______________________
+    '''
+    zrange:     z-values for which the PDF is fitted
+    var_list:   list of variables that are included in (multi-variate) PDF
+    '''
     zrange = range(0, 10, 10)
     print('zrange', zrange)
-    # ______________________
-    var_list = ['w','s','qt']
+    # var_list = ['w','s','qt']
+    var_list = ['w','s']
 
 
 
@@ -110,15 +107,17 @@ def main():
     nvar = 1
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    print('means: ', means_.shape)
+    out_dict = {}       # for pickle output
     # ---
     for d in files:
         nc_file_name = 'EM2_univar_' + str(d)
+        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
         create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
         fullpath_in = os.path.join(args.path, 'fields', d)
         print('fullpath_in', fullpath_in)
         for var in var_list:
-            print('.....varvarvar', var)
+            print('')
+            print('...............varvarvar...............', var)
             data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
             count = 0
             for i in zrange:
@@ -130,8 +129,22 @@ def main():
                 covariance_[count,1,0,0] = covariance[1]
                 count += 1
 
+            # print(os.path.join(fullpath_out, nc_file_name))
             dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var, ncomp, nvar, len(zrange))
             dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var, ncomp, nvar, len(zrange))
+            print('...............varvarvar...............', var)
+            print('')
+
+            # Python Dictionary = 'associative memories' or 'associative arrays'
+            #   - indexed by keys
+            #   - unordered set of 'key:value' pairs
+            # out_dict = {}
+            var_dict = {}
+            var_dict['means'] = np.array(means_, dtype=np.double)
+            var_dict['covars'] = np.array(covariance_, dtype=np.double)
+            out_dict[var] = var_dict
+            dump_pickle(out_dict, fullpath_out, pkl_file_name)
+            test_pickle(fullpath_out,pkl_file_name)
 
 
     '''
@@ -167,35 +180,35 @@ def main():
     #             dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
     #             dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
 
-    '''
-    (3) tri - variate PDF for (s, qt, w)
-    '''
-    ncomp = 2
-    nvar = 3
-    data = np.ndarray(shape=((nx * ny), nvar))
-    means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    print('means: ', means_.shape)
-    # ---
-    for d in files:
-        nc_file_name = 'EM2_bivar_' + str(d)
-        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
-
-        fullpath_in = os.path.join(args.path, 'fields', d)
-        print(fullpath_in)
-        for var1 in ['w']:
-            data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
-            for var2 in ['s']:
-                data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
-                for var3 in ['qt']:
-                    data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
-                    for i in zrange:
-                        data[:,0] = data1_[:,i]
-                        data[:,1] = data2_[:,i]
-                        data[:,2] = data3_[:,i]
-                        print('.........', i*dz)
-                        means, covariance = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), i*dz)
-
+    # '''
+    # (3) tri - variate PDF for (s, qt, w)
+    # '''
+    # ncomp = 2
+    # nvar = 3
+    # data = np.ndarray(shape=((nx * ny), nvar))
+    # means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    # covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    # print('means: ', means_.shape)
+    # # ---
+    # for d in files:
+    #     nc_file_name = 'EM2_bivar_' + str(d)
+    #     create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+    #
+    #     fullpath_in = os.path.join(args.path, 'fields', d)
+    #     print(fullpath_in)
+    #     for var1 in ['w']:
+    #         data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
+    #         for var2 in ['s']:
+    #             data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
+    #             for var3 in ['qt']:
+    #                 data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
+    #                 for i in zrange:
+    #                     data[:,0] = data1_[:,i]
+    #                     data[:,1] = data2_[:,i]
+    #                     data[:,2] = data3_[:,i]
+    #                     print('.........', i*dz)
+    #                     means, covariance = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), i*dz)
+    #
 
 
     return
@@ -394,13 +407,39 @@ def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
 
 
 # ____________________
+def dump_pickle(data,out_path,file_name):
+    data_ = (1.4,42)
+    # output = open(os.path.join(out_path,'data.pkl'), 'w')
+    output = open(os.path.join(out_path, file_name), 'w')
+    pickle.dump(data, output)
+    output.close()
+    return
+
+def test_pickle(in_path,file_name):
+    print ''
+    print '------- test pickle ------'
+    fullpath_in = os.path.join(in_path,file_name)
+    f = open(fullpath_in)
+    data = pickle.load(f)
+    print(data)
+    print ''
+    var = data['w']
+    print(var)
+    print
+    ''
+    means_ = var['means']
+    print(means_)
+    print '-------------------------'
+    print ''
+    return
+
 # ____________________
 
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
     print('create file:', path, file_name)
-    rootgrp = nc.Dataset(path+file_name, 'w', format='NETCDF4')
+    rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
     cov_grp = rootgrp.createGroup('covariances')
@@ -415,7 +454,8 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     return
 
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-    print('dump variable', path, var_name, data_.shape, ncomp, nvar)
+    print('--------')
+    print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
     if group_name == 'means':
         add_means(path, var_name, ncomp, nvar)
         data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
@@ -423,6 +463,8 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
             for j in range(ncomp):
                 for k in range(nvar):
                     data[i,j,k] = data_[i,j,k]
+        write_mean(path, group_name, data, var_name)
+
     elif group_name == 'covariances':
         add_covariance(path, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp, nvar, nvar), dtype=np.double, order='c')
@@ -431,8 +473,12 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
                 for k1 in range(nvar):
                     for k2 in range(nvar):
                         data[i, j, k1, k2] = data_[i, j, k1, k2]
-    write_field(path, group_name, data, var_name)
+        write_covar(path, group_name, data, var_name)
+
+    # write_field(path, group_name, data, var_name)
+    print('--------')
     return
+
 
 def add_means(path, var_name, ncomp, nvar):
     print('add means: ', var_name, path)
@@ -453,16 +499,48 @@ def add_covariance(path, var_name, ncomp, nvar):
     return
 
 
-def write_field(path, group_name, data, var_name):
+def write_mean(path, group_name, data, var_name):
     print('write field:', path, var_name, data.shape)
     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     fieldgrp = rootgrp.groups[group_name]
-    # var = fieldgrp.variables[var_name]
-    #    var[:] = np.array(data)
+    var = fieldgrp.variables[var_name]
+    var[:, :, :] = data[:,:,:]
+    rootgrp.close()
+    return
+
+def write_covar(path, group_name, data, var_name):
+    print('write field:', path, var_name, data.shape)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    var = fieldgrp.variables[var_name]
+    var[:, :, :,:] = data[:, :, :,:]
+    rootgrp.close()
+    return
+
+def write_field(path, group_name, data, var_name):
+    print('')
+    print('write field:', path, var_name, data.shape, group_name)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    # print('fieldgrp', fieldgrp)
+    var = fieldgrp.variables[var_name]
+    # var = data
+       # var[:] = np.array(data)
     # var[:, :, :] = data
     rootgrp.close()
     return
 
+# ----------------------------------------------------------------------
+def read_in_netcdf(variable_name, group_name, fullpath_in):
+    rootgrp = nc.Dataset(fullpath_in, 'r')
+    var = rootgrp.groups[group_name].variables[variable_name]
+
+    shape = var.shape
+    # print('shape:',var.shape)
+    data = np.ndarray(shape=var.shape)
+    data = var[:]
+    rootgrp.close()
+    return data
 
 #----------------------------------------------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
@@ -501,7 +579,29 @@ def read_in(variable_name, group_name, fullpath_in):
     f.close()
     return variable
 
+#----------------------------------------------------------------------
+def read_in_nml(path, case_name):
+    nml = simplejson.loads(open(os.path.join(path,case_name + '.in')).read())
+    global dx, dy, dz
+    dx = nml['grid']['dx']
+    dy = nml['grid']['dy']
+    dz = nml['grid']['dz']
+    global nx, ny, nz, ntot
+    nx = nml['grid']['nx']
+    ny = nml['grid']['ny']
+    nz = nml['grid']['nz']
+    ntot = nx*ny*nz
+    print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
+    global dt
+    # dt = np.int(args.time2) - np.int(args.time1)
+    # print('dt', dt)
+    global out_path
+    out_path = path
+    global in_path
+    in_path = path
 
+
+#----------------------------------------------------------------------
 
 
 if __name__ == "__main__":
