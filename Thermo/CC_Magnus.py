@@ -34,7 +34,7 @@ def main():
     from thermo_aux import pv_c, qv_star_c
     ns = 150
     nqt = 100
-    s = np.linspace(6800,7400,ns)
+    s = np.linspace(6800,7300,ns)
     qt = np.linspace(0.0,0.05,nqt)
     qv = np.zeros((ns,nqt))
     pd_1 = np.zeros((ns,nqt))
@@ -68,12 +68,12 @@ def main():
     pd_3 = np.zeros((ns,nqt))
     ql_3 = np.zeros((ns,nqt))
     
-    # test variables
+    # -- test variables
     sd = np.zeros((ns,nqt))
     sv = np.zeros((ns,nqt))
     sc = np.zeros((ns,nqt))
     cpd_ = np.zeros((ns,nqt))
-    #
+    # --
     global nan_index, sat_index, nan_index2
     global plt_count
     plt_count = 1
@@ -116,8 +116,8 @@ def main():
     '''
     for i in xrange(ns):
         for j in xrange(nqt):
-            # if (qt[j]<=qv_star_1[i,j]):
-            if (qt[j]<=qv_star_1[i,j] or qv_star_1[i,j]<0.0):
+            if (qt[j]<=qv_star_1[i,j]):
+            # if (qt[j]<=qv_star_1[i,j] or qv_star_1[i,j]<0.0):
                 # print("not saturated: (s,qt)=", round(s[i],2), round(qt[j],4))
                 sat_index[i,j] = 0
                 ql = 0.0
@@ -221,7 +221,7 @@ def main():
     plot_sigma(sigma_1)
     plot_cp(cpd_,'cpd_tilde')
     plot_1D(L_1*sigma_1/cpd_,'sigma_1_cpd')
-    plot_CC_all_2(T_2,pv_star_2,qv_star_2)
+    plot_CC_all_2(T_2,pv_star_2,qv_star_2,pd_2)
     plot_temp(delta_T21,'deltaT_12')
     plot_sat(sat_index,nan_index,pd_1,'index1')
     plot_CC_all_3(T_3,pv_star_3,qv_star_3,'T3')
@@ -464,18 +464,19 @@ def plot_CC_all_3(T,pv_star_,qv_star_,name):
     plt_count += 1
     return
 
-def plot_CC_all_2(T,pv_star_,qv_star_):
+def plot_CC_all_2(T,pv_star_,qv_star_,pd_):
     global ns, plt_count
     plt.figure(figsize=(20,5))
     plt.subplot(1,4,1)
-    ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),250))
-    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0])
-    ax3 = plt.contour(T.T,levels=[373],colors='w')
+    ax1 = plt.contourf(T.T,levels=np.linspace(np.amin(T),np.amax(T),500))
+    print('!!! max(T)', np.amax(T))
+    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0],linewidths=3)
+    ax3 = plt.contour(T.T,levels=[0.0,373],colors='w',linewidths=2)
     plt.clabel(ax2)
     plt.clabel(ax3,inline=1)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
     plt.ylabel(r'$q_t$'+' moisture',fontsize=12)
-    plt.title('temperature T2 (no ql)',fontsize=15)
+    plt.title(r'temperature $T_2$',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -484,25 +485,39 @@ def plot_CC_all_2(T,pv_star_,qv_star_):
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
     plt.subplot(1,4,2)
-    ax1 = plt.contourf(pv_star_.T)
-    ax2 = plt.contour(pv_star_.T , levels = [1e5], text='1e5')
+    # ax1 = plt.contourf(pv_star_.T)
+    # ax2 = plt.contour(pv_star_.T , levels = [1e5], text='1e5')
+    # plt.clabel(ax2,inline=1)
+    # plt.colorbar(ax1)
+    # plt.xlabel(r'$s$'+' entropy',fontsize=12)
+    # plt.title('Magnus Formula: '+r'$p_{v,2}^*$',fontsize=15)
+    # ax = plt.gca()
+    # labels_x = ax.get_xticks().astype(int)
+    # labels_y = ax.get_yticks()
+    # lx, ly = set_ticks(labels_x,labels_y)
+    # ax.set_xticklabels(lx)
+    # ax.set_yticklabels(ly)
+    # plt.subplot(1,4,3)
+    ax1 = plt.contourf(p0-pv_star_.T)
+    ax2 = plt.contour(p0-pv_star_.T , levels = [0.0])
     plt.clabel(ax2,inline=1)
-    plt.colorbar(ax1)
+    #plt.contour(1e5)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('Magnus Formula: '+r'$p_{v,2}^*$',fontsize=15)
+    plt.title(r'$p_0-p_{v,2}^*$ (Magnus Formula)',fontsize=15)
+    plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
     labels_y = ax.get_yticks()
     lx, ly = set_ticks(labels_x,labels_y)
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
+    # plt.subplot(1,4,4)
     plt.subplot(1,4,3)
-    ax1 = plt.contourf(p0-pv_star_.T)
-    ax2 = plt.contour(p0-pv_star_.T , levels = [0.0])
-    plt.clabel(ax2,inline=1)
-    #plt.contour(1e5)
+    ax1 = plt.contourf(qv_star_.T,levels=np.linspace(-10,10,250))
+    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0], linewidths=3)
+    plt.clabel(ax2, inline=1)
     plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('p0-pv_star_2',fontsize=15)
+    plt.title(r'$q_{v,2}^*$',fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
@@ -511,15 +526,18 @@ def plot_CC_all_2(T,pv_star_,qv_star_):
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
     plt.subplot(1,4,4)
-    ax1 = plt.contourf(qv_star_.T,levels=np.linspace(-10,10,250))
-    ax2 = plt.contour(p0-pv_star_.T,levels=[0.0],linewidth=2)
-    plt.xlabel(r'$s$'+' entropy',fontsize=12)
-    plt.title('qv_star_2',fontsize=15)
+    ax1 = plt.contourf(pd_.T)
+    ax2 = plt.contour(p0 - pv_star_.T, levels=[0.0], linewidths=3)
+    ax3 = plt.contour(pd_.T, levels=[0.0], colors='w', linewidths=1)
+    plt.clabel(ax2, inline=1)
+    plt.clabel(ax3, inline=1)
+    plt.xlabel(r'$s$' + ' entropy', fontsize=12)
+    plt.title(r'partial pressure: $p_{d,2}^*$', fontsize=15)
     plt.colorbar(ax1)
     ax = plt.gca()
     labels_x = ax.get_xticks().astype(int)
     labels_y = ax.get_yticks()
-    lx, ly = set_ticks(labels_x,labels_y)
+    lx, ly = set_ticks(labels_x, labels_y)
     ax.set_xticklabels(lx)
     ax.set_yticklabels(ly)
     plt.savefig('figures/'+str(plt_count)+'_CC_all_Magnus_secondguess.png')
