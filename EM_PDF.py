@@ -91,7 +91,7 @@ def main():
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    zrange = range(0, 10, 10)
+    zrange = map(int,np.linspace(0, 8, 5))
     print('zrange', zrange)
     # var_list = ['w','s','qt']
     var_list = ['w','s']
@@ -120,19 +120,23 @@ def main():
             print('')
             print('...............varvarvar...............', var)
             data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
-            count = 0
-            for i in zrange:
-                data[:,0] = data_[:,i]
-                means, covariance = Gaussian_mixture_univariate(data, var, np.int(d[0:-3]), i*dz)
+            # count = 0
+            for i in range(len(zrange)):
+                iz = zrange[i]
+                # print(zrange, i, iz)
+                data[:,0] = data_[:,iz]
+                means, covariance = Gaussian_mixture_univariate(data, var, np.int(d[0:-3]), iz)
                 # ______________
-                means_[count,:,0] = means[:,0]
-                covariance_[count,0,0,0] = covariance[0]
-                covariance_[count,1,0,0] = covariance[1]
-                count += 1
+                means_[i,:,0] = means[:,0]
+                covariance_[i,0,0,0] = covariance[0]
+                covariance_[i,1,0,0] = covariance[1]
+                # count += 1
+
 
             # print(os.path.join(fullpath_out, nc_file_name))
             dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var, ncomp, nvar, len(zrange))
             dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var, ncomp, nvar, len(zrange))
+            print(means_.shape, len(zrange))
             print('...............varvarvar...............', var)
             print('')
 
@@ -219,9 +223,11 @@ def main():
 
 
 #----------------------------------------------------------------------
-def Gaussian_mixture_univariate(data, var_name, time, z):
+def Gaussian_mixture_univariate(data, var_name, time, iz):
     for i in range(1):
+        print('Gaussian mixture: '+ var_name + ', height: '+np.str(iz*dz))
         clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
+
         clf.fit(data[:,i].reshape(nx*ny,1))
 
         n_sample = 100
@@ -230,13 +236,13 @@ def Gaussian_mixture_univariate(data, var_name, time, z):
         x = np.linspace(x_min,x_max,n_sample).reshape(n_sample,1)
         score = clf.score_samples(x)
 
-        print(var_name + ': means=' + np.str(clf.means_))
-        print(var_name + ': covar=' + np.str(clf.covariances_))
-        print(clf.means_.shape, clf.covariances_.shape)
+        # print(var_name + ': means=' + np.str(clf.means_))
+        # print(var_name + ': covar=' + np.str(clf.covariances_))
+        # print(var_name + ': ', clf.means_.shape, clf.covariances_.shape)
 
         plt.subplot(3,1,1)
         plt.hist(data)
-        plt.title(var_name + ' (data), t='+str(time)+', z='+str(z))
+        plt.title(var_name + ' (data), t='+str(time)+', z='+str(iz*dz))
         plt.subplot(3,1,2)
         plt.plot(x, np.exp(score))
         plt.plot([clf.means_[0], clf.means_[0]], [0, np.amax(np.exp(score))], 'k')
@@ -247,7 +253,7 @@ def Gaussian_mixture_univariate(data, var_name, time, z):
         plt.subplot(3, 1, 3)
         plt.plot(x, score)
         # plt.title(np.str(clf.means_))
-        plt.savefig('./figures_EM/EM_PDF_'+var_name+'_'+str(time)+'_z'+str(np.int(z))+'.png')
+        plt.savefig('./figures_EM/EM_PDF_'+var_name+'_'+str(time)+'_z'+str(np.int(iz*dz))+'.png')
         plt.close()
 
     return clf.means_, clf.covariances_
@@ -596,6 +602,8 @@ def read_in_nml(path, case_name):
     nz = nml['grid']['nz']
     ntot = nx*ny*nz
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
+    dz = nml['grid']['dz']
+    print('dz: ', dz)
     global dt
     # dt = np.int(args.time2) - np.int(args.time1)
     # print('dt', dt)
