@@ -4,11 +4,15 @@ import os
 import json as  simplejson
 import pylab as plt
 from matplotlib.colors import LogNorm
+import pickle
+
 
 import numpy as np
 import itertools
-from scipy import linalg
-from sklearn import mixture
+# from scipy import linalg
+# from sklearn import mixture
+from Stats.VAR_LES import var_modeling
+import statsmodels as sm
 
 from arfit_py import arfit
 
@@ -47,20 +51,159 @@ def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
     args = parser.parse_args()
-
+    # ______________________
     case_name = 'Bomex'
     read_in_nml(args.path, case_name)
+    # ______________________
+    in_path = args.path
+    files = os.listdir(os.path.join(args.path, 'fields'))
+    N = len(files)
+    print('Found the following directories', files, N)
+    # ______________________
 
-    # '''(1a) Read in Univariate'''
-    # fullpath_in = os.path.join(in_path,'EM2_univar_3600.nc')
-    # print('fullpath_in', fullpath_in)
-    # var = 'w'
-    # means = read_in_netcdf(var, 'means', fullpath_in)
-    # covar = read_in_netcdf(var, 'covariances', fullpath_in)
-    # print(means.shape, covar.shape)
-    # nz_, ncomp, nvar = means.shape
-    # print(nz_, ncomp, nvar)
-    #
+
+    # ------------------------------------------------------------------------------------------
+    '''Using Example Data'''
+    # ------------------------------------------------------------------------------------------
+    mdata = sm.datasets.macrodata.load().data
+
+
+
+    # ------------------------------------------------------------------------------------------
+    '''
+    Using statistics:
+    means = nz x ncomp x nvar
+    covariance = nz x ncomp x nvar x nvar
+    nobs:     number of observations (time steps or levels)
+    nphi:     number of parameters of PDFs
+    '''
+    # ------------------------------------------------------------------------------------------
+
+
+    '''(1) Read in EM2, Univariate'''
+
+    # ----------------------
+    print '............'
+    # get shape
+    nc_file_name = 'EM2_univar_' + str(files[0])
+    print 'nc file-name: ' + str(nc_file_name)
+    means = read_in_netcdf('w', 'means', os.path.join(in_path, nc_file_name))
+    nz_, ncomp, nvar = means.shape
+    print('nz, ncomp, nvar', nz_, ncomp, nvar)
+    print '............'
+    # ----------------------
+
+    '''(a) using time-steps as observables'''
+    # do separately for each variable
+    nobs = len(files)  # here number of timesteps
+    nphi = 2*ncomp      # number of parameters for univariate PDF: nphi=2*ncomp
+    # nphi = means.shape[1] + covar.shape[1]  # for univariate PDF nvar=2*ncomp
+    arr = np.ndarray(shape=(nobs, nphi))
+    phi = np.zeros(shape=(len(files),2*nvar*ncomp))
+    # print('phi', phi.shape)
+
+    '''read in nc-files'''
+    var = 's'
+    z0 = 0
+    count = 0
+    for d in files:
+        nc_file_name = 'EM2_univar_' + str(d)
+        fullpath_in = os.path.join(in_path, nc_file_name)
+        print('fullpath_in', fullpath_in)
+        means = read_in_netcdf(var, 'means', fullpath_in)
+        covar = read_in_netcdf(var, 'covariances', fullpath_in)
+        phi1 = means[z0, :].reshape(means[z0, :].size)
+        phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
+        phi[count,:] = np.concatenate((phi1, phi2))
+        # phi = np.concatenate((means[z0, :].reshape(means[z0, :].size), covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)))
+        # print means.shape
+        # print covar.shape
+        # print phi.shape
+        print(means.shape, covar.shape)
+        print(phi1.shape, phi2.shape)
+        print(phi.shape)
+        print '............'
+
+        arr[count, 0:2] = means[z0, :, 0]
+        arr[count, 2:4] = covar[z0, :, 0,0]
+        count += 1
+    print arr.shape, type(arr)
+    # var_modeling(arr)
+
+
+    '''read in pickles-files'''
+    count = 0
+    arr = np.ndarray(shape=(nobs,nphi))
+    for d in files:
+        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
+        fullpath_in = os.path.join(in_path, pkl_file_name)
+        print('fullpath_in', fullpath_in)
+        print '............'
+        data_var = read_in_pickle(var, fullpath_in)
+        means = data_var['means']
+        covar = data_var['covars']
+        # means = read_in_pickle(var, 'means', fullpath_in)
+        # covar = read_in_pickle(var, 'covars', fullpath_in)
+        phi1 = means[z0, :].reshape(means[z0, :].size)
+        phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
+        phi[count, :] = np.concatenate((phi1, phi2))
+        # # phi = np.concatenate((means[z0, :].reshape(means[z0, :].size), covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)))
+        # print covar.shape
+        # print phi.shape
+        # print phi
+        # print(arr.shape)
+        # print(arr[count, 0:2].shape)
+        # print means.shape
+        # print(means[z0, :, 0].shape)
+        arr[count, 0:2] = means[z0, :, 0]
+        arr[count, 2:4] = covar[z0, :, 0, 0]
+        count += 1
+
+    # var_modeling(arr)
+    print '............'
+
+    # for d in files:
+    #     pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
+    #     fullpath_in = os.path.join(in_path, pkl_file_name)
+    #     print 'xxxxxxxxxxx'
+    #     # statsmodels.iolib.smpickle.load_pickle('test/EM2_univar_7200.pkl')
+    #     f = sm.iolib.smpickle.load_pickle(fullpath_in)
+    #     # df = sm.datasets.get_rdataset("Guerry", "HistData").data
+    #     print f
+    #     print 'xxxxxxxxxxx'
+
+
+
+    '''(b) using levels as observables'''
+    nobs = means.shape[0]                   # here number of z
+    nphi = means.shape[1] + covar.shape[1]  # for univariate PDF nvar=2*ncomp
+    arr = np.ndarray(shape=(nobs, nphi))
+    phi = np.zeros(shape=(len(files), 2 * nvar * ncomp))
+    print('phi', phi.shape)
+
+    '''read in pickles-files'''
+    count = 0
+    for d in files:
+        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
+        fullpath_in = os.path.join(in_path, pkl_file_name)
+        print('fullpath_in', fullpath_in)
+        print
+        '............'
+        data_var = read_in_pickle(var, fullpath_in)
+        means = data_var['means']
+        covar = data_var['covars']
+        print('shape', means.shape)
+
+        # do separately for each variable
+        arr[:, 0:2] = means[:, :, 0]
+        arr[:, 2:4] = covar[:, :, 0, 0]
+        print('arr: ', arr.shape)
+
+        var_modeling(arr,3)
+    print '............'
+
+
+
     # '''(2) AR(1) Model'''
     # # for uni-variate EM2 model: state-vector v = [means1,means2,covar1,covar2]
     # # transition from t1=3600s to t2=7200s at fixed height z0
@@ -72,100 +215,55 @@ def main():
     # # (a) state vector
     # v = [means[i_z,0,i_var],means[i_z,1,i_var],covar[i_z,0,i_var,i_var],covar[i_z,1,i_var,i_var]]
 
-    # -----
+    # '''(3) Eigendecomposition of AR(1)'''
+    # v_n = A*v_{n-1} + eps_n
+
+
+
+    # ------------------------------
+    # ------------------------------
     pmin = 1
     pmax = 2
     v = np.ones(shape=(10,2))
     v[:,1] = np.linspace(0,9,10)
     v[:,0] = np.linspace(0, 9, 10)
-    print(v)
-    arfit(v,pmin,pmax)
+    # print(v)
+    # arfit(v,pmin,pmax)
 
-    # -----
+    # ------------------------------
+    # ------------------------------
 
-
-
-
-    '''(3) Eigendecomposition of AR(1)'''
-    # v_n = A*v_{n-1} + eps_n
-
-
-    # global time
-    # time = np.zeros((1))
-    # # for d in files:
-    # #     time[i] = d[0:-3]
-    #
-    # files = os.listdir(os.path.join(args.path,'fields'))
-    # N = len(files)
-    # print('Found the following directories', files, N)
-    # for d in files:
-    #     time = np.sort(np.append(time, np.int(d[0:-3])))
-    # # print(time)
-    #
-    # # (5) IO
-    # # (a) create file for eddy fields
-    # var_list = ['w','s','qt']
-    # for d in files:
-    #     time = np.int(d[0:-3])
-    #     nc_file_name = 'EM2_' + str(time)
-    #     create_statistics_file(fullpath_out, nc_file_name)
-    #
-    # '''
-    # (1) uni-variate PDF for single variable
-    # '''
-    # data = np.ndarray(shape=((nx*ny),1))
-    # zrange= range(0,30,10)
-    # # means = np.ndarray(shape=(np.len(varlist)))
-    # for var in var_list:
-    #     i = 0
-    #     for d in files:
-    #         t = np.int(d[0:-3])
-    #         # print('t summing ' + d)
-    #         fullpath_in = os.path.join(args.path, 'fields', d)
-    #         print(fullpath_in)
-    #         data_ = read_in_netcdf_fields(var,fullpath_in).reshape((nx*ny),nz)
-    #         for i in zrange:
-    #             data[:,0] = data_[:,i]
-    #             means, covariance = Gaussian_mixture_univariate(data, var, t, i*dz)
-    #
-    #             # # (b) dump eddy fields
-    #             # #    add_field(os.path.join(out_path,nc_file_name+'.nc'), var_name)
-    #             # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'means', u_eddy)
-    #             # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'v_eddy', v_eddy)
-    #             # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'w_eddy', w_eddy)
-    #             # dump_variables(os.path.join(out_path, nc_file_name + '.nc'), 'phi_eddy', phi_eddy)
-    #
-    # '''
-    # (2) multi-variate PDF for (s,qt,w)
-    # '''
-    # data = np.ndarray(shape=((nx*ny),2))
-    # zrange= range(0,np.int(nz*dz), np.int(5*dz))
-    # print('zrange', zrange)
-    # zrange = np.asarray(zrange)/dz
-    # print('zrange', zrange)
-    # for d in files:
-    #     fullpath_in = os.path.join(args.path, 'fields', d)
-    #     print(fullpath_in)
-    #     for var1 in ['w']:
-    #         data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
-    #         for var2 in ['s']:
-    #             data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
-    #             for i in range(0,nz,5):
-    #                 data[:,0] = data1_[:,i]
-    #                 data[:,1] = data2_[:, i]
-    #
-    #                 means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
-    #
-    #
 
     return
 
 
-
 # ____________________
+def dump_pickle(data,out_path,file_name):
+    data_ = (1.4,42)
+    # output = open(os.path.join(out_path,'data.pkl'), 'w')
+    output = open(os.path.join(out_path, file_name), 'w')
+    pickle.dump(data, output)
+    output.close()
+    return
 
-
-
+# def read_in_pickle(var_name, type, fullpath_in):
+def read_in_pickle(var_name, fullpath_in):
+    print ''
+    print '------- read in pickle: '+var_name+' ------'
+    # fullpath_in = os.path.join(in_path,file_name)
+    f = open(fullpath_in)
+    data = pickle.load(f)
+    # print(data)
+    # print ''
+    var = data[var_name]
+    # print(var)
+    # var_data = var[type]
+    # print(var_data)
+    print '-------------------------'
+    print ''
+    # return var_data
+    return var
+# ____________________
 
 
 
@@ -231,6 +329,7 @@ def read_in_netcdf_fields(variable_name, fullpath_in):
 
 # ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
+    print '------- read in nc-file: ' + group_name + ', ' + variable_name + ' ------'
     rootgrp = nc.Dataset(fullpath_in, 'r')
     var = rootgrp.groups[group_name].variables[variable_name]
 
@@ -239,6 +338,7 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     data = np.ndarray(shape=var.shape)
     data = var[:]
     rootgrp.close()
+
     return data
 
 
@@ -270,8 +370,8 @@ def read_in(variable_name, group_name, fullpath_in):
 
 #----------------------------------------------------------------------
 def read_in_nml(path, case_name):
-    nml = simplejson.loads(open(path + case_name + '.in').read())
-    global dz
+    nml = simplejson.loads(open(os.path.join(path,case_name + '.in')).read())
+    global dx, dy, dz
     dx = nml['grid']['dx']
     dy = nml['grid']['dy']
     dz = nml['grid']['dz']
