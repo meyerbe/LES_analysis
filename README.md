@@ -20,22 +20,19 @@ parameters: LES parameters
 
 
 # Statistics
-
-EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm and output means, covariances and relative weights
 EM_PDF_stochastic: Fit an auto-regression (AR) model to the EM PDFs
     - arfit_py.py
     - arqr_py.py: QR decomposition
 
 
 # IO
-
 read_in_netcdf4: example for reading in NetCDF4 files
 
 
 
 
 # Offline Calculations
-
 budget_TKE: offline TKE budget computation from LES output (old LES; hdf5 output)
 budget_Th: offline potential temperature budget (potential energy)
 
@@ -81,7 +78,6 @@ thermodynamics_4: same as thermodynamics_1, but with correction in T_2 --> if pv
             if T_2[i,j] >= 350:
                 T_2[i,j] = 350.0 K
                 ...
-
 
 CC_Magnus: saturation adjustment 'step by step', Clausius Clapeyron with Magnus formula and from PyCLES
 CC_Magnus_mod: like CC_Magnus, but with modified T_2 formulation (if T_2>373.3K: set T_2=373.3K)
