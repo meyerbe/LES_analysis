@@ -11,7 +11,8 @@ import numpy as np
 import itertools
 # from scipy import linalg
 # from sklearn import mixture
-from Stats.VAR_LES import var_modeling
+# from Stats.VAR_LES import var_modeling
+from VAR_LES import var_modeling
 import statsmodels as sm
 
 from arfit_py import arfit
@@ -65,9 +66,16 @@ def main():
     # ------------------------------------------------------------------------------------------
     '''Using Example Data'''
     mdata = sm.datasets.macrodata.load().data
-
+    # for d in files:
+    #     pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
+    #     fullpath_in = os.path.join(in_path, pkl_file_name)
+    #     print 'xxxxxxxxxxx'
+    #     # statsmodels.iolib.smpickle.load_pickle('test/EM2_univar_7200.pkl')
+    #     f = sm.iolib.smpickle.load_pickle(fullpath_in)
+    #     # df = sm.datasets.get_rdataset("Guerry", "HistData").data
+    #     print f
+    # print 'xxxxxxxxxxx'
     # ------------------------------------------------------------------------------------------
-
 
 
     # ------------------------------------------------------------------------------------------
@@ -78,8 +86,6 @@ def main():
     nobs:     number of observations (time steps or levels)
     nphi:     number of parameters of PDFs
     '''
-    # ------------------------------------------------------------------------------------------
-
 
     '''(1) Read in EM2, Univariate'''
     # ----------------------
@@ -94,113 +100,116 @@ def main():
     # ----------------------
 
     '''(a) using time-steps as observables'''
-    # do separately for each variable
-    nobs = len(files)  # here number of timesteps
+    # # do separately for each variable
+    # nobs = len(files)  # here number of timesteps
+    # nphi = 2*ncomp      # number of parameters for univariate PDF: nphi=2*ncomp
+    # # nphi = means.shape[1] + covar.shape[1]  # for univariate PDF nvar=2*ncomp
+    # arr = np.ndarray(shape=(nobs, nphi))
+    # phi = np.zeros(shape=(len(files),2*nvar*ncomp))
+    # # print('phi', phi.shape)
+    #
+    # '''read in nc-files'''
+    # var = 's'
+    # z0 = 0
+    # count = 0
+    # for d in files:
+    #     nc_file_name = 'EM2_univar_' + str(d)
+    #     fullpath_in = os.path.join(in_path, nc_file_name)
+    #     print('fullpath_in', fullpath_in)
+    #     means = read_in_netcdf(var, 'means', fullpath_in)
+    #     covar = read_in_netcdf(var, 'covariances', fullpath_in)
+    #     phi1 = means[z0, :].reshape(means[z0, :].size)
+    #     phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
+    #     phi[count,:] = np.concatenate((phi1, phi2))
+    #     # phi = np.concatenate((means[z0, :].reshape(means[z0, :].size), covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)))
+    #     # print means.shape
+    #     # print covar.shape
+    #     # print phi.shape
+    #     print(means.shape, covar.shape)
+    #     print(phi1.shape, phi2.shape)
+    #     print(phi.shape)
+    #     print '............'
+    #
+    #     arr[count, 0:2] = means[z0, :, 0]
+    #     arr[count, 2:4] = covar[z0, :, 0,0]
+    #     count += 1
+    # print arr.shape, type(arr)
+    # # var_modeling(arr)
+    #
+    #
+    # '''read in pickles-files'''
+    # count = 0
+    # arr = np.ndarray(shape=(nobs,nphi))
+    # for d in files:
+    #     pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
+    #     fullpath_in = os.path.join(in_path, pkl_file_name)
+    #     print('fullpath_in', fullpath_in)
+    #     print '............'
+    #     data_var = read_in_pickle(var, fullpath_in)
+    #     means = data_var['means']
+    #     covar = data_var['covars']
+    #     # means = read_in_pickle(var, 'means', fullpath_in)
+    #     # covar = read_in_pickle(var, 'covars', fullpath_in)
+    #     phi1 = means[z0, :].reshape(means[z0, :].size)
+    #     phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
+    #     phi[count, :] = np.concatenate((phi1, phi2))
+    #     arr[count, 0:2] = means[z0, :, 0]
+    #     arr[count, 2:4] = covar[z0, :, 0, 0]
+    #     count += 1
+    #
+    # # var_modeling(arr)
+    # print '............'
+
+
+
+    '''(b) using levels as observables'''
+    var = 'w'
+    nobs = means.shape[0]                   # here number of z
     nphi = 2*ncomp      # number of parameters for univariate PDF: nphi=2*ncomp
     # nphi = means.shape[1] + covar.shape[1]  # for univariate PDF nvar=2*ncomp
     arr = np.ndarray(shape=(nobs, nphi))
-    phi = np.zeros(shape=(len(files),2*nvar*ncomp))
-    # print('phi', phi.shape)
 
     '''read in nc-files'''
-    var = 's'
-    z0 = 0
-    count = 0
     for d in files:
         nc_file_name = 'EM2_univar_' + str(d)
         fullpath_in = os.path.join(in_path, nc_file_name)
         print('fullpath_in', fullpath_in)
         means = read_in_netcdf(var, 'means', fullpath_in)
         covar = read_in_netcdf(var, 'covariances', fullpath_in)
-        phi1 = means[z0, :].reshape(means[z0, :].size)
-        phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
-        phi[count,:] = np.concatenate((phi1, phi2))
-        # phi = np.concatenate((means[z0, :].reshape(means[z0, :].size), covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)))
-        # print means.shape
-        # print covar.shape
-        # print phi.shape
-        print(means.shape, covar.shape)
-        print(phi1.shape, phi2.shape)
-        print(phi.shape)
+        weights = read_in_netcdf(var, 'weights', fullpath_in)
         print '............'
 
-        arr[count, 0:2] = means[z0, :, 0]
-        arr[count, 2:4] = covar[z0, :, 0,0]
-        count += 1
-    print arr.shape, type(arr)
-    # var_modeling(arr)
+        arr[:, 0:2] = means[:, :, 0]
+        arr[:, 2:4] = covar[:, :, 0, 0]
 
+        print('arr: ', arr.shape)
 
-    '''read in pickles-files'''
-    count = 0
-    arr = np.ndarray(shape=(nobs,nphi))
-    for d in files:
-        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
-        fullpath_in = os.path.join(in_path, pkl_file_name)
-        print('fullpath_in', fullpath_in)
-        print '............'
-        data_var = read_in_pickle(var, fullpath_in)
-        means = data_var['means']
-        covar = data_var['covars']
-        # means = read_in_pickle(var, 'means', fullpath_in)
-        # covar = read_in_pickle(var, 'covars', fullpath_in)
-        phi1 = means[z0, :].reshape(means[z0, :].size)
-        phi2 = covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)
-        phi[count, :] = np.concatenate((phi1, phi2))
-        # # phi = np.concatenate((means[z0, :].reshape(means[z0, :].size), covar[z0, :, :, :].reshape(covar[z0, :, :, :].size)))
-        # print covar.shape
-        # print phi.shape
-        # print phi
-        # print(arr.shape)
-        # print(arr[count, 0:2].shape)
-        # print means.shape
-        # print(means[z0, :, 0].shape)
-        arr[count, 0:2] = means[z0, :, 0]
-        arr[count, 2:4] = covar[z0, :, 0, 0]
-        count += 1
-
-    # var_modeling(arr)
+        var_modeling(arr,1)
     print '............'
 
+
+    #     '''read in pickles-files'''
+    # count = 0
     # for d in files:
     #     pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
     #     fullpath_in = os.path.join(in_path, pkl_file_name)
-    #     print 'xxxxxxxxxxx'
-    #     # statsmodels.iolib.smpickle.load_pickle('test/EM2_univar_7200.pkl')
-    #     f = sm.iolib.smpickle.load_pickle(fullpath_in)
-    #     # df = sm.datasets.get_rdataset("Guerry", "HistData").data
-    #     print f
-    # print 'xxxxxxxxxxx'
+    #     print('fullpath_in', fullpath_in)
+    #     print '............'
+    #     data_var = read_in_pickle(var, fullpath_in)
+    #     means = data_var['means']
+    #     covar = data_var['covars']
+    #     print('shape', means.shape, covar.shape)
+    #
+    #     # do separately for each variable
+    #     arr[:, 0:2] = means[:, :, 0]
+    #     arr[:, 2:4] = covar[:, :, 0, 0]
+    #     print('arr: ', arr.shape)
+    #
+    #     var_modeling(arr,1)
+    #
 
-
-
-    '''(b) using levels as observables'''
-    nobs = means.shape[0]                   # here number of z
-    nphi = means.shape[1] + covar.shape[1]  # for univariate PDF nvar=2*ncomp
-    arr = np.ndarray(shape=(nobs, nphi))
-    phi = np.zeros(shape=(len(files), 2 * nvar * ncomp))
-    print('phi', phi.shape)
-
-    '''read in pickles-files'''
-    count = 0
-    for d in files:
-        pkl_file_name = 'EM2_univar_' + str(d[0:-3]) + '.pkl'
-        fullpath_in = os.path.join(in_path, pkl_file_name)
-        print('fullpath_in', fullpath_in)
-        print
-        '............'
-        data_var = read_in_pickle(var, fullpath_in)
-        means = data_var['means']
-        covar = data_var['covars']
-        print('shape', means.shape)
-
-        # do separately for each variable
-        arr[:, 0:2] = means[:, :, 0]
-        arr[:, 2:4] = covar[:, :, 0, 0]
-        print('arr: ', arr.shape)
-
-        var_modeling(arr,2)
-    print '............'
+    # print '............'
+    plot_PDFs(means, covar, weights)
 
 
 
@@ -237,6 +246,42 @@ def main():
     return
 
 
+
+
+# ____________________
+def plot_PDFs(menas,covars,weights):
+    import matplotlib.mlab as mlab
+    print('plot PDFs')
+
+    # means = data_['means']
+    # covar = data_['covars']
+    # weights = data_['weights']
+
+
+    plt.subplot(2, 1, 1)
+    # plt.hist(data, bins=30)
+    # plt.title(var_name + ' (data), t=' + str(time) + ', z=' + str(iz * dz))
+    # plt.ylabel('samples', fontsize=10)
+    #
+    plt.subplot(2, 1, 2)
+    x = np.linspace(-3, 3, 100)
+    plt.plot(x, mlab.normpdf(x, mu, sigma))
+    # plt.plot(x, np.exp(score))
+    # min = np.amin(np.exp(score))
+    # max = np.amax(np.exp(score))
+    # plt.plot([clf.means_[0], clf.means_[0]], [min, max], 'k')
+    # plt.plot([clf.means_[1], clf.means_[1]], [min, max], 'k')
+    # plt.plot([clf.means_[0] - clf.covariances_[0, 0], clf.means_[0] + clf.covariances_[0, 0]],
+    #          [min + (max - min) / 2, min + (max - min) / 2], 'k')
+    # plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],
+    #          [min + (max - min) / 2, min + (max - min) / 2], 'k')
+    # plt.title('EM fit: likelihood', fontsize=10)
+    # plt.ylabel('likelihood')
+    #
+    # plt.savefig('../figures_EM/EM2_PDF_univar_levels_' + var_name + '_' + str(time) + '.png')
+    # plt.close()
+    return
+
 # ____________________
 def dump_pickle(data,out_path,file_name):
     data_ = (1.4,42)
@@ -266,7 +311,7 @@ def read_in_pickle(var_name, fullpath_in):
 # ____________________
 
 
-
+# ____________________
 def create_statistics_file(path,file_name):
     print('create file:', path)
     rootgrp = nc.Dataset(path+file_name+'.nc', 'w', format='NETCDF4')
@@ -326,7 +371,6 @@ def read_in_netcdf_fields(variable_name, fullpath_in):
     rootgrp.close()
     return data
 
-
 # ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print '------- read in nc-file: ' + group_name + ', ' + variable_name + ' ------'
@@ -340,33 +384,6 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     rootgrp.close()
 
     return data
-
-
-#----------------------------------------------------------------------
-def read_in(variable_name, group_name, fullpath_in):
-    f = File(fullpath_in)
-    
-    #Get access to the profiles group
-    group = f[group_name]
-    #Get access to the variable dataset
-    variable_dataset = group[variable_name]
-    #Get the current shape of the dataset
-    variable_dataset_shape = variable_dataset.shape
-
-    variable = np.ndarray(shape = variable_dataset_shape)
-    for t in range(variable_dataset_shape[0]):
-        if group_name == "timeseries":
-            variable[t] = variable_dataset[t]
-        elif group_name == "profiles":
-            variable[t,:] = variable_dataset[t, :]
-        elif group_name == "correlations":
-            variable[t,:] = variable_dataset[t, :]
-        elif group_name == "fields":
-            variable[t] = variable_dataset[t]
-
-    f.close()
-    return variable
-    return
 
 #----------------------------------------------------------------------
 def read_in_nml(path, case_name):
@@ -388,6 +405,33 @@ def read_in_nml(path, case_name):
     out_path = path
     global in_path
     in_path = path
+
+
+# #----------------------------------------------------------------------
+# def read_in(variable_name, group_name, fullpath_in):
+#     f = File(fullpath_in)
+#
+#     #Get access to the profiles group
+#     group = f[group_name]
+#     #Get access to the variable dataset
+#     variable_dataset = group[variable_name]
+#     #Get the current shape of the dataset
+#     variable_dataset_shape = variable_dataset.shape
+#
+#     variable = np.ndarray(shape = variable_dataset_shape)
+#     for t in range(variable_dataset_shape[0]):
+#         if group_name == "timeseries":
+#             variable[t] = variable_dataset[t]
+#         elif group_name == "profiles":
+#             variable[t,:] = variable_dataset[t, :]
+#         elif group_name == "correlations":
+#             variable[t,:] = variable_dataset[t, :]
+#         elif group_name == "fields":
+#             variable[t] = variable_dataset[t]
+#
+#     f.close()
+#     return variable
+#     return
 
 
 #----------------------------------------------------------------------

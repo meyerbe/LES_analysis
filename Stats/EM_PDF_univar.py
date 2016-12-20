@@ -96,7 +96,7 @@ def main():
     print('zrange', zrange)
     var_list = ['w','s','qt']
     # var_list = ['w','s']
-
+    # var_list = ['s']
 
 
     '''
@@ -155,7 +155,7 @@ def main():
             out_dict[var] = var_dict
 
         dump_pickle(out_dict, fullpath_out, pkl_file_name)
-        test_pickle(fullpath_out,pkl_file_name)
+        # test_pickle(fullpath_out,pkl_file_name)
 
 
 
@@ -186,10 +186,12 @@ def Gaussian_mixture_univariate(data, var_name, time, iz):
         plt.ylabel('samples', fontsize=10)
         plt.subplot(3,1,2)
         plt.plot(x, np.exp(score))
-        plt.plot([clf.means_[0], clf.means_[0]], [0, np.amax(np.exp(score))], 'k')
-        plt.plot([clf.means_[1],clf.means_[1]],[0,np.amax(np.exp(score))],'k')
-        plt.plot([clf.means_[0]-clf.covariances_[0,0], clf.means_[0]+clf.covariances_[0,0]], [np.amax(np.exp(score))/2, np.amax(np.exp(score))/2], 'k')
-        plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],[np.amax(np.exp(score)) / 2, np.amax(np.exp(score)) / 2], 'k')
+        min = np.amin(np.exp(score))
+        max = np.amax(np.exp(score))
+        plt.plot([clf.means_[0], clf.means_[0]], [min,max], 'k')
+        plt.plot([clf.means_[1],clf.means_[1]],[min,max],'k')
+        plt.plot([clf.means_[0]-clf.covariances_[0,0], clf.means_[0]+clf.covariances_[0,0]], [min+(max-min)/2, min+(max-min)/2], 'k')
+        plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],[min+(max-min)/2, min+(max-min)/2], 'k')
         plt.title('EM fit: likelihood',fontsize=10)
         plt.ylabel('likelihood')
         plt.subplot(3, 1, 3)
@@ -207,8 +209,7 @@ def Gaussian_mixture_univariate(data, var_name, time, iz):
     return clf.means_, clf.covariances_, clf.weights_
 
 
-
-
+#----------------------------------------------------------------------
 # ____________________
 def dump_pickle(data,out_path,file_name):
     data_ = (1.4,42)
@@ -224,10 +225,10 @@ def test_pickle(in_path,file_name):
     fullpath_in = os.path.join(in_path,file_name)
     f = open(fullpath_in)
     data = pickle.load(f)
-    print(data)
+    # print(data)
     print ''
     var = data['w']
-    print(var)
+    # print(var)
     print
     ''
     means_ = var['means']
