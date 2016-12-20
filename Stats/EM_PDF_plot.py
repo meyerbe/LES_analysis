@@ -150,7 +150,6 @@ def plot_PDFs_levels(var_name, means,covars,weights,t,min,max):
     return
 
 
-
 # ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('read in netcdf', variable_name, group_name)

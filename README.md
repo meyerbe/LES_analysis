@@ -20,15 +20,23 @@ parameters: LES parameters
 
 
 # Statistics
-EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+EM_PDF: fit Gaussian mixed model (GMM)  by using the 'expectation-maximation' (EM) algorithm
+        and save parameters (means, covariances, weights) in nc-files
+        using scikit package: sklearn.mixture.GaussianMixture
         --> output means, covariances and relative weights
-EM_PDF_univariate: fit a uni-variate Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+EM_PDF_univariate: fit uni-variate Gaussian mixed model (GMM) using the 'expectation-maximation' (EM)
+        algorithm and save parameters (means, covariances, weights) in nc-files
+        using scikit package: sklearn.mixture.GaussianMixture
         --> output means, covariances and relative weights
 EM_PDF_plot: read in output from EM_PDF.py / EM_PDF_univariate.py & plot PDFs from Gaussian
-EM_PDF_stochastic: Fit an auto-regression (AR) model to the EM PDF parameters
-    - arfit_py.py
-    - arqr_py.py: QR decomposition
-
+EM_PDF_stochastic: read in files with GMM parameters and feed to auto-regression (AR) model (VAR model)
+        using stats_LES.py: module to compute statsmodel model
+        using statsmodel package (former scikits.statsmodels)
+        --> output AR matrices
+(AR Fit Matlab package from Tapio:
+arfit_py.py
+arqr_py.py: QR decomposition
+)
 
 # IO
 read_in_netcdf4: example for reading in NetCDF4 files

@@ -68,9 +68,11 @@ covars(z) = [[c11(z),c12(z)],[c21(z),c22(z)]] --> shape = nz x ncomp x nvar x nv
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
+    parser.add_argument("casename")
     args = parser.parse_args()
     # ______________________
-    case_name = 'Bomex'
+    print('_______________________')
+    case_name = args.casename
     read_in_nml(args.path, case_name)
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
     global fullpath_out
@@ -86,16 +88,20 @@ def main():
     for d in files:
         time = np.sort(np.append(time, np.int(d[0:-3])))
     # ______________________
-    # ______________________
     '''
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    zrange = map(int,np.linspace(0, 24, 13))
-    # zrange = map(int,np.linspace(0,10,3))
+    #zrange = map(int,np.linspace(0, 24, 13))
+    zrange = map(int,np.linspace(0, 100, 51))
+    zrange = np.append(map(int,np.linspace(0,40,21)),map(int,np.linspace(40,80,6)))
     print('zrange', zrange)
-    var_list = ['w','s','qt']
-    # var_list = ['w','s']
+    print('_______________________')
+    # ______________________
+    if case_name == 'DCBLSoares':
+        var_list = ['w','s']
+    else:
+        var_list = ['w','s','qt']
     # var_list = ['s']
 
 
@@ -134,7 +140,6 @@ def main():
                 covariance_[i,1,0,0] = covariance[1]
                 weights_[i,:] = weights[:]
                 # count += 1
-                print('weights', weights.shape)
 
 
             # print(os.path.join(fullpath_out, nc_file_name))
@@ -170,43 +175,76 @@ def Gaussian_mixture_univariate(data, var_name, time, iz):
 
         clf.fit(data[:,i].reshape(nx*ny,1))
 
-        n_sample = 100
-        x_max = np.amax(data[:,i])
-        x_min = np.amin(data[:,i])
-        x = np.linspace(x_min,x_max,n_sample).reshape(n_sample,1)
-        score = clf.score_samples(x)
-
         # print(var_name + ': means=' + np.str(clf.means_))
         # print(var_name + ': covar=' + np.str(clf.covariances_))
         # print(var_name + ': ', clf.means_.shape, clf.covariances_.shape)
 
-        plt.subplot(3,1,1)
-        plt.hist(data, bins=30)
-        plt.title(var_name + ' (data), t='+str(time)+', z='+str(iz*dz))
-        plt.ylabel('samples', fontsize=10)
-        plt.subplot(3,1,2)
-        plt.plot(x, np.exp(score))
-        min = np.amin(np.exp(score))
-        max = np.amax(np.exp(score))
-        plt.plot([clf.means_[0], clf.means_[0]], [min,max], 'k')
-        plt.plot([clf.means_[1],clf.means_[1]],[min,max],'k')
-        plt.plot([clf.means_[0]-clf.covariances_[0,0], clf.means_[0]+clf.covariances_[0,0]], [min+(max-min)/2, min+(max-min)/2], 'k')
-        plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],[min+(max-min)/2, min+(max-min)/2], 'k')
-        plt.title('EM fit: likelihood',fontsize=10)
-        plt.ylabel('likelihood')
-        plt.subplot(3, 1, 3)
-        plt.plot(x, score)
-        if var_name == 'w':
-            plt.xlabel('w [m/s]', fontsize=10)
-        elif var_name == 's':
-            plt.xlabel('s [J/K]', fontsize=10)
-        else:
-            plt.xlabel(var_name, fontsize=10)
-        plt.ylabel('log likelihood',fontsize=10)
-        plt.savefig('../figures_EM/EM2_PDF_univar_'+var_name+'_'+str(time)+'_z'+str(np.int(iz*dz))+'.png')
-        plt.close()
+        plot_PDF_samples(data, var_name, clf, time, iz)
 
     return clf.means_, clf.covariances_, clf.weights_
+
+#----------------------------------------------------------------------
+def plot_PDF_samples(data, var_name, clf, time, iz):
+    import matplotlib.mlab as mlab
+    import matplotlib.cm as cm
+
+    n_sample = 100
+    x_max = np.amax(data[:, 0])
+    x_min = np.amin(data[:, 0])
+    x = np.linspace(x_min, x_max, n_sample).reshape(n_sample, 1)
+    score = clf.score_samples(x)
+
+    plt.figure(figsize=(8,16))
+    plt.subplot(5, 1, 1)
+    plt.hist(data, bins=30)
+    plt.title(var_name + ' (data), t=' + str(time) + ', z=' + str(iz * dz))
+    plt.ylabel('samples', fontsize=10)
+    plt.subplot(5, 1, 2)
+    plt.hist(data, bins=30, normed=True)
+    plt.plot(x, np.exp(score), 'r', linewidth=2)
+    plt.title(var_name + ' (data), t=' + str(time) + ', z=' + str(iz * dz))
+    plt.ylabel('samples', fontsize=10)
+    plt.subplot(5, 1, 3)
+    plt.plot(x, np.exp(score), 'r', linewidth=2)
+    min = np.amin(np.exp(score))
+    max = np.amax(np.exp(score))
+    plt.plot([clf.means_[0], clf.means_[0]], [min, max * clf.weights_[0]], 'k', linewidth=1.5)
+    plt.plot([clf.means_[1], clf.means_[1]], [min, max * clf.weights_[1]], 'k', linewidth=1.5)
+    plt.plot([clf.means_[0] - clf.covariances_[0, 0], clf.means_[0] + clf.covariances_[0, 0]],
+             [min + clf.weights_[0] * (max - min) / 2, min + clf.weights_[0] * (max - min) / 2], 'k', linewidth=1.5)
+    plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],
+             [min + clf.weights_[1] * (max - min) / 2, min + clf.weights_[1] * (max - min) / 2], 'k', linewidth=1.5)
+    # plt.plot([clf.means_[0], clf.means_[0]], [min,max], 'k')
+    # plt.plot([clf.means_[1],clf.means_[1]],[min,max],'k')
+    # plt.plot([clf.means_[0]-clf.covariances_[0,0], clf.means_[0]+clf.covariances_[0,0]], [min+(max-min)/2, min+(max-min)/2], 'k')
+    # plt.plot([clf.means_[1] - clf.covariances_[1, 0], clf.means_[1] + clf.covariances_[1, 0]],[min+(max-min)/2, min+(max-min)/2], 'k')
+    plt.title('EM fit: likelihood', fontsize=10)
+    plt.ylabel('likelihood')
+    plt.subplot(5, 1, 4)
+    plt.plot(x, np.exp(score), 'r', linewidth=2)
+    y1 = clf.weights_[0]*mlab.normpdf(x, clf.means_[0], np.sqrt(clf.covariances_[0]))
+    y2 = clf.weights_[1]*mlab.normpdf(x, clf.means_[1], np.sqrt(clf.covariances_[1]))
+    plt.plot(x, y1,linewidth=2,label='y1')
+    plt.plot(x, y2,linewidth=2,label='y2')
+    plt.plot(x,y1+y2,'k--',linewidth=2,label='y1+y2')
+    plt.legend(fontsize=8)
+    #plt.plot(x, mlab.normpdf(x, clf.means_[0], clf.covariances_[0]),linewidth=2)
+    #plt.plot(x, mlab.normpdf(x, clf.means_[1], clf.covariances_[1]),linewidth=2)
+    plt.title('EM fit: likelihood', fontsize=10)
+    plt.ylabel('likelihood')
+    plt.subplot(5, 1, 5)
+    plt.plot(x, score)
+    if var_name == 'w':
+        plt.xlabel('w [m/s]', fontsize=10)
+    elif var_name == 's':
+        plt.xlabel('s [J/K]', fontsize=10)
+    else:
+        plt.xlabel(var_name, fontsize=10)
+    plt.ylabel('log likelihood', fontsize=10)
+    plt.savefig(
+        '../figures_EM2_univar/EM2_PDF_univar_' + var_name + '_' + str(time) + '_z' + str(np.int(iz * dz)) + '.png')
+    plt.close()
+    return
 
 
 #----------------------------------------------------------------------
