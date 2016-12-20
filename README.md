@@ -20,8 +20,12 @@ parameters: LES parameters
 
 
 # Statistics
-EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm and output means, covariances and relative weights
-EM_PDF_stochastic: Fit an auto-regression (AR) model to the EM PDFs
+EM_PDF: fit a Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+        --> output means, covariances and relative weights
+EM_PDF_univariate: fit a uni-variate Gaussian PDF by using the 'expectation-maximation' (EM) algorithm
+        --> output means, covariances and relative weights
+EM_PDF_plot: read in output from EM_PDF.py / EM_PDF_univariate.py & plot PDFs from Gaussian
+EM_PDF_stochastic: Fit an auto-regression (AR) model to the EM PDF parameters
     - arfit_py.py
     - arqr_py.py: QR decomposition
 
@@ -43,7 +47,6 @@ compatibility: check compatibility of scalar tracer convergence according to Chr
 
 
 # Fluctuations and Correlations
-
 EddyField_output: 
     - compute Eddy Fields (fluctuations) from LES field output
     - save as new NC-files
