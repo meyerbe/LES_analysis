@@ -97,7 +97,6 @@ def main():
     zrange = np.append(map(int,np.linspace(0,40,21)),map(int,np.linspace(40,80,6)))
     print('zrange', zrange)
     print('_______________________')
-    # ______________________
     if case_name == 'DCBLSoares':
         var_list = ['w','s']
     else:
