@@ -13,7 +13,7 @@ from scipy import linalg
 from sklearn import mixture
 
 
-label_size = 8
+label_size = 10
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
 
@@ -69,7 +69,6 @@ def main():
     parser.add_argument("path")
     parser.add_argument("casename")
     args = parser.parse_args()
-    # ______________________
     print('_______________________')
     case_name = args.casename
     read_in_nml(args.path, case_name)
@@ -94,6 +93,7 @@ def main():
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
+    # zrange = map(int,np.linspace(3,4,1))
     zrange = np.arange(3,4,1)
     print('zrange', zrange)
     print('_______________________')
@@ -110,12 +110,18 @@ def main():
     '''
     (2) bi-variate PDF for (s,qt,w)
     '''
+    global ncomp
+    global nvar
     ncomp = 2
     nvar = 2
     data = np.ndarray(shape=((nx * ny), nvar))
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    # ---
+    # # --
+    # data_aux = np.ndarray(shape=((nx * ny), nvar))
+    # means_aux_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    # covariance_aux_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    # # ---
     for d in files:
         nc_file_name = 'EM2_bivar_' + str(d)
         create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
@@ -131,19 +137,27 @@ def main():
                 data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
                 count = 0
                 for i in zrange:
-                    if var1 == 'qt':
-                        data[:, 0] = data1_[:, i]*1e2
-                    else:
-                        data[:, 0] = data1_[:, i]
-                    if var2 == 'qt':
-                        data[:, 1] = data2_[:, i] * 1e2
-                    else:
-                        data[:,1] = data2_[:, i]
+                    # if var1 == 'qt':
+                    #     data_aux[:, 0] = data1_[:, i]*1e2
+                    # else:
+                    #     data_aux[:, 0] = data1_[:, i]
+                    # if var2 == 'qt':
+                    #     data_aux[:, 1] = data2_[:, i] * 1e2
+                    # else:
+                    #     data_aux[:,1] = data2_[:, i]
+
+                    data[:, 0] = data1_[:, i]
+                    data[:, 1] = data2_[:, i]
 
                     means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
-
                     means_[count, :, :] = means[:, :]
                     covariance_[count,:,:,:] = covariance[:,:,:]
+
+                    # # --
+                    # means_aux, covariance_aux = Gaussian_mixture_bivariate(data_aux, var1, var2, np.int(d[0:-3]),i * dz)
+                    # means_aux_[count, :, :] = means_aux[:, :]
+                    # covariance_aux_[count, :, :, :] = covariance_aux[:, :, :]
+                    # # --
                     count += 1
 
                 dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
@@ -161,15 +175,175 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
     print('covar=' + np.str(clf.covariances_.shape))
     print('')
-    print(clf.covariances_[0,0,1], clf.covariances_[0,1,0])
-    print('')
+    # print(clf.covariances_[0,0,1], clf.covariances_[0,1,0])
+    # print('')
     # print(clf.means_.shape, clf.covariances_.shape)
 
-    plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    if var_name1 == 'qt' or var_name2 == 'qt':
+        data_aux = np.ndarray(shape=((nx * ny), nvar))
+        if var_name1 == 'qt':
 
-    return clf.means_, clf.covariances_
+            data_aux[:, 0] = data[:, 0] * 1e2
+        else:
+            data_aux[:, 0] = data[:, 0]
+        if var_name2 == 'qt':
+            data_aux[:, 1] = data[:, 1] * 1e2
+        else:
+            data_aux[:, 1] = data[:, 1]
+        clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
+        clf_aux.fit(data_aux)
+        plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
+        print('!!!! qt: factor 10')
+        return clf_aux.means_, clf_aux.covariances_
+    else:
+        plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+        return clf.means_, clf.covariances_
+    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    # return clf.means_, clf.covariances_
 
 
+
+
+
+#----------------------------------------------------------------------
+def plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z):
+    print('')
+    print('plot PDF samples qt')
+
+
+    import matplotlib.mlab as mlab
+    import matplotlib.cm as cm
+
+    det1 = np.linalg.det(clf.covariances_[0, :, :])
+    det2 = np.linalg.det(clf.covariances_[1, :, :])
+    # print(det1, det2)
+    det_ = min(det1, det2)
+    fact_ = 1. / np.sqrt((2 * np.pi) ** 2 * det_)
+    fact = clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
+        (2 * np.pi) ** 2 * det2)
+
+    # Plotting
+    n_sample = 100
+    x1_max = np.amax(data[:, 0])
+    x1_min = np.amin(data[:, 0])
+    x2_max = np.amax(data[:, 1])
+    x2_min = np.amin(data[:, 1])
+    x = np.linspace(x1_min, x1_max, n_sample)
+    y = np.linspace(x2_min, x2_max, n_sample)
+    X, Y = np.meshgrid(x, y)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z = clf.score_samples(XX).reshape(X.shape)
+    x_aux = np.linspace(np.amin(data_aux[:,0]), np.amax(data_aux[:,0]), n_sample)
+    y_aux = np.linspace(np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1]), n_sample)
+    X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
+    XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
+    Z_aux = clf_aux.score_samples(XX_aux).reshape(X_aux.shape)
+    print(np.amin(Z_aux), np.amax(Z_aux))
+
+    mx1 = clf.means_[0, 0]
+    my1 = clf.means_[0, 1]
+    sx1 = np.sqrt(clf.covariances_[0, 0, 0])
+    sy1 = np.sqrt(clf.covariances_[0, 1, 1])
+    sxy1 = clf.covariances_[0, 1, 0]
+    mx2 = clf.means_[1, 0]
+    my2 = clf.means_[1, 1]
+    sx2 = np.sqrt(clf.covariances_[1, 0, 0])
+    sy2 = np.sqrt(clf.covariances_[1, 1, 1])
+    sxy2 = clf.covariances_[1, 1, 0]
+    Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
+    Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
+    mx1_aux = clf_aux.means_[0, 0]
+    my1_aux = clf_aux.means_[0, 1]
+    sx1_aux = np.sqrt(clf_aux.covariances_[0, 0, 0])
+    sy1_aux = np.sqrt(clf_aux.covariances_[0, 1, 1])
+    sxy1_aux = clf_aux.covariances_[0, 1, 0]
+    mx2_aux = clf_aux.means_[1, 0]
+    my2_aux = clf_aux.means_[1, 1]
+    sx2_aux = np.sqrt(clf_aux.covariances_[1, 0, 0])
+    sy2_aux = np.sqrt(clf_aux.covariances_[1, 1, 1])
+    sxy2_aux = clf_aux.covariances_[1, 1, 0]
+    Z1_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx1_aux, sigmay=sy1_aux, mux=mx1_aux, muy=my1_aux, sigmaxy=sxy1_aux)
+    Z2_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx2_aux, sigmay=sy2_aux, mux=mx2_aux, muy=my2_aux, sigmaxy=sxy2_aux)
+
+    plt.figure(figsize=(12, 16))
+
+    plt.subplot(4, 2, 1)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
+    ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1,shrink=0.8)
+    plt.xlim([x1_min,x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+    plt.subplot(4, 2, 3)
+    ax1 = plt.contourf(X, Y, np.exp(Z))
+    # plt.scatter(X, Y, s=2, alpha=0.5)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(4, 2, 4)
+    ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+    plt.subplot(4, 2, 5)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
+    levels = np.linspace(0, fact, 10)
+    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
+    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
+    plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+    plt.colorbar(ax1, shrink=0.8)
+    # plt.title(var_name)
+    # plt.title(np.str(clf.means_))
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(4, 2, 6)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.3)
+    # ax1 = plt.contour(X_aux, Y_aux, np.exp(Z_aux), levels=levels, linewidths=2)
+    ax1 = plt.contour(X_aux, Y_aux, np.exp(Z_aux), linewidths=2)
+    plt.plot([clf_aux.means_[0, 0]], [clf_aux.means_[0, 1]], 'o', markersize=10)
+    plt.plot([clf_aux.means_[1, 0]], [clf_aux.means_[1, 1]], 'o', markersize=10)
+    plt.colorbar(ax1, shrink=0.8)
+    # plt.xlim([x1_min, x1_max])
+    # plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+
+    plt.subplot(4, 2, 7)
+    levels = np.linspace(0, fact_, 7)
+    levels = np.linspace(0, fact_, 7)
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
+    ax1 = plt.contour(X, Y, Z1, levels=levels, linewidths=2)
+    ax2 = plt.contour(X, Y, Z2, levels=levels, linewidths=2)
+    # ax1 = plt.contour(X, Y, clf.weights_[0] * Z1 + clf.weights_[0] * Z2, levels=levels,linewidths=2)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(4, 2, 8)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=2, alpha=0.2)
+    ax1 = plt.contour(X_aux, Y_aux, Z1_aux, linewidths=2)
+    ax2 = plt.contour(X_aux, Y_aux, Z2_aux, linewidths=2)
+    # ax1 = plt.contour(X_aux, Y_aux, clf_aux.weights_[0] * Z1_aux + clf_aux.weights_[0] * Z2_aux, levels=levels,
+    #                   linewidths=2)
+    plt.colorbar(ax1, shrink=0.8)
+    # plt.xlim([x1_min, x1_max])
+    # plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+    plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+        np.int(z)) + '.png')
+
+    plt.close()
+    return
 #----------------------------------------------------------------------
 def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     import matplotlib.mlab as mlab
@@ -177,7 +351,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
 
     det1 = np.linalg.det(clf.covariances_[0, :, :])
     det2 = np.linalg.det(clf.covariances_[1, :, :])
-    print(det1, det2)
+    # print(det1, det2)
     det_ = min(det1, det2)
     fact_ = 1. / np.sqrt((2 * np.pi) ** 2 * det_)
     fact = clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
@@ -194,7 +368,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     X, Y = np.meshgrid(x, y)
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = clf.score_samples(XX).reshape(X.shape)
-    print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
+    # print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
     # print(X)
     # print X.ravel()
     # print Y
@@ -212,20 +386,19 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
     Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
 
+    plt.figure(figsize=(12, 8))
 
-    plt.figure(figsize=(12, 16))
-
-    plt.subplot(4, 2, 1)
+    plt.subplot(2, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
     ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
     plt.colorbar(ax1,shrink=0.8)
+    # print(x1_min, x2_min, x1_max, x2_max    )
     plt.xlim([x1_min,x1_max])
     plt.ylim([x2_min, x2_max])
     plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-
-    plt.subplot(4, 2, 3)
+    plt.subplot(2, 2, 2)
     # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
     # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
     # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
@@ -234,15 +407,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.colorbar(ax1, shrink=0.8)
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    plt.subplot(4, 2, 4)
-    ax1 = plt.contourf(X, Y, np.exp(Z).T)
-    plt.colorbar(ax1, shrink=0.8)
-    plt.title('EM fit: likelihood')
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-
-
-    plt.subplot(4, 2, 5)
+    plt.subplot(2, 2, 3)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
     levels = np.linspace(0, fact, 10)
     ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
@@ -255,19 +420,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    plt.subplot(4, 2, 6)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
-    ax1 = plt.contour(X, Y, np.exp(Z).T, levels=levels, linewidths=2)
-    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
-    plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
-    plt.colorbar(ax1, shrink=0.8)
-    plt.xlim([x1_min, x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-
-
-    plt.subplot(4, 2, 7)
+    plt.subplot(2, 2, 4)
     levels = np.linspace(0, fact_, 7)
     levels = np.linspace(0, fact_, 7)
     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
@@ -278,21 +431,12 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.colorbar(ax1, shrink=0.8)
     plt.xlim([x1_min, x1_max])
     plt.ylim([x2_min, x2_max])
-    plt.subplot(4, 2, 8)
-    # Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=np.sqrt(sxy1))
-    # Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=np.sqrt(sxy2))
-    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
-    ax1 = plt.contour(X, Y, clf.weights_[0]*Z1+clf.weights_[0]*Z2, levels=levels, linewidths=2)
-    # ax1 = plt.contour(X, Y, Z1.T, levels=levels, linewidths=2)
-    # ax2 = plt.contour(X, Y, Z2.T, levels=levels, linewidths=2)
-    # ax1 = plt.contour(X, Y, Z1, levels=levels,colors='r', linewidths=1.5)
-    # ax2 = plt.contour(X, Y, Z2, levels=levels,colors='b', linewidths=1.5)
-    plt.colorbar(ax1, shrink=0.8)
-    plt.xlim([x1_min, x1_max])
-    plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
 
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + '.png')
+
     plt.close()
     return
 #----------------------------------------------------------------------
@@ -302,7 +446,7 @@ def plot_PDF_samples_all(data, var_name1, var_name2, clf, time, z):
 
     det1 = np.linalg.det(clf.covariances_[0, :, :])
     det2 = np.linalg.det(clf.covariances_[1, :, :])
-    print(det1, det2)
+    # print(det1, det2)
     det = min(det1, det2)
     fact = 1. / np.sqrt((2 * np.pi) ** 2 * det)
     fact = clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
@@ -319,7 +463,7 @@ def plot_PDF_samples_all(data, var_name1, var_name2, clf, time, z):
     X, Y = np.meshgrid(x, y)
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = clf.score_samples(XX).reshape(X.shape)
-    print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
+    # print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
     # print(X)
     # print X.ravel()
     # print Y
@@ -397,13 +541,12 @@ def plot_PDF_samples_all(data, var_name1, var_name2, clf, time, z):
 
     # Z1 = mlab.bivariate_normal(X,Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1)#, sigmaxy=sxy1)
     # Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2)#, sigmaxy=sxy2)
-    print('')
-    print('...........')
+    # print('')
+    # print('...........')
     # print(x1_min, x1_max, x2_min, x2_max, mx1, mx2)
     # print(sx1, sy1, sxy1)
     Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
     Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
-    # print(Z1)
     plt.subplot(4, 2, 7)
     levels = np.linspace(0, fact_, 7)
     ax1 = plt.contour(X, Y, Z1, levels=levels, colors='r', linewidths=1.5)
@@ -473,7 +616,7 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
     rootgrp.close()
-    print('create file end')
+    # print('create file end')
     return
 
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
