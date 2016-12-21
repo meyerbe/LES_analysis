@@ -94,14 +94,14 @@ def main():
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    # zrange = map(int,np.linspace(0, 24, 13))
-    zrange = map(int,np.linspace(0,10,3))
+    zrange = np.arange(3,4,1)
     print('zrange', zrange)
     print('_______________________')
     if case_name == 'DCBLSoares':
         var_list = ['w','s']
     else:
         var_list = ['w','s','qt']
+        # var_list = ['w', 's']
 
 
 
@@ -131,8 +131,14 @@ def main():
                 data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
                 count = 0
                 for i in zrange:
-                    data[:,0] = data1_[:,i]
-                    data[:,1] = data2_[:, i]
+                    if var1 == 'qt':
+                        data[:, 0] = data1_[:, i]*1e2
+                    else:
+                        data[:, 0] = data1_[:, i]
+                    if var2 == 'qt':
+                        data[:, 1] = data2_[:, i] * 1e2
+                    else:
+                        data[:,1] = data2_[:, i]
 
                     means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
 
@@ -152,8 +158,11 @@ def main():
 def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
     clf.fit(data)
-    print('means=' + np.str(clf.means_.shape))
+    print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
     print('covar=' + np.str(clf.covariances_.shape))
+    print('')
+    print(clf.covariances_[0,0,1], clf.covariances_[0,1,0])
+    print('')
     # print(clf.means_.shape, clf.covariances_.shape)
 
     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
@@ -163,16 +172,19 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
 
 #----------------------------------------------------------------------
 def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
+    import matplotlib.mlab as mlab
+    import matplotlib.cm as cm
+
     det1 = np.linalg.det(clf.covariances_[0, :, :])
     det2 = np.linalg.det(clf.covariances_[1, :, :])
     print(det1, det2)
-    det = min(det1, det2)
-    fact = 1. / np.sqrt((2 * np.pi) ** 2 * det)
+    det_ = min(det1, det2)
+    fact_ = 1. / np.sqrt((2 * np.pi) ** 2 * det_)
     fact = clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
         (2 * np.pi) ** 2 * det2)
 
     # Plotting
-    n_sample = 100
+    n_sample = 30
     x1_max = np.amax(data[:, 0])
     x1_min = np.amin(data[:, 0])
     x2_max = np.amax(data[:, 1])
@@ -183,57 +195,111 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = clf.score_samples(XX).reshape(X.shape)
     print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
+    # print(X)
+    # print X.ravel()
+    # print Y
+    # print XX
+    mx1 = clf.means_[0, 0]
+    my1 = clf.means_[0, 1]
+    sx1 = np.sqrt(clf.covariances_[0, 0, 0])
+    sy1 = np.sqrt(clf.covariances_[0, 1, 1])
+    sxy1 = clf.covariances_[0, 1, 0]
+    mx2 = clf.means_[1, 0]
+    my2 = clf.means_[1, 1]
+    sx2 = np.sqrt(clf.covariances_[1, 0, 0])
+    sy2 = np.sqrt(clf.covariances_[1, 1, 1])
+    sxy2 = clf.covariances_[1, 1, 0]
+    Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
+    Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
 
-    plt.figure(figsize=(8, 16))
-    plt.subplot(3, 1, 1)
+
+    plt.figure(figsize=(12, 16))
+
+    plt.subplot(4, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
+    ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1,shrink=0.8)
+    plt.xlim([x1_min,x1_max])
+    plt.ylim([x2_min, x2_max])
     plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
-    # ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
-    # plt.colorbar(ax1,shrink=0.8)
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    plt.subplot(3, 1, 2)
+
+    plt.subplot(4, 2, 3)
     # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
     # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
     # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
     ax1 = plt.contourf(X, Y, np.exp(Z))
-    plt.scatter(X, Y, s=2, alpha=0.5)
+    # plt.scatter(X, Y, s=2, alpha=0.5)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(4, 2, 4)
+    ax1 = plt.contourf(X, Y, np.exp(Z).T)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM fit: likelihood')
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    plt.subplot(3, 1, 3)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.4)
-    # if var_name1 == 'w' and var_name2 == 's':
-    #     levels = np.linspace(0, 1, 11)
-    # elif var_name1 == 'w' and var_name2 == 'qt':
-    #     levels = np.linspace(0, 500, 21)
-    # elif var_name1 == 'qt' and var_name2 == 's':
-    #     levels = np.linspace(0, 200, 21)
-    # else:
-    #     levels = np.linspace(0, 1, 11)
+
+
+    plt.subplot(4, 2, 5)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
     levels = np.linspace(0, fact, 10)
-    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=3)
+    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
     plt.colorbar(ax1, shrink=0.8)
     # plt.title(var_name)
     # plt.title(np.str(clf.means_))
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
+    plt.subplot(4, 2, 6)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
+    ax1 = plt.contour(X, Y, np.exp(Z).T, levels=levels, linewidths=2)
+    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
+    plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+
+    plt.subplot(4, 2, 7)
+    levels = np.linspace(0, fact_, 7)
+    levels = np.linspace(0, fact_, 7)
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
+    ax1 = plt.contour(X, Y, Z1, levels=levels, linewidths=2)
+    ax2 = plt.contour(X, Y, Z2, levels=levels, linewidths=2)
+    # ax1 = plt.contour(X, Y, Z1, levels=levels,colors='r', linewidths=1.5)
+    # ax2 = plt.contour(X, Y, Z2, levels=levels,colors='b', linewidths=1.5)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.subplot(4, 2, 8)
+    # Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=np.sqrt(sxy1))
+    # Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=np.sqrt(sxy2))
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
+    ax1 = plt.contour(X, Y, clf.weights_[0]*Z1+clf.weights_[0]*Z2, levels=levels, linewidths=2)
+    # ax1 = plt.contour(X, Y, Z1.T, levels=levels, linewidths=2)
+    # ax2 = plt.contour(X, Y, Z2.T, levels=levels, linewidths=2)
+    # ax1 = plt.contour(X, Y, Z1, levels=levels,colors='r', linewidths=1.5)
+    # ax2 = plt.contour(X, Y, Z2, levels=levels,colors='b', linewidths=1.5)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + '.png')
     plt.close()
     return
 #----------------------------------------------------------------------
-def plot_PDF_samples_old(data, var_name1, var_name2, clf, time, z):
+def plot_PDF_samples_all(data, var_name1, var_name2, clf, time, z):
+    import matplotlib.mlab as mlab
+    import matplotlib.cm as cm
+
     det1 = np.linalg.det(clf.covariances_[0, :, :])
     det2 = np.linalg.det(clf.covariances_[1, :, :])
     print(det1, det2)
@@ -243,7 +309,7 @@ def plot_PDF_samples_old(data, var_name1, var_name2, clf, time, z):
         (2 * np.pi) ** 2 * det2)
 
     # Plotting
-    n_sample = 100
+    n_sample = 30
     x1_max = np.amax(data[:, 0])
     x1_min = np.amin(data[:, 0])
     x2_max = np.amax(data[:, 1])
@@ -254,156 +320,110 @@ def plot_PDF_samples_old(data, var_name1, var_name2, clf, time, z):
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = clf.score_samples(XX).reshape(X.shape)
     print('shapes', XX.shape, Z.shape, X.shape, Y.shape)
+    # print(X)
+    # print X.ravel()
+    # print Y
+    # print XX
 
-    plt.figure(figsize=(8, 16))
-    plt.subplot(3, 1, 1)
+
+    plt.figure(figsize=(12, 16))
+
+    plt.subplot(4, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
+    ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1,shrink=0.8)
+    plt.xlim([x1_min,x1_max])
+    plt.ylim([x2_min, x2_max])
     plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
-    # ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
-    # plt.colorbar(ax1,shrink=0.8)
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    plt.subplot(3, 1, 2)
+
+    plt.subplot(4, 2, 3)
     # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
     # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
     # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
     ax1 = plt.contourf(X, Y, np.exp(Z))
-    plt.scatter(X, Y, s=2, alpha=0.5)
+    # plt.scatter(X, Y, s=2, alpha=0.5)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM fit: likelihood')
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    plt.subplot(3, 1, 3)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.4)
-    # if var_name1 == 'w' and var_name2 == 's':
-    #     levels = np.linspace(0, 1, 11)
-    # elif var_name1 == 'w' and var_name2 == 'qt':
-    #     levels = np.linspace(0, 500, 21)
-    # elif var_name1 == 'qt' and var_name2 == 's':
-    #     levels = np.linspace(0, 200, 21)
-    # else:
-    #     levels = np.linspace(0, 1, 11)
+    plt.subplot(4, 2, 4)
+    ax1 = plt.contourf(X, Y, np.exp(Z).T)
+    # plt.scatter(X, Y, s=2, alpha=0.5)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.title('EM fit: likelihood')
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+
+    plt.subplot(4, 2, 5)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
     levels = np.linspace(0, fact, 10)
-    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=3)
+    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
     plt.colorbar(ax1, shrink=0.8)
     # plt.title(var_name)
     # plt.title(np.str(clf.means_))
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
+    plt.subplot(4, 2, 6)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
+    levels = np.linspace(0, fact, 6)
+    ax1 = plt.contour(X, Y, np.exp(Z).T, levels=levels, linewidths=1.5)
+    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
+    plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.colorbar(ax1, shrink=0.8)
+    # plt.title(var_name)
+    # plt.title(np.str(clf.means_))
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+
+    mx1 = clf.means_[0,0]
+    my1 = clf.means_[0,1]
+    sx1 = np.sqrt(clf.covariances_[0,0,0])
+    sy1 = np.sqrt(clf.covariances_[0,1,1])
+    sxy1 = clf.covariances_[0, 1, 0]
+    mx2 = clf.means_[1, 0]
+    my2 = clf.means_[1, 1]
+    sx2 = np.sqrt(clf.covariances_[1, 0, 0])
+    sy2 = np.sqrt(clf.covariances_[1, 1, 1])
+    sxy2 = clf.covariances_[1, 1, 0]
+
+    # Z1 = mlab.bivariate_normal(X,Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1)#, sigmaxy=sxy1)
+    # Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2)#, sigmaxy=sxy2)
+    print('')
+    print('...........')
+    # print(x1_min, x1_max, x2_min, x2_max, mx1, mx2)
+    # print(sx1, sy1, sxy1)
+    Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
+    Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
+    # print(Z1)
+    plt.subplot(4, 2, 7)
+    levels = np.linspace(0, fact_, 7)
+    ax1 = plt.contour(X, Y, Z1, levels=levels, colors='r', linewidths=1.5)
+    ax2 = plt.contour(X, Y, Z2, levels=levels, colors='b', linewidths=1.5)
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.1)
+    # plt.colorbar(ax1, shrink=0.8)
+    plt.colorbar(ax2, shrink=0.8)
+    plt.subplot(4, 2, 8)
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.1)
+    ax1 = plt.contour(X, Y, Z1, linewidths=2)
+    ax2 = plt.contour(X, Y, Z2, linewidths=2)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.colorbar(ax2, shrink=0.8)
+
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + '.png')
     plt.close()
     return
 
 
-#----------------------------------------------------------------------
-def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
-    clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
-    clf.fit(data)
-    print('trivar means=' + np.str(clf.means_))
-    print('trivar covar=' + np.str(clf.covariances_))
-    print(clf.means_.shape, clf.covariances_.shape)
-
-    # Plotting
-    n_sample = 100
-    x1_max = np.amax(data[:,0])
-    x1_min = np.amin(data[:,0])
-    x2_max = np.amax(data[:,1])
-    x2_min = np.amin(data[:,1])
-    x3_max = np.amax(data[:, 0])
-    x3_min = np.amin(data[:, 1])
-    x = np.linspace(x1_min,x1_max,n_sample)
-    y = np.linspace(x2_min,x2_max,n_sample)
-    z = np.linspace(x3_min, x3_max, n_sample)
-    X, Y, Z = np.meshgrid(x,y,z)
-    XXX = np.array([X.ravel(),Y.ravel(),Z.ravel()]).T
-    S = clf.score_samples(XXX).reshape(X.shape)
-    print('!!!', S.shape, X.shape, Y.shape, Z.shape)
-
-    plt.figure(figsize=(12,16))
-    plt.subplot(3,3,1)
-    plt.scatter(data[:,0], data[:,1], s=5, alpha=0.5)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    plt.title(var_name1 + var_name2+ ' (data), t='+ str(time)+ ', z=')
-    # plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    plt.subplot(3, 3, 2)
-    plt.scatter(data[:, 1], data[:, 2], s=5, alpha=0.5)
-    plt.xlabel(var_name2)
-    plt.ylabel(var_name3)
-    plt.title(var_name2 + var_name3 + ' (data)')
-    plt.subplot(3, 3, 3)
-    plt.scatter(data[:, 0], data[:, 2], s=5, alpha=0.5)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name3)
-    plt.title(var_name1 + var_name3 + ' (data), ')
-    # # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(10,20,11))
-    # ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 11))
-    # plt.colorbar(ax1,shrink=0.8)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    # plt.subplot(3,1,2)
-    plt.subplot(3, 3, 4)
-    # plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
-    ax1 = plt.contourf(X[:,:,0],Y[:,:,0],np.exp(S[:,:,0]))#,levels=np.linspace(0,100,11), linewidth=3)
-    plt.colorbar(ax1)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    plt.subplot(3, 3, 5)
-    # plt.scatter(data[:, 1], data[:, 2], s=5, alpha=0.5)
-    ax1 = plt.contourf(X[:, 1, :], Z[:, 1, :], np.exp(S[:, 1, :]))  # ,levels=np.linspace(0,100,11), linewidth=3)
-    plt.colorbar(ax1)
-    plt.xlabel(var_name2)
-    plt.ylabel(var_name3)
-    plt.subplot(3, 3, 6)
-    plt.scatter(data[:, 0], data[:, 2], s=5, alpha=0.5)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name3)
-    # # ax1 = plt.contour(X,Y,np.exp(Z),levels=np.linspace(0,1,11))
-    # # plt.plot([clf.means_[0,0]],[clf.means_[0,1]], 'o', markersize=10)
-    # # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
-    # ax1 = plt.contourf(X,Y,np.exp(Z))
-    # plt.colorbar(ax1,shrink=0.8)
-    # plt.title('EM fit: likelihood')
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    # plt.subplot(3, 1, 3)
-    plt.subplot(3, 3, 7)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
-    # ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
-    # plt.colorbar(ax1, shrink=0.8)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    plt.subplot(3, 3, 8)
-    plt.scatter(data[:, 1], data[:, 2], s=5, alpha=0.5)
-    # ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
-    # plt.colorbar(ax1, shrink=0.8)
-    plt.xlabel(var_name2)
-    plt.ylabel(var_name3)
-    plt.subplot(3, 3, 9)
-    plt.scatter(data[:, 0], data[:, 2], s=5, alpha=0.5)
-    # ax1 = plt.contour(X, Y, np.exp(Z), levels=np.linspace(0, 1, 11), linewidths=3)
-    # plt.colorbar(ax1, shrink=0.8)
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name3)
-    # plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=10)
-    # plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'o', markersize=10)
-    # plt.xlabel('w [m/s]')
-    # plt.ylabel('entropy s [K]')
-    plt.savefig('../figures_EM/EM_PDF_trivariate_'+var_name1+'_'+var_name2+'_'+var_name3+'_'+str(time)+'_z'+'.png')
-    plt.close()
-    # plt.show()
-
-    return clf.means_, clf.covariances_
 
 
 # ____________________
@@ -416,21 +436,21 @@ def dump_pickle(data,out_path,file_name):
     return
 
 def test_pickle(in_path,file_name):
-    print ''
-    print '------- test pickle ------'
+    print('')
+    print('------- test pickle ------')
     fullpath_in = os.path.join(in_path,file_name)
     f = open(fullpath_in)
     data = pickle.load(f)
     print(data)
-    print ''
+    print('')
     var = data['w']
     print(var)
     print
     ''
     means_ = var['means']
     print(means_)
-    print '-------------------------'
-    print ''
+    print('-------------------------')
+    print('')
     return
 
 # ____________________
@@ -457,8 +477,8 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     return
 
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-    print('--------')
-    print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
+    print('-------- dump variable --------', var_name, group_name)
+    # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
     if group_name == 'means':
         add_means(path, var_name, ncomp, nvar)
         data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
@@ -479,7 +499,6 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
         write_covar(path, group_name, data, var_name)
 
     elif group_name == 'weights':
-        print('dump weights')
         add_weights(path, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp), dtype=np.double, order='c')
         for i in range(nz_):
@@ -488,12 +507,12 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
         write_weights(path, group_name, data, var_name)
 
     # write_field(path, group_name, data, var_name)
-    print('--------')
+    # print('--------')
     return
 
 
 def add_means(path, var_name, ncomp, nvar):
-    print('add means: ', var_name, path)
+    # print('add means: ', var_name, path)
     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     rootgrp = nc.Dataset(path, 'r+')
     group = rootgrp.groups['means']
@@ -502,7 +521,7 @@ def add_means(path, var_name, ncomp, nvar):
     return
 
 def add_covariance(path, var_name, ncomp, nvar):
-    print('add covariance: ', var_name, path)
+    # print('add covariance: ', var_name, path)
     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     rootgrp = nc.Dataset(path, 'r+')
     group = rootgrp.groups['covariances']
@@ -511,7 +530,7 @@ def add_covariance(path, var_name, ncomp, nvar):
     return
 
 def add_weights(path, var_name, ncomp, nvar):
-    print('add weights: ', var_name, path)
+    # print('add weights: ', var_name, path)
     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     rootgrp = nc.Dataset(path, 'r+')
     group = rootgrp.groups['weights']
@@ -521,7 +540,7 @@ def add_weights(path, var_name, ncomp, nvar):
 
 
 def write_mean(path, group_name, data, var_name):
-    print('write mean:', path, var_name, data.shape)
+    # print('write mean:', path, var_name, data.shape)
     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     fieldgrp = rootgrp.groups[group_name]
     var = fieldgrp.variables[var_name]
@@ -530,7 +549,7 @@ def write_mean(path, group_name, data, var_name):
     return
 
 def write_covar(path, group_name, data, var_name):
-    print('write covar:', path, var_name, data.shape)
+    # print('write covar:', path, var_name, data.shape)
     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     fieldgrp = rootgrp.groups[group_name]
     var = fieldgrp.variables[var_name]
@@ -539,7 +558,7 @@ def write_covar(path, group_name, data, var_name):
     return
 
 def write_weights(path, group_name, data, var_name):
-    print('write weights:', path, var_name, data.shape)
+    # print('write weights:', path, var_name, data.shape)
     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     fieldgrp = rootgrp.groups[group_name]
     var = fieldgrp.variables[var_name]
@@ -549,8 +568,8 @@ def write_weights(path, group_name, data, var_name):
     return
 
 def write_field(path, group_name, data, var_name):
-    print('')
-    print('write field:', path, var_name, data.shape, group_name)
+    # print('')
+    # print('write field:', path, var_name, data.shape, group_name)
     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
     fieldgrp = rootgrp.groups[group_name]
     # print('fieldgrp', fieldgrp)
