@@ -100,8 +100,8 @@ def main():
     if case_name == 'DCBLSoares':
         var_list = ['u','w','s']
     else:
-        var_list = ['w','s','qt']
-        # var_list = ['w', 's']
+        # var_list = ['w','s','qt']
+        var_list = ['w', 's']
 
 
 
@@ -117,18 +117,20 @@ def main():
     data = np.ndarray(shape=((nx * ny), nvar))
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+
+
     # # --
     # data_aux = np.ndarray(shape=((nx * ny), nvar))
     # means_aux_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     # covariance_aux_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
     # # ---
+    count_t = 0
     for d in files:
         nc_file_name = 'EM2_bivar_' + str(d)
         create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
 
         fullpath_in = os.path.join(args.path, 'fields', d)
         print(fullpath_in)
-        print(len(var_list))
         for n1 in range(len(var_list)):
             var1 = var_list[n1]
             data1_ = read_in_netcdf_fields(var1,fullpath_in).reshape((nx*ny,nz))
@@ -138,34 +140,27 @@ def main():
                 if var1 == var2:
                     continue
                 data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
-                count = 0
+                count_z = 0
                 for i in zrange:
-                    # if var1 == 'qt':
-                    #     data_aux[:, 0] = data1_[:, i]*1e2
-                    # else:
-                    #     data_aux[:, 0] = data1_[:, i]
-                    # if var2 == 'qt':
-                    #     data_aux[:, 1] = data2_[:, i] * 1e2
-                    # else:
-                    #     data_aux[:,1] = data2_[:, i]
-
                     data[:, 0] = data1_[:, i]
                     data[:, 1] = data2_[:, i]
 
                     means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
-                    means_[count, :, :] = means[:, :]
-                    covariance_[count,:,:,:] = covariance[:,:,:]
+                    means_[count_z, :, :] = means[:, :]
+                    covariance_[count_z,:,:,:] = covariance[:,:,:]
 
-                    # # --
-                    # means_aux, covariance_aux = Gaussian_mixture_bivariate(data_aux, var1, var2, np.int(d[0:-3]),i * dz)
-                    # means_aux_[count, :, :] = means_aux[:, :]
-                    # covariance_aux_[count, :, :, :] = covariance_aux[:, :, :]
-                    # # --
-                    count += 1
+                    count_z += 1
 
                 dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
                 dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
 
+        if var1 == 'w' and var2 == 's':
+            means_time_ws[count_t,:,:,:] = means_[:,:,:]
+            covarianc_time_ws[count_t, :, :, :] = covariance_[:, :, :]
+        count_t += 1
+
+    # z0 = 2
+    # plot_means(means_time_ws, 'w', 's', z0)
     return
 
 
@@ -182,28 +177,29 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     # print('')
     # print(clf.means_.shape, clf.covariances_.shape)
 
-    if var_name1 == 'qt' or var_name2 == 'qt':
-        # data_aux = np.ndarray(shape=((nx * ny), nvar))
-        # if var_name1 == 'qt':
-        #     data_aux[:, 0] = data[:, 0] * 1e2
-        # else:
-        #     data_aux[:, 0] = data[:, 0]
-        # if var_name2 == 'qt':
-        #     data_aux[:, 1] = data[:, 1] * 1e2
-        # else:
-        #     data_aux[:, 1] = data[:, 1]
-        # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
-        # clf_aux.fit(data_aux)
-        # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
-        plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-        print('!!!! qt: factor 100')
-        # return clf_aux.means_, clf_aux.covariances_
-    else:
-        plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-        # return clf.means_, clf.covariances_
-    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    return clf.means_, clf.covariances_
+    # if var_name1 == 'qt' or var_name2 == 'qt':
+    #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
+    #     # if var_name1 == 'qt':
+    #     #     data_aux[:, 0] = data[:, 0] * 1e2
+    #     # else:
+    #     #     data_aux[:, 0] = data[:, 0]
+    #     # if var_name2 == 'qt':
+    #     #     data_aux[:, 1] = data[:, 1] * 1e2
+    #     # else:
+    #     #     data_aux[:, 1] = data[:, 1]
+    #     # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
+    #     # clf_aux.fit(data_aux)
+    #     # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
+    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
+    #     print('!!!! qt: factor 100')
+    #     # return clf_aux.means_, clf_aux.covariances_
+    # else:
+    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    #     # return clf.means_, clf.covariances_
 
+    plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+
+    return clf.means_, clf.covariances_
 
 
 
@@ -472,14 +468,14 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     ax1 = plt.contour(X, Y, np.exp(Z), levels=levels_cont, linewidths=1.5)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'wo', markersize=6)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'wo', markersize=6)
-    plt.colorbar(ax1, shrink=0.8)
+    # plt.colorbar(ax1, shrink=0.8)
     plt.xlim([x1_min, x1_max])
     plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
     plt.title('EM PDF')
 
-    plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
 
     plt.close()

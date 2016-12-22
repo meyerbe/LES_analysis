@@ -38,9 +38,14 @@ def main():
     print('Found the following directories', files, N)
     # ______________________
     global time
-    time = np.zeros((1))
+    time = np.zeros(len(files))
+    i = 0
     for d in files:
-        time = np.sort(np.append(time, np.int(d[0:-3])))
+        time[i] = np.int(d[0:-3])
+        i+=1
+    time = np.sort(time)
+    print('time', time)
+    print('')
     # ______________________
     # ______________________
     '''
@@ -49,33 +54,84 @@ def main():
     '''
     # zrange = map(int,np.linspace(0, 24, 13))
     # print('zrange', zrange)
-    var_list = ['w','s','qt']
-    # var_list = ['w','s']
-    # var_list = ['s']
+
+    # '''UNIVAR'''
+    # var_list = ['w','s','qt']
+    # # var_list = ['w','s']
+    # # var_list = ['s']
+    # '''read in nc-files - univar'''
+    # for var in var_list:
+    #     for d in files:
+    #         nc_file_name = 'EM2_univar_' + str(d)
+    #         fullpath_in = os.path.join(in_path, nc_file_name)
+    #         print('fullpath_in', fullpath_in)
+    #         means = read_in_netcdf(var, 'means', fullpath_in)
+    #         covar = read_in_netcdf(var, 'covariances', fullpath_in)
+    #         weights = read_in_netcdf(var, 'weights', fullpath_in)
+    #
+    #         if var == 'w':
+    #             max = 0.8
+    #             min = -max
+    #         elif var == 's':
+    #             min = 6950
+    #             max = 6970
+    #         elif var == 'qt':
+    #             max = 1.0
+    #             min = -max
+    #         univar_plot_PDFs_levels(var, means, covar, weights, d[0:-3], min, max)
+    #         print('...............varvarvar...............', var)
+    #         print('')
 
 
-    '''read in nc-files'''
+    '''BIVAR'''
+    var_list = ['ws']
+
+    '''read in nc-files - bivar'''
+    count_t = 0
+
+    d = files[0]
+    var = 'ws'
+    nc_file_name = 'EM2_bivar_' + str(d)
+    fullpath_in = os.path.join(in_path, nc_file_name)
+    means = read_in_netcdf(var, 'means', fullpath_in)
+    global z_max, ncomp, nvar
+    z_max = means.shape[0]
+    ncomp = means.shape[1]
+    nvar = 2
+
+    means_time_ws = np.ndarray(shape=(len(files), z_max, ncomp, nvar))
+    covariance_time_ws = np.zeros(shape=(len(files), z_max, ncomp, nvar, nvar))
+
     for var in var_list:
         for d in files:
-            nc_file_name = 'EM2_univar_' + str(d)
+            nc_file_name = 'EM2_bivar_' + str(d)
             fullpath_in = os.path.join(in_path, nc_file_name)
             print('fullpath_in', fullpath_in)
             means = read_in_netcdf(var, 'means', fullpath_in)
-            covar = read_in_netcdf(var, 'covariances', fullpath_in)
-            weights = read_in_netcdf(var, 'weights', fullpath_in)
+            covars = read_in_netcdf(var, 'covariances', fullpath_in)
+            # weights = read_in_netcdf(var, 'weights', fullpath_in)
 
-            if var == 'w':
-                max = 0.8
-                min = -max
-            elif var == 's':
-                min = 6950
-                max = 6970
-            elif var == 'qt':
-                max = 1.0
-                min = -max
-            plot_PDFs_levels(var, means, covar, weights, d[0:-3], min, max)
-            print('...............varvarvar...............', var)
-            print('')
+            # if var == 'w':
+            #     max = 0.8
+            #     min = -max
+            # elif var == 's':
+            #     min = 6950
+            #     max = 6970
+            # elif var == 'qt':
+            #     max = 1.0
+            #     min = -max
+            # plot_PDFs_levels(var, means, covar, weights, d[0:-3], min, max)
+            # print('...............varvarvar...............', var)
+            # print('')
+            #
+            means_time_ws[count_t, :,:,:] = means[:,:,:]
+            covariance_time_ws[count_t, :, :, :] = covars[:, :, :]
+            count_t += 1
+
+        z0 = 2
+        bivar_plot_means(var, means_time_ws, covariance_time_ws,z0)
+        t0 = 0
+        bivar_plot_levels(var, means_time_ws, covariance_time_ws, t0)
 
 
 
@@ -86,7 +142,49 @@ def main():
 
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
-def plot_PDFs_levels(var_name, means,covars,weights,t,min,max):
+def bivar_plot_means(var_name, means_, covars_, z0):
+    global time, ncomp
+    nt = time.size
+
+    means = means_[:,z0,:,:]
+    covars = covars_[:,z0,:,:]
+    print(time.shape, means.shape)
+
+    plt.figure()
+    plt.plot(time[:],means[:,0,0],'o-')
+    for comp in range(ncomp):
+        for i in range(nt):
+            plt.plot([time[i],time[i]],[means[i,comp,0]-0.5*np.sqrt(covars[i,comp,0,0]), means[i,comp,0]+0.5*np.sqrt(covars[i,comp,0,0])])
+    plt.plot(time[:],means[:,1,0], 'o-')
+    plt.title('means')
+    plt.xlabel('time')
+    plt.ylabel(var_name)
+    # plt.show()
+    plt.savefig('../figures_EM2_bivar/means_time_' + var_name + '_z' + str(np.int(z0*dz)) + 'm.png')
+    return
+#----------------------------------------------------------------------
+def bivar_plot_levels(var_name, means_, covars_, t0):
+    global z_max, dz, ncomp
+
+    means = means_[t0,:,:,:]
+    covars = covars_[t0,:,:,:]
+    print(means.shape)
+
+    plt.figure()
+    for comp in range(ncomp):
+        for i in range(z_max):
+            plt.plot(i*dz,means[i,comp,0],'o')
+    plt.title('means')
+    plt.xlabel('height z')
+    plt.ylabel(var_name)
+    # plt.show()
+    plt.savefig('../figures_EM2_bivar/means_levels_' + var_name + '_t' + str(np.int(t0)) + '.png')
+
+    return
+
+#----------------------------------------------------------------------
+#----------------------------------------------------------------------
+def univar_plot_PDFs_levels(var_name, means,covars,weights,t,min,max):
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
 
@@ -154,7 +252,9 @@ def plot_PDFs_levels(var_name, means,covars,weights,t,min,max):
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('read in netcdf', variable_name, group_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
-    var = rootgrp.groups[group_name].variables[variable_name]
+    grp = rootgrp.groups[group_name]
+    var = grp.variables[variable_name]
+    # var = rootgrp.groups[group_name].variables[variable_name]
 
     shape = var.shape
     # print('shape:',var.shape)
