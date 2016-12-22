@@ -94,7 +94,7 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     # zrange = map(int,np.linspace(3,4,1))
-    zrange = np.arange(3,4,1)
+    zrange = np.arange(0,20,2)
     print('zrange', zrange)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -193,7 +193,7 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
         clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
         clf_aux.fit(data_aux)
         plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
-        print('!!!! qt: factor 10')
+        print('!!!! qt: factor 100')
         return clf_aux.means_, clf_aux.covariances_
     else:
         plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
@@ -340,7 +340,7 @@ def plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time
     plt.ylabel(var_name2)
 
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + '.png')
+        np.int(z)) + 'm.png')
 
     plt.close()
     return
@@ -358,7 +358,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
         (2 * np.pi) ** 2 * det2)
 
     # Plotting
-    n_sample = 30
+    n_sample = 300
     x1_max = np.amax(data[:, 0])
     x1_min = np.amin(data[:, 0])
     x2_max = np.amax(data[:, 1])
@@ -405,9 +405,30 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     ax1 = plt.contourf(X, Y, np.exp(Z))
     # plt.scatter(X, Y, s=2, alpha=0.5)
     plt.colorbar(ax1, shrink=0.8)
+    plt.title('EM PDF')
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
     plt.subplot(2, 2, 3)
+    levels = np.linspace(0, fact_, 7)
+    levels = np.linspace(0, fact_, 7)
+    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
+    ax1 = plt.contour(X, Y, Z1, levels=levels, linewidths=2)
+    ax2 = plt.contour(X, Y, Z2, levels=levels, linewidths=2)
+    # ax1 = plt.contour(X, Y, Z1, levels=levels,colors='r', linewidths=1.5)
+    # ax2 = plt.contour(X, Y, Z2, levels=levels,colors='b', linewidths=1.5)
+    print('!!!!!!!!!!!!!!!!!!!!')
+    plt.text(3, 8, 'boxed italics text in data coords', style='italic',
+             bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+    plt.text(0,0, r'an equation: $E=mc^2$', fontsize=15)
+    plt.figtext(0,0,'hoihoi',fontsize=10)
+    print('!!!!!!!!!!!!!!!!!!!!')
+    plt.colorbar(ax1, shrink=0.8)
+    plt.title('f = f1+ f2')
+    plt.xlim([x1_min, x1_max])
+    plt.ylim([x2_min, x2_max])
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(2, 2, 4)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
     levels = np.linspace(0, fact, 10)
     ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
@@ -420,22 +441,10 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    plt.subplot(2, 2, 4)
-    levels = np.linspace(0, fact_, 7)
-    levels = np.linspace(0, fact_, 7)
-    plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.2)
-    ax1 = plt.contour(X, Y, Z1, levels=levels, linewidths=2)
-    ax2 = plt.contour(X, Y, Z2, levels=levels, linewidths=2)
-    # ax1 = plt.contour(X, Y, Z1, levels=levels,colors='r', linewidths=1.5)
-    # ax2 = plt.contour(X, Y, Z2, levels=levels,colors='b', linewidths=1.5)
-    plt.colorbar(ax1, shrink=0.8)
-    plt.xlim([x1_min, x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    plt.title('EM PDF')
 
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + '.png')
+        np.int(z)) + 'm.png')
 
     plt.close()
     return
@@ -562,7 +571,7 @@ def plot_PDF_samples_all(data, var_name1, var_name2, clf, time, z):
     plt.colorbar(ax2, shrink=0.8)
 
     plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + '.png')
+        np.int(z)) + 'm.png')
     plt.close()
     return
 
