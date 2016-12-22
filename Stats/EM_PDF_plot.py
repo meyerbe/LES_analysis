@@ -143,6 +143,7 @@ def main():
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
 def bivar_plot_means(var_name, means_, covars_, z0):
+    '''plot change in means over time'''
     global time, ncomp
     nt = time.size
 
@@ -164,6 +165,7 @@ def bivar_plot_means(var_name, means_, covars_, z0):
     return
 #----------------------------------------------------------------------
 def bivar_plot_levels(var_name, means_, covars_, t0):
+    '''plot change in means for levels'''
     global z_max, dz, ncomp
 
     means = means_[t0,:,:,:]
