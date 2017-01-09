@@ -129,7 +129,7 @@ def main():
             count_t += 1
 
         z0 = 2
-        t0 = 0
+        t0 = 1
         bivar_plot_means(var, means_time_ws, covariance_time_ws,z0,t0)
         bivar_plot_covars(var, means_time_ws, covariance_time_ws,z0,t0)
     return
@@ -143,26 +143,37 @@ def bivar_plot_means(var_name, means_, covars_, z0,t0):
     print(os.path.join(fullpath_out, 'figures_EM2_bivar'))
     global time, ncomp
     nt = time.size
+    colors = ['b', 'g']
 
     # over time at given level
     means = means_[:,z0,:,:]
     covars = covars_[:,z0,:,:]
     print(time.shape, means.shape)
     plt.figure()
-    plt.plot(time[:],means[:,0,0],'o-')
+    plt.plot(time[:],means[:,0,0],'o',color=colors[0])
     for comp in range(ncomp):
         for i in range(nt):
-            plt.plot([time[i],time[i]],[means[i,comp,0]-0.5*np.sqrt(covars[i,comp,0,0]), means[i,comp,0]+0.5*np.sqrt(covars[i,comp,0,0])])
-    plt.plot(time[:],means[:,1,0], 'o-')
-    plt.title('means')
+            plt.plot([time[i],time[i]],[means[i,comp,0]-0.5*np.sqrt(covars[i,comp,0,0]), means[i,comp,0]+0.5*np.sqrt(covars[i,comp,0,0])],color=colors[comp])
+    plt.plot(time[:],means[:,1,0], 'o',color=colors[1])
+    plt.title('means (z='+np.str(z0)+'m)')
     plt.xlabel('time')
     plt.ylabel(var_name)
-    plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'means_time_' + var_name + '_z' + str(np.int(z0*dz)) + 'm.png')
+    plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'means_time_b_' + var_name + '_z' + str(np.int(z0*dz)) + 'm.png')
+
+    plt.figure()
+    plt.plot(time[:], means[:, 0, 0], 'o-')
+    plt.plot(time[:], means[:, 1, 0], 'o-')
+    plt.title('means (z=' + np.str(z0) + 'm)')
+    plt.xlabel('time')
+    plt.ylabel(var_name)
+    plt.savefig(os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_time_a_' + var_name + '_z' + str(
+        np.int(z0 * dz)) + 'm.png')
+
+
 
     # over levels, at given time
     means = means_[t0, :, :, :]
     covars = covars_[t0, :, :, :]
-    colors = ['b','g']
     print(means.shape)
     plt.figure()
     for comp in range(ncomp):
@@ -170,11 +181,20 @@ def bivar_plot_means(var_name, means_, covars_, z0,t0):
             plt.plot(i * dz, means[i, comp, 0], 'o',color=colors[comp])
             bar = 0.5 * np.sqrt(covars[i, comp, 0, 0])
             plt.plot([i * dz,i * dz],[means[i,comp,0]-bar,means[i,comp,0]+bar],color=colors[comp])
-    plt.title('means')
+    plt.title('means (t=' + np.str(t0) + ')')
     plt.xlabel('height z')
     plt.ylabel(var_name)
     plt.savefig(
-        os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_' + var_name + '_t' + str(np.int(t0)) + '.png')
+        os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_a_' + var_name + '_t' + str(np.int(t0)) + '.png')
+    plt.figure()
+    for comp in range(ncomp):
+        for i in range(z_max):
+            plt.plot(i * dz, means[i, comp, 0], 'o', color=colors[comp])
+    plt.title('means (t=' + np.str(t0) + ')')
+    plt.xlabel('height z')
+    plt.ylabel(var_name)
+    plt.savefig(
+        os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_b_' + var_name + '_t' + str(np.int(t0)) + '.png')
     return
 
 #----------------------------------------------------------------------

@@ -147,7 +147,6 @@ def main():
                     data[:, 1] = data2_[:, iz]
 
                     means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
-                    print('....', weights.shape)
                     means_[i, :, :] = means[:, :]
                     covariance_[i,:,:,:] = covariance[:,:,:]
                     weights_[i,:] = weights[:]
@@ -521,12 +520,14 @@ def test_pickle(in_path,file_name):
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
+    global time
     print('create file:', path, file_name)
     rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
     cov_grp = rootgrp.createGroup('covariances')
     weights_grp = rootgrp.createGroup('weights')
+    ts_grp = rootgrp.createGroup('time')
     means_grp.createDimension('nz', nz_)
     means_grp.createDimension('ncomp', ncomp)
     means_grp.createDimension('nvar', nvar)
@@ -535,6 +536,11 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     cov_grp.createDimension('nvar', nvar)
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
+    ts_grp.createDimension('nt',len(time)-1)
+
+    var = ts_grp.createVariable('t','f8',('nt'))
+    for i in range(len(time)-1):
+        var[i] = time[i+1]
     rootgrp.close()
     # print('create file end')
     return
@@ -568,6 +574,9 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
             for j in range(ncomp):
                 data[i, j] = data_[i, j]
         write_weights(path, group_name, data, var_name)
+
+    elif group_name == 'time':
+        print('time dumping')
 
     # write_field(path, group_name, data, var_name)
     # print('--------')
