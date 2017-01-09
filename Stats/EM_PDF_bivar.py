@@ -93,7 +93,7 @@ def main():
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    # zrange = map(int,np.linspace(3,4,1))
+    global zrange
     zrange = np.arange(0,20,2)
     print('zrange', zrange)
     print('_______________________')
@@ -520,27 +520,31 @@ def test_pickle(in_path,file_name):
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
-    global time
+    global time, zrange
     print('create file:', path, file_name)
     rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
-    cov_grp = rootgrp.createGroup('covariances')
-    weights_grp = rootgrp.createGroup('weights')
-    ts_grp = rootgrp.createGroup('time')
     means_grp.createDimension('nz', nz_)
     means_grp.createDimension('ncomp', ncomp)
     means_grp.createDimension('nvar', nvar)
+    cov_grp = rootgrp.createGroup('covariances')
     cov_grp.createDimension('nz', nz_)
     cov_grp.createDimension('ncomp', ncomp)
     cov_grp.createDimension('nvar', nvar)
+    weights_grp = rootgrp.createGroup('weights')
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
+    ts_grp = rootgrp.createGroup('time')
     ts_grp.createDimension('nt',len(time)-1)
-
     var = ts_grp.createVariable('t','f8',('nt'))
     for i in range(len(time)-1):
         var[i] = time[i+1]
+    z_grp = rootgrp.createGroup('z-profile')
+    z_grp.createDimension('nz', len(zrange))
+    var = z_grp.createVariable('height', 'f8', ('nz'))
+    for i in range(len(zrange)):
+        var[i] = zrange[i]
     rootgrp.close()
     # print('create file end')
     return
