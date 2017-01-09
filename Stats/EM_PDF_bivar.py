@@ -108,7 +108,7 @@ def main():
 
 
     '''
-    (2) bi-variate PDF for (s,qt,w)
+    Bi-variate PDF for (s,qt,w)
     '''
     global ncomp
     global nvar
@@ -117,6 +117,7 @@ def main():
     data = np.ndarray(shape=((nx * ny), nvar))
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    weights_ = np.zeros(shape=(len(zrange), 2))
 
 
     # # --
@@ -140,23 +141,24 @@ def main():
                 if var1 == var2:
                     continue
                 data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx*ny,nz))
-                count_z = 0
-                for i in zrange:
-                    data[:, 0] = data1_[:, i]
-                    data[:, 1] = data2_[:, i]
+                for i in range(len(zrange)):
+                    iz = zrange[i]
+                    data[:, 0] = data1_[:, iz]
+                    data[:, 1] = data2_[:, iz]
 
-                    means, covariance = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), i*dz)
-                    means_[count_z, :, :] = means[:, :]
-                    covariance_[count_z,:,:,:] = covariance[:,:,:]
-
-                    count_z += 1
+                    means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
+                    print('....', weights.shape)
+                    means_[i, :, :] = means[:, :]
+                    covariance_[i,:,:,:] = covariance[:,:,:]
+                    weights_[i,:] = weights[:]
 
                 dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
                 dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, nc_file_name), 'weights', weights_, var1 + var2, ncomp, nvar, len(zrange))
 
         if var1 == 'w' and var2 == 's':
             means_time_ws[count_t,:,:,:] = means_[:,:,:]
-            covarianc_time_ws[count_t, :, :, :] = covariance_[:, :, :]
+            covariance_time_ws[count_t, :, :, :] = covariance_[:, :, :]
         count_t += 1
 
     # z0 = 2
@@ -169,6 +171,7 @@ def main():
 #----------------------------------------------------------------------
 def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
+    # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
     print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
     print('covar=' + np.str(clf.covariances_.shape))
@@ -199,7 +202,7 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
 
     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
 
-    return clf.means_, clf.covariances_
+    return clf.means_, clf.covariances_, clf.weights_
 
 
 
@@ -357,7 +360,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
 
-    plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
 
     plt.close()
@@ -475,7 +478,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('EM PDF')
 
-    plt.savefig('../figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
 
     plt.close()
