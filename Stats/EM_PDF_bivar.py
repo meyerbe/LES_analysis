@@ -100,10 +100,8 @@ def main():
     if case_name == 'DCBLSoares':
         var_list = ['u','w','s']
     else:
-        # var_list = ['w','s','qt']
-        var_list = ['w', 's']
-
-
+        var_list = ['w','s','qt']
+        # var_list = ['w', 's']
 
 
 
@@ -179,27 +177,27 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     # print('')
     # print(clf.means_.shape, clf.covariances_.shape)
 
-    # if var_name1 == 'qt' or var_name2 == 'qt':
-    #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
-    #     # if var_name1 == 'qt':
-    #     #     data_aux[:, 0] = data[:, 0] * 1e2
-    #     # else:
-    #     #     data_aux[:, 0] = data[:, 0]
-    #     # if var_name2 == 'qt':
-    #     #     data_aux[:, 1] = data[:, 1] * 1e2
-    #     # else:
-    #     #     data_aux[:, 1] = data[:, 1]
-    #     # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
-    #     # clf_aux.fit(data_aux)
-    #     # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
-    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-    #     print('!!!! qt: factor 100')
-    #     # return clf_aux.means_, clf_aux.covariances_
-    # else:
-    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    #     # return clf.means_, clf.covariances_
+    if var_name1 == 'qt' or var_name2 == 'qt':
+        # data_aux = np.ndarray(shape=((nx * ny), nvar))
+        # if var_name1 == 'qt':
+        #     data_aux[:, 0] = data[:, 0] * 1e2
+        # else:
+        #     data_aux[:, 0] = data[:, 0]
+        # if var_name2 == 'qt':
+        #     data_aux[:, 1] = data[:, 1] * 1e2
+        # else:
+        #     data_aux[:, 1] = data[:, 1]
+        # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
+        # clf_aux.fit(data_aux)
+        # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
+        plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
+        print('!!!! qt: factor 100')
+        # return clf_aux.means_, clf_aux.covariances_
+    else:
+        plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+        # return clf.means_, clf.covariances_
 
-    plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
 
     return clf.means_, clf.covariances_, clf.weights_
 
