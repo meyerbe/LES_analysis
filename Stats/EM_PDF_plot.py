@@ -17,7 +17,11 @@ label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
 
-
+'''
+means(z) = [m1(z),m2(z)]                        --> shape = nz x ncomp x nvar
+covars(z) = [[c11(z),c12(z)],[c21(z),c22(z)]]   --> shape = nz x ncomp x nvar x nvar
+weight(z)                                       --> shape = ncomp
+'''
 
 
 def main():
@@ -117,11 +121,12 @@ def main():
             covariance_time_ws[count_t, :, :, :] = covars[:, :, :]
             count_t += 1
 
-        # for z0 in [2,5,]
-        z0 = 2
-        t0 = 1
-        bivar_plot_means(var, means_time_ws, covariance_time_ws,z0,t0,time_)
-        bivar_plot_covars(var, means_time_ws, covariance_time_ws,z0,t0,time_)
+        for z0 in [1,2,5,10,20]:
+            for t0 in [1,6,12]:
+                # z0 = 2
+                # t0 = 1
+                bivar_plot_means(var, means_time_ws, covariance_time_ws,z0,t0,time_)
+                bivar_plot_covars(var, means_time_ws, covariance_time_ws,z0,t0,time_)
     return
 
 
@@ -144,11 +149,9 @@ def bivar_plot_means(var_name, means_, covars_, z0,t0, time_):
     plt.subplot(1,2,1)
     plt.plot(time[:], means[:, 0, 0], 'o')
     plt.plot(time[:], means[:, 1, 0], 'o')
-    plt.title('means (z=' + np.str(z0) + 'm)')
+    plt.title('means (z=' + np.str(z0 * dz) + 'm)')
     plt.xlabel('time')
     plt.ylabel(var_name)
-    # plt.savefig(os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_time_a_' + var_name + '_z' + str(
-    #     np.int(z0 * dz)) + 'm.png')
     plt.subplot(1, 2, 2)
     plt.plot(time[:], means[:, 0, 0], 'o', color=colors[0])
     for comp in range(ncomp):
@@ -156,33 +159,32 @@ def bivar_plot_means(var_name, means_, covars_, z0,t0, time_):
             plt.plot([time[i], time[i]], [means[i, comp, 0] - 0.5 * np.sqrt(covars[i, comp, 0, 0]),
                                           means[i, comp, 0] + 0.5 * np.sqrt(covars[i, comp, 0, 0])], color=colors[comp])
     plt.plot(time[:], means[:, 1, 0], 'o', color=colors[1])
-    plt.title('means (z=' + np.str(z0) + 'm)')
+    plt.title('means (z=' + np.str(z0 * dz) + 'm)')
     plt.xlabel('time')
     plt.ylabel(var_name)
     plt.savefig(os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_time_a_' + var_name + '_z' + str(
         np.int(z0 * dz)) + 'm.png')
 
     plt.figure(figsize=(12,6))
-    plt.subplot(1,2,1)
-    for i in range(nt):
-        if means[i,0,0] < means[i,1,0]:
-            aux = means[i,1,0]
-            means[i,1,0] = means[i,0,0]
-            means[i, 0, 0] = aux
-    plt.plot(time[:], means[:, 0, 0], 'o-')
-    plt.plot(time[:], means[:, 1, 0], 'o-')
-    plt.title('means (z=' + np.str(z0) + 'm)')
-    plt.xlabel('time')
-    plt.ylabel(var_name)
-    # plt.savefig(os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_time_c_' + var_name + '_z' + str(
-    #     np.int(z0 * dz)) + 'm.png')
-    plt.subplot(1, 2, 2)
+    for j in range(ncomp):
+        plt.subplot(j+1,2,1)
+        for i in range(nt):
+            if means[i,0,j] < means[i,1,j]:
+                aux = means[i,1,j]
+                means[i,1,j] = means[i,0,j]
+                means[i, 0, j] = aux
+        plt.plot(time[:], means[:, 0, j], 'o-')
+        plt.plot(time[:], means[:, 1, j], 'o-')
+        plt.title('means (z=' + np.str(z0 * dz) + 'm)')
+        plt.xlabel('time')
+        plt.ylabel(var_name)
+    plt.subplot(2, 2, 2)
     plt.plot(time[:],means[:,0,0],'o',color=colors[0])
     for comp in range(ncomp):
         for i in range(nt):
             plt.plot([time[i],time[i]],[means[i,comp,0]-0.5*np.sqrt(covars[i,comp,0,0]), means[i,comp,0]+0.5*np.sqrt(covars[i,comp,0,0])],color=colors[comp])
     plt.plot(time[:],means[:,1,0], 'o',color=colors[1])
-    plt.title('means (z='+np.str(z0)+'m)')
+    plt.title('means (z='+np.str(z0 * dz)+'m)')
     plt.xlabel('time')
     plt.ylabel(var_name)
     plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'means_time_b_' + var_name + '_z' + str(np.int(z0*dz)) + 'm.png')
@@ -219,7 +221,7 @@ def bivar_plot_means(var_name, means_, covars_, z0,t0, time_):
 
 #----------------------------------------------------------------------
 def bivar_plot_covars(var_name, means_, covars_, z0,t0,time_):
-    print('plotting means')
+    print('plotting covars')
     print(os.path.join(fullpath_out, 'figures_EM2_bivar'))
     global time, ncomp
     nt = time.size
