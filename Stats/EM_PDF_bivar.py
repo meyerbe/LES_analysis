@@ -579,9 +579,6 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
                 data[i, j] = data_[i, j]
         write_weights(path, group_name, data, var_name)
 
-    elif group_name == 'time':
-        print('time dumping')
-
     # write_field(path, group_name, data, var_name)
     # print('--------')
     return
