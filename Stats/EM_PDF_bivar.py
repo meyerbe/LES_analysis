@@ -20,7 +20,7 @@ plt.rcParams['ytick.labelsize'] = label_size
 
 '''
 Bivariate Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
-(1) Fit A GMM to data points to get means, covariance matrices and relaive weights
+(1) Fit A GMM to data points to get means, covariance matrices and relative weights
     --> use the expectation-maximization algorithm
 (2) check out to which mode each data point belongs (class probability)
 
@@ -713,7 +713,6 @@ def read_in_nml(path, case_name):
     nz = nml['grid']['nz']
     ntot = nx*ny*nz
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
-    dz = nml['grid']['dz']
     print('dz: ', dz)
     global dt
     # dt = np.int(args.time2) - np.int(args.time1)
@@ -725,7 +724,6 @@ def read_in_nml(path, case_name):
 
 
 #----------------------------------------------------------------------
-
 
 if __name__ == "__main__":
     main()

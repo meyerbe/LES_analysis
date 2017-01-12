@@ -8,23 +8,25 @@ python EM_PDF path-to-fields-repository
 
 **(1a) PDF Fitting:**
 
-`EM_PDF.py`: fit Gaussian mixed model (GMM) and save parameters (means, covariances, weights) in nc-files
+`EM_PDF.py`: fit Gaussian mixed model (GMM) independently at every level and save parameters (means, covariances, weights) in nc-files
     using scikit package: sklearn.mixture.GaussianMixture
 
-`EM_PDF_univar.py`: fit UNIVARIATE Gaussian mixed model (GMM) and save parameters (means, covariances, weights) in nc-files
+`EM_PDF_univar.py`: fit UNIVARIATE Gaussian mixed model (GMM) independently at every level and save parameters (means, covariances, weights) in nc-files
     using scikit package: sklearn.mixture.GaussianMixture
 
-`EM_PDF_bivar.py`: fit BIVARIATE Gaussian mixed model (GMM) and save parameters (means, covariances, weights) in nc-files
+`EM_PDF_bivar.py`: fit BIVARIATE Gaussian mixed model (GMM) independently at every level and save parameters (means, covariances, weights) in nc-files
     using scikit package: sklearn.mixture.GaussianMixture
 
 **(1b) Plotting PDF parameters:**
 
 `EM_PDF_plot.py`: plot how PDF means evolve over vertical levels and time
 
+`EM_PDF_bivar_plot.py`: plot how PDF means evolve over vertical levels and time for bivariate PDF
+
 **(2) Autoregression:**
 
 `EM_PDF_stochastic.py`: read in files with GMM parameters and feed to VAR model
-- using package:  statsmodels (former scikits.statsmodels)
+- using package:  `statsmodels` (former `scikits.statsmodels`)
 - _Installation:_ https://pypi.python.org/pypi/statsmodels
 - _Documentation:_ http://www.statsmodels.org/stable/
 - _IO:_ can load pickle, .dta-files; can be extended by using pandas.io (Excel, CSV, HDF5)
