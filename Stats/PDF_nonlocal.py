@@ -65,17 +65,91 @@ def main():
 
         # (b) Gaussian Mixture Model with flexible #components
         print('Gaussian Mixture Model: BIC')
+        # nvar = len(var_list)*len(zrange)
         nvar = 2
-        Gaussian_mixture_ncompselection(data[:,0:nvar],var, t)
+        # Gaussian_mixture_ncompselection(data[:,0:nvar],var, t)
 
 
         # (c) Bayesian Gaussian Mixture Model
+        print('Bayesian Gaussian Mixture Model: dirichlet process')
+        Bayesian_Gaussian_Mixture(data, var, np.int(d[0:-3]), zrange)
 
-        # (d) Covariance Estimater (empirical; maximum likelihood)
+
+        # (d) Covariance Estimator (empirical; maximum likelihood)
 
         # (e) Sparse Inverse Covariance
 
         # (f) Generalized Moment Method (statsmodel)
+
+    return
+
+#----------------------------------------------------------------------
+def plot_contour(data, clf, ncomp, colors, var_name, zrange):
+    colors = ['navy', 'c', 'cornflowerblue', 'gold','darkorange']
+    import itertools
+    import matplotlib.mlab as mlab
+
+    print('plotting: ', data.shape)
+    n_sample = 300
+    x1_max = np.amax(data[:, 0])
+    x1_min = np.amin(data[:, 0])
+    x2_max = np.amax(data[:, 1])
+    x2_min = np.amin(data[:, 1])
+    x = np.linspace(x1_min, x1_max, n_sample)
+    y = np.linspace(x2_min, x2_max, n_sample)
+    X, Y = np.meshgrid(x, y)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+
+    nvar = 2
+    A = np.zeros(shape=X.shape)
+    while (nvar < data.shape[1]):
+        XX = np.append(XX, A.ravel().reshape(X.size, 1), axis=1)
+        nvar += 1
+    Z = clf.score_samples(XX).reshape(X.shape)
+    means = clf.means_
+    sigma = np.sqrt(clf.covariances_)
+    for i in range(ncomp):
+        # pass
+        sxy = sigma[i, 1, 0] ** 2
+        Z = mlab.bivariate_normal(X, Y, sigmax=sigma[i, 0, 0], sigmay=sigma[i, 1, 1], mux=means[i, 0], muy=means[i, 1],
+                                  sigmaxy=sxy)
+        # ax = plt.contour(X, Y, Z)
+        ax = plt.contour(X, Y, Z, colors = colors[i])
+    plt.xlabel(var_name + ' at level z=' + np.str(zrange[0]) + 'm')
+    plt.ylabel(var_name + ' at level z=' + np.str(zrange[1]) + 'm')
+    return
+
+#----------------------------------------------------------------------
+# class sklearn.mixture.BayesianGaussianMixture(n_components=1, covariance_type='full', tol=0.001, reg_covar=1e-06,
+#               max_iter=100, n_init=1, init_params='kmeans', weight_concentration_prior_type='dirichlet_process',
+#               weight_concentration_prior=None, mean_precision_prior=None, mean_prior=None,
+#               degrees_of_freedom_prior=None, covariance_prior=None, random_state=None, warm_start=False,
+#               verbose=0, verbose_interval=10
+def Bayesian_Gaussian_Mixture(data,var_name, t, zrange):
+    import itertools
+    # Fit a Dirichlet process Gaussian mixture using five components
+    dpgmm = mixture.BayesianGaussianMixture(weight_concentration_prior_type="dirichlet_process",n_components=5,
+                                            init_params='random',       # setting to 'random' does not help
+                                            max_iter=1000,              # setting from 100 to 1000 helped
+                                            covariance_type='full').fit(data)
+
+    Y_ = dpgmm.predict(data)
+    ncomp = dpgmm.means_.shape[0]
+    print('n comp: ', dpgmm.means_.shape[0])
+
+    # Plot for first and second variable
+    plt.figure()
+    color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
+                                  'darkorange'])
+    for i, (mean, covar, color) in enumerate(zip(
+            dpgmm.means_, dpgmm.covariances_, color_iter)):
+        plt.scatter(data[Y_==i,0], data[Y_==i,1],s=1.,alpha=.5, color=color)
+
+    plot_contour(data, dpgmm, ncomp, color_iter, var_name, zrange)
+    plt.title('Bayesion Gaussian Mixture Model: ncomp = '+np.str(ncomp) + ' (time: '+np.str(t)+')')
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_bivariate_dpgmm_' + var_name + '_' + str(t) + '.png')
+
+
 
     return
 #----------------------------------------------------------------------
@@ -105,7 +179,7 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
     # (2) select best GMM = GMM with lowest BIC
     clf = best_gmm
     n_opt = clf.weights_.size
-    print('.....', n_opt)
+    print('.....', n_opt, data.shape, clf.covariances_.shape, clf.means_.shape)
 
     # (3) Plotting
     color_iter = itertools.cycle(['navy', 'turquoise', 'cornflowerblue','darkorange'])
@@ -138,10 +212,7 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
 
     # (3c) Plot the winner PDF
     spl = plt.subplot(3, 1, 3)
-    Y_ = clf.predict(data)
-    for i, (mean, cov, color) in enumerate(zip(clf.means_, clf.covariances_,
-                                               color_iter)):
-
+    for i, (mean, cov, color) in enumerate(zip(clf.means_, clf.covariances_,color_iter)):
         if not np.any(Y_ == i):
             continue
         plt.scatter(data[Y_ == i, 0], data[Y_ == i, 1], s=1.2, color=color, alpha=0.3)
@@ -169,6 +240,7 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
     plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_bivariate_gmm_' + var_name + '_' + str(t) + '.png')
     plt.close()
     return
+
 #----------------------------------------------------------------------
 def Gaussian_mixture_univar(data, var_name, time, z):
     ncomp = 2
