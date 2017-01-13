@@ -12,6 +12,7 @@ import itertools
 from scipy import linalg
 from sklearn import mixture
 
+from read_in_files import read_in_netcdf_fields
 
 label_size = 10
 plt.rcParams['xtick.labelsize'] = label_size
@@ -116,13 +117,9 @@ def main():
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
     weights_ = np.zeros(shape=(len(zrange), 2))
+    mean_tot = np.ndarray(shape=(len(zrange), nvar))
+    covariance_tot = np.zeros(shape=(len(zrange), nvar, nvar))
 
-
-    # # --
-    # data_aux = np.ndarray(shape=((nx * ny), nvar))
-    # means_aux_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    # covariance_aux_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    # # ---
     count_t = 0
     for d in files:
         nc_file_name = 'EM2_bivar_' + str(d)
@@ -144,25 +141,28 @@ def main():
                     data[:, 0] = data1_[:, iz]
                     data[:, 1] = data2_[:, iz]
 
-                    means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
-                    means_[i, :, :] = means[:, :]
-                    covariance_[i,:,:,:] = covariance[:,:,:]
-                    weights_[i,:] = weights[:]
+                    # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
+                    clf = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz * dz)
+                    means_[i, :, :] = clf.means_[:, :]
+                    covariance_[i,:,:,:] = clf.covariances_[:,:,:]
+                    weights_[i,:] = clf.weights_[:]
+
+                    mean_tot[i,:], covariance_tot[i,:,:] = covariance_estimate_from_multicomp_pdf(clf)
 
                 dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
                 dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
                 dump_variable(os.path.join(fullpath_out, nc_file_name), 'weights', weights_, var1 + var2, ncomp, nvar, len(zrange))
 
+                # dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', mean_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
+                # dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
+
         if var1 == 'w' and var2 == 's':
             means_time_ws[count_t,:,:,:] = means_[:,:,:]
             covariance_time_ws[count_t, :, :, :] = covariance_[:, :, :]
         count_t += 1
-
     # z0 = 2
     # plot_means(means_time_ws, 'w', 's', z0)
     return
-
-
 
 
 #----------------------------------------------------------------------
@@ -170,38 +170,38 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
-    print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
-    print('covar=' + np.str(clf.covariances_.shape))
+    # print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
+    # print('covar=' + np.str(clf.covariances_.shape))
     print('')
-    # print(clf.covariances_[0,0,1], clf.covariances_[0,1,0])
-    # print('')
-    # print(clf.means_.shape, clf.covariances_.shape)
+
+    # mean_tot, covariance_tot = covariance_estimate_from_multicomp_pdf(clf)
 
     if var_name1 == 'qt' or var_name2 == 'qt':
-        # data_aux = np.ndarray(shape=((nx * ny), nvar))
-        # if var_name1 == 'qt':
-        #     data_aux[:, 0] = data[:, 0] * 1e2
-        # else:
-        #     data_aux[:, 0] = data[:, 0]
-        # if var_name2 == 'qt':
-        #     data_aux[:, 1] = data[:, 1] * 1e2
-        # else:
-        #     data_aux[:, 1] = data[:, 1]
-        # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
-        # clf_aux.fit(data_aux)
-        # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
         plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
         print('!!!! qt: factor 100')
-        # return clf_aux.means_, clf_aux.covariances_
     else:
         plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-        # return clf.means_, clf.covariances_
-
     # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
 
-    return clf.means_, clf.covariances_, clf.weights_
+    # return clf.means_, clf.covariances_, clf.weights_
+    return clf
+#----------------------------------------------------------------------
+def covariance_estimate_from_multicomp_pdf(clf):
+    '''
+    Input:
+        clf: Expectation Maximization (EM) Gaussian Mixture Model (GMM) with weights, and parameters of all PDF components
+    Output:
+        parameters of total PDF
+    '''
 
+    ncomp, nvar = clf.means_.shape
+    mean_tot = np.zeros(nvar)
+    covar_tot = np.zeros((nvar,nvar))
+    for i in range(ncomp):
+        mean_tot[:] += clf.weights_[i]*clf.means_[i,:]
+        covar_tot[:,:] += clf.weights_[i]*clf.covariances_[i,:,:]
 
+    return mean_tot, covar_tot
 
 
 #----------------------------------------------------------------------
@@ -372,7 +372,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     # print(det1, det2)
     det_ = min(det1, det2)
     fact_ = 1. / np.sqrt((2 * np.pi) ** 2 * det_)
-    fact = clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
+    fact = 1.1 * clf.weights_[0] * 1. / np.sqrt((2 * np.pi) ** 2 * det1) + clf.weights_[1] * 1. / np.sqrt(
         (2 * np.pi) ** 2 * det2)
 
     # Plotting
@@ -406,8 +406,11 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
 
     plt.figure(figsize=(12, 12))
     levels_tot = np.linspace(0, fact, 10)
-    if fact <= 10:
-        levels_cont = np.arange(0,fact,1)
+    if fact <= 2:
+        levels_cont = np.arange(0, fact, 0.2)
+        levels_contf = np.arange(0, fact, 0.2)
+    elif fact <= 10:
+        levels_cont = np.arange(0,fact,0.5)
         levels_contf = np.arange(0,fact,0.5)
     elif fact <= 20:
         levels_cont = np.arange(0,fact,2)
@@ -457,23 +460,23 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'wo', markersize=6)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'wo', markersize=6)
     plt.colorbar(ax1, shrink=0.8)
-    plt.title('f = f1+ f2')
+    plt.title('f1, f2')
     plt.xlim([x1_min, x1_max])
     plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
     plt.subplot(3, 2, 6)
     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.05)
-    levels = np.linspace(0, fact, 10)
     ax1 = plt.contour(X, Y, np.exp(Z), levels=levels_cont, linewidths=1.5)
+    # ax1 = plt.contour(X, Y, Z1+Z2, linewidths=1.5)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'wo', markersize=6)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'wo', markersize=6)
-    # plt.colorbar(ax1, shrink=0.8)
+    plt.colorbar(ax1, shrink=0.8)
     plt.xlim([x1_min, x1_max])
     plt.ylim([x2_min, x2_max])
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
-    plt.title('EM PDF')
+    plt.title('f = f1 + f2')
 
     plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
@@ -494,7 +497,6 @@ def dump_pickle(data,out_path,file_name):
     pickle.dump(data, output)
     output.close()
     return
-
 def test_pickle(in_path,file_name):
     print('')
     print('------- test pickle ------')
@@ -514,7 +516,6 @@ def test_pickle(in_path,file_name):
     return
 
 # ____________________
-
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
@@ -580,7 +581,6 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
     # write_field(path, group_name, data, var_name)
     # print('--------')
     return
-
 
 def add_means(path, var_name, ncomp, nvar):
     # print('add means: ', var_name, path)
@@ -663,17 +663,6 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     rootgrp.close()
     return data
 
-#----------------------------------------------------------------------
-def read_in_netcdf_fields(variable_name, fullpath_in):
-    rootgrp = nc.Dataset(fullpath_in, 'r')
-    var = rootgrp.groups['fields'].variables[variable_name]
-    
-    shape = var.shape
-    # print('shape:',var.shape)
-    data = np.ndarray(shape = var.shape)
-    data = var[:]
-    rootgrp.close()
-    return data
 
 #----------------------------------------------------------------------
 def read_in(variable_name, group_name, fullpath_in):

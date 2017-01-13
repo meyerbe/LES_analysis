@@ -52,9 +52,11 @@ def main():
         zrange:     z-values for which the PDF is fitted
         var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    global zrange
-    zrange = np.arange(5, 21, 5)
-    print('zrange: ', zrange, zrange*dx[2])
+    global zrange, zrange_m
+    # zrange = np.arange(5, 21, 5)
+    zrange = np.arange(5, 31, 5)
+    zrange_m = zrange*dx[2]
+    print('zrange: ', zrange, zrange_m)
     if case_name == 'DCBLSoares':
         var_list = ['u', 'w', 's']
     else:
@@ -114,19 +116,23 @@ def main():
 #----------------------------------------------------------------------
 def plot_covar_matrix(data, x_, y_):
     from matplotlib import cm
-    # # import matplotlib.pyplot as plt
-    print('plotting: ', data.shape, zrange, x_)
     fig = plt.figure()
     fig, ax = plt.subplots()
     X, Y = np.meshgrid(x_, y_)
     plt.imshow(data, cmap=cm.coolwarm, interpolation='nearest')
     plt.colorbar()
     labels = [item.get_text() for item in ax.get_xticklabels()]
-    labels[1] = 'Testing'
-    labels[1:9:2] = x_
-    ax.set_xticklabels(labels)
-    labels[1:9:2] = y_
-    ax.set_yticklabels(labels)
+    # print('....labels', len(labels), zrange)
+    if len(labels) == zrange.shape[0]+2:
+        labels[1:-1] = x_
+        ax.set_xticklabels(labels)
+        labels[1:-1] = y_
+        ax.set_yticklabels(labels)
+    elif zrange.shape[0] == 4:
+        labels[1:len(labels):2] = x_
+        ax.set_xticklabels(labels)
+        labels[1:9:2] = y_
+        ax.set_yticklabels(labels)
 
     plt.grid()
 
@@ -192,7 +198,7 @@ def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
 
 
     plt.figure()
-    plot_covar_matrix(covar_tot, zrange, zrange)
+    plot_covar_matrix(covar_tot, zrange_m, zrange_m )
     plt.title('Total Covariance Matrix: '+ np.str(covar_tot.shape))
     #  plt.xlabel('delta z')
     # plt.ylabel('delta z')
