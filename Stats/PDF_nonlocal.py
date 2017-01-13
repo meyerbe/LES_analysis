@@ -8,6 +8,9 @@ from sklearn import mixture
 from read_in_files import read_in_nml
 from read_in_files import read_in_netcdf_fields
 
+label_size = 8
+plt.rcParams['xtick.labelsize'] = label_size
+plt.rcParams['ytick.labelsize'] = label_size
 
 """
 =======================================
@@ -67,24 +70,21 @@ def main():
         # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
 
         var = var_list[0]
+        nvar = len(zrange)
         data_ = read_in_netcdf_fields(var, fullpath_in).reshape((nx[0] * nx[1], nx[2]))
+        data = np.ndarray(shape=(nx[0] * nx[1], nvar))
+        for k in range(nvar):
+            data[:, k] = data_[:, zrange[k]]
 
         # (a) Gaussian Mixture Model: ncomp = 2 (univar)
         print('Gaussian Mixture Model: ncomp = 2')
         ncomp = 2
-        nvar = len(zrange)
-        data = np.ndarray(shape=(nx[0] * nx[1], nvar))
-        for k in range(nvar):
-            data[:, k] = data_[:, zrange[k]]
+
         means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
 
         # # (b) Gaussian Mixture Model: ncomp = 3 (univar)
         print('Gaussian Mixture Model: ncomp = 3')
         ncomp = 3
-        nvar = len(zrange)
-        data = np.ndarray(shape=(nx[0] * nx[1], nvar))
-        for k in range(nvar):
-            data[:, k] = data_[:, zrange[k]]
         means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
 
         # (c) Gaussian Mixture Model with flexible #components
@@ -95,10 +95,10 @@ def main():
 
         # (d) Bayesian Gaussian Mixture Model
         print('Bayesian Gaussian Mixture Model: dirichlet process')
-        Bayesian_Gaussian_Mixture(data, var, np.int(d[0:-3]), zrange)
+        # Bayesian_Gaussian_Mixture(data, var, np.int(d[0:-3]), zrange)
 
         # (e) Covariance Estimator (empirical; maximum likelihood)
-        Covariance_empirical(data)
+        # Covariance_empirical(data)
 
         # (f) Minimum Determinant Covariance
 
@@ -118,8 +118,8 @@ def Covariance_empirical(data):
     emp_cov = EmpiricalCovariance().fit(data)
     # print(emp_cov.get_params())
     covar = emp_cov.covariance_
-    print(data.shape, covar.shape, zrange.shape, zrange)
-    print(covar)
+    # print(data.shape, covar.shape, zrange.shape, zrange)
+    # print(covar)
 
     plot_covar(covar, zrange, zrange)
     return
@@ -143,12 +143,36 @@ def plot_covar(data, x_, y_):
     return
 
 #----------------------------------------------------------------------
+def plot_covar_matrix(data, x_, y_):
+    from matplotlib import cm
+    # # import matplotlib.pyplot as plt
+    print('plotting: ', data.shape, zrange, x_)
+    fig = plt.figure()
+    fig, ax = plt.subplots()
+    X, Y = np.meshgrid(x_, y_)
+    plt.imshow(data, cmap=cm.coolwarm, interpolation='nearest')
+    plt.colorbar()
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    labels[1] = 'Testing'
+    labels[1:9:2] = x_
+    ax.set_xticklabels(labels)
+    labels[1:9:2] = y_
+    ax.set_yticklabels(labels)
+
+
+    plt.grid()
+
+
+
+    return
+
+#----------------------------------------------------------------------
 def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
     colors = ['navy', 'c', 'cornflowerblue', 'gold','darkorange']
     import itertools
     import matplotlib.mlab as mlab
 
-    print('plotting: ', data.shape)
+    # print('plotting: ', data.shape)
     n_sample = 300
     x1_max = np.amax(data[:, 0])
     x1_min = np.amin(data[:, 0])
@@ -178,12 +202,12 @@ def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
     return
 
 #----------------------------------------------------------------------
-# class sklearn.mixture.BayesianGaussianMixture(n_components=1, covariance_type='full', tol=0.001, reg_covar=1e-06,
-#               max_iter=100, n_init=1, init_params='kmeans', weight_concentration_prior_type='dirichlet_process',
-#               weight_concentration_prior=None, mean_precision_prior=None, mean_prior=None,
-#               degrees_of_freedom_prior=None, covariance_prior=None, random_state=None, warm_start=False,
-#               verbose=0, verbose_interval=10
 def Bayesian_Gaussian_Mixture(data,var_name, t, zrange):
+    # class sklearn.mixture.BayesianGaussianMixture(n_components=1, covariance_type='full', tol=0.001, reg_covar=1e-06,
+    #               max_iter=100, n_init=1, init_params='kmeans', weight_concentration_prior_type='dirichlet_process',
+    #               weight_concentration_prior=None, mean_precision_prior=None, mean_prior=None,
+    #               degrees_of_freedom_prior=None, covariance_prior=None, random_state=None, warm_start=False,
+    #               verbose=0, verbose_interval=10
     import itertools
     # Fit a Dirichlet process Gaussian mixture using five components
 
@@ -300,12 +324,31 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
     return
 
 #----------------------------------------------------------------------
+def covariance_estimate_from_multicomp_pdf(clf):
+    '''
+    Input:
+        clf: Expectation Maximization (EM) Gaussian Mixture Model (GMM) with weights, and parameters of all PDF components
+    Output:
+        parameters of total PDF
+    '''
+
+    ncomp, nvar = clf.means_.shape
+    mean_tot = np.zeros(nvar)
+    covar_tot = np.zeros((nvar,nvar))
+    for i in range(ncomp):
+        mean_tot[:] += clf.weights_[i]*clf.means_[i,:]
+        covar_tot[:,:] += clf.weights_[i]*clf.covariances_[i,:,:]
+
+    return mean_tot, covar_tot
+#----------------------------------------------------------------------
 def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
     import itertools
+    # (1) Compute Gaussian Mixture Model
     clf = mixture.GaussianMixture(n_components=ncomp, covariance_type='full')
     clf.fit(data)
     Y_ = clf.predict(data)
 
+    # (2) plot data and PDF components
     plt.figure()
     color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
                                   'darkorange'])
@@ -317,6 +360,21 @@ def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
     plt.title('Gaussian Mixture Model: ncomp = ' + np.str(ncomp) + ' (time: ' + np.str(t) + ')')
     plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp)+'_PDF_univar_'
                 + var_name + '_' + str(t) + '_z' + np.str(zrange[0]) + 'm_' + np.str(zrange[1]) + 'm.png')
+
+    mean_tot, covar_tot = covariance_estimate_from_multicomp_pdf(clf)
+
+
+
+    plt.figure()
+    plot_covar_matrix(covar_tot, zrange, zrange)
+    plt.title('Total Covariance Matrix: '+ np.str(covar_tot.shape))
+    #  plt.xlabel('delta z')
+    # plt.ylabel('delta z')
+    plt.xlabel('level [m]')
+    plt.ylabel('level [m]')
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
+                + var_name + '_' + str(t) + '.png')
+    plt.close()
 
     # if var_name1 == 'qt' or var_name2 == 'qt':
     #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
