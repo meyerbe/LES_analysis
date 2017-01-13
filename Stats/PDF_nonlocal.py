@@ -8,6 +8,20 @@ from sklearn import mixture
 from read_in_files import read_in_nml
 from read_in_files import read_in_netcdf_fields
 
+
+"""
+=======================================
+NOTES:
+=======================================
+- Bayesian Gaussian Mixture Model instable: does not always produce the same output (i.e. the same PDF) for same data
+    --> because of problem in sqrt(covariance)??
+
+- ??? Is vertical correlation really Gaussian? Look at EM_PDF_bivar:
+    means show more of an exponential / gamma distribution shape;
+    no real pattern in covariances
+- ??? EM Univar: flat tail of histograms --> might be better represented by a combination of Gaussian and GAMMA DISTRIBUTION
+"""
+
 #----------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
@@ -57,34 +71,79 @@ def main():
 
         # (a) Gaussian Mixture Model: ncomp = 2 (univar)
         print('Gaussian Mixture Model: ncomp = 2')
+        ncomp = 2
         nvar = len(zrange)
         data = np.ndarray(shape=(nx[0] * nx[1], nvar))
         for k in range(nvar):
             data[:, k] = data_[:, zrange[k]]
-        means, covariance, weights = Gaussian_mixture_univar(data, var, np.int(d[0:-3]), zrange[0] * dx[2])
+        means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
 
-        # (b) Gaussian Mixture Model with flexible #components
+        # # (b) Gaussian Mixture Model: ncomp = 3 (univar)
+        print('Gaussian Mixture Model: ncomp = 3')
+        ncomp = 3
+        nvar = len(zrange)
+        data = np.ndarray(shape=(nx[0] * nx[1], nvar))
+        for k in range(nvar):
+            data[:, k] = data_[:, zrange[k]]
+        means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
+
+        # (c) Gaussian Mixture Model with flexible #components
         print('Gaussian Mixture Model: BIC')
         # nvar = len(var_list)*len(zrange)
         nvar = 2
         # Gaussian_mixture_ncompselection(data[:,0:nvar],var, t)
 
-
-        # (c) Bayesian Gaussian Mixture Model
+        # (d) Bayesian Gaussian Mixture Model
         print('Bayesian Gaussian Mixture Model: dirichlet process')
         Bayesian_Gaussian_Mixture(data, var, np.int(d[0:-3]), zrange)
 
+        # (e) Covariance Estimator (empirical; maximum likelihood)
+        Covariance_empirical(data)
 
-        # (d) Covariance Estimator (empirical; maximum likelihood)
+        # (f) Minimum Determinant Covariance
 
-        # (e) Sparse Inverse Covariance
+        # (g) Sparse Inverse Covariance
 
-        # (f) Generalized Moment Method (statsmodel)
+        # (h) Generalized Moment Method (statsmodel)
+
+    return
+
+
+#----------------------------------------------------------------------
+# class sklearn.covariance.EmpiricalCovariance(store_precision=True, assume_centered=False)
+def Covariance_empirical(data):
+    from sklearn.covariance import EmpiricalCovariance
+    global zrange
+
+    emp_cov = EmpiricalCovariance().fit(data)
+    # print(emp_cov.get_params())
+    covar = emp_cov.covariance_
+    print(data.shape, covar.shape, zrange.shape, zrange)
+    print(covar)
+
+    plot_covar(covar, zrange, zrange)
+    return
+
+#----------------------------------------------------------------------
+def plot_covar(data, x_, y_):
+    from mpl_toolkits.mplot3d import Axes3D
+    # import matplotlib.pyplot as plt
+    from matplotlib import cm
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    X, Y = np.meshgrid(x_, y_)
+    # R = np.sqrt(X ** 2 + Y ** 2)
+    # Z = np.sin(R)
+    # surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.coolwarm,
+    #                        linewidth=0, antialiased=False)
+    surf = ax.plot_surface(X,Y,data, cmap=cm.coolwarm)
+    # plt.show()
+    plt.close()
 
     return
 
 #----------------------------------------------------------------------
-def plot_contour(data, clf, ncomp, colors, var_name, zrange):
+def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
     colors = ['navy', 'c', 'cornflowerblue', 'gold','darkorange']
     import itertools
     import matplotlib.mlab as mlab
@@ -113,7 +172,6 @@ def plot_contour(data, clf, ncomp, colors, var_name, zrange):
         sxy = sigma[i, 1, 0] ** 2
         Z = mlab.bivariate_normal(X, Y, sigmax=sigma[i, 0, 0], sigmay=sigma[i, 1, 1], mux=means[i, 0], muy=means[i, 1],
                                   sigmaxy=sxy)
-        # ax = plt.contour(X, Y, Z)
         ax = plt.contour(X, Y, Z, colors = colors[i])
     plt.xlabel(var_name + ' at level z=' + np.str(zrange[0]) + 'm')
     plt.ylabel(var_name + ' at level z=' + np.str(zrange[1]) + 'm')
@@ -128,11 +186,11 @@ def plot_contour(data, clf, ncomp, colors, var_name, zrange):
 def Bayesian_Gaussian_Mixture(data,var_name, t, zrange):
     import itertools
     # Fit a Dirichlet process Gaussian mixture using five components
+
     dpgmm = mixture.BayesianGaussianMixture(weight_concentration_prior_type="dirichlet_process",n_components=5,
                                             init_params='random',       # setting to 'random' does not help
                                             max_iter=1000,              # setting from 100 to 1000 helped
                                             covariance_type='full').fit(data)
-
     Y_ = dpgmm.predict(data)
     ncomp = dpgmm.means_.shape[0]
     print('n comp: ', dpgmm.means_.shape[0])
@@ -145,11 +203,11 @@ def Bayesian_Gaussian_Mixture(data,var_name, t, zrange):
             dpgmm.means_, dpgmm.covariances_, color_iter)):
         plt.scatter(data[Y_==i,0], data[Y_==i,1],s=1.,alpha=.5, color=color)
 
-    plot_contour(data, dpgmm, ncomp, color_iter, var_name, zrange)
-    plt.title('Bayesion Gaussian Mixture Model: ncomp = '+np.str(ncomp) + ' (time: '+np.str(t)+')')
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_bivariate_dpgmm_' + var_name + '_' + str(t) + '.png')
-
-
+    plot_contour_12(data, dpgmm, ncomp, color_iter, var_name, zrange)
+    plt.title('Bayesian Gaussian Mixture Model: ncomp = '+np.str(ncomp) + ' (time: '+np.str(t)+')')
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_uniariate_dpgmm_'
+                + var_name + '_' + str(t) + '_z'+np.str(zrange[0])+'m_'+np.str(zrange[1])+'m.png')
+    plt.close()
 
     return
 #----------------------------------------------------------------------
@@ -237,42 +295,51 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
     plt.yticks(())
     plt.title('Selected GMM: '+ np.str(n_opt) + ' components')
     plt.subplots_adjust(hspace=.35, bottom=.02)
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_bivariate_gmm_' + var_name + '_' + str(t) + '.png')
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_univariate_gmm_' + var_name + '_' + str(t) + '.png')
     plt.close()
     return
 
 #----------------------------------------------------------------------
-def Gaussian_mixture_univar(data, var_name, time, z):
-    ncomp = 2
+def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
+    import itertools
     clf = mixture.GaussianMixture(n_components=ncomp, covariance_type='full')
     clf.fit(data)
-    # print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
-    # print('covar=' + np.str(clf.covariances_.shape))
+    Y_ = clf.predict(data)
 
-    # # if var_name1 == 'qt' or var_name2 == 'qt':
-    # #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
-    # #     # if var_name1 == 'qt':
-    # #     #     data_aux[:, 0] = data[:, 0] * 1e2
-    # #     # else:
-    # #     #     data_aux[:, 0] = data[:, 0]
-    # #     # if var_name2 == 'qt':
-    # #     #     data_aux[:, 1] = data[:, 1] * 1e2
-    # #     # else:
-    # #     #     data_aux[:, 1] = data[:, 1]
-    # #     # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
-    # #     # clf_aux.fit(data_aux)
-    # #     # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
-    # #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-    # #     print('!!!! qt: factor 100')
-    # #     # return clf_aux.means_, clf_aux.covariances_
-    # # else:
-    # #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    # #     # return clf.means_, clf.covariances_
-    #
-    # # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    plt.figure()
+    color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
+                                  'darkorange'])
+    for i, (mean, covar, color) in enumerate(zip(
+            clf.means_, clf.covariances_, color_iter)):
+        plt.scatter(data[Y_ == i, 0], data[Y_ == i, 1], s=1., alpha=.5, color=color)
+
+    plot_contour_12(data, clf, ncomp, color_iter, var_name, zrange)
+    plt.title('Gaussian Mixture Model: ncomp = ' + np.str(ncomp) + ' (time: ' + np.str(t) + ')')
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp)+'_PDF_univar_'
+                + var_name + '_' + str(t) + '_z' + np.str(zrange[0]) + 'm_' + np.str(zrange[1]) + 'm.png')
+
+    # if var_name1 == 'qt' or var_name2 == 'qt':
+    #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
+    #     # if var_name1 == 'qt':
+    #     #     data_aux[:, 0] = data[:, 0] * 1e2
+    #     # else:
+    #     #     data_aux[:, 0] = data[:, 0]
+    #     # if var_name2 == 'qt':
+    #     #     data_aux[:, 1] = data[:, 1] * 1e2
+    #     # else:
+    #     #     data_aux[:, 1] = data[:, 1]
+    #     # clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
+    #     # clf_aux.fit(data_aux)
+    #     # plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z)
+    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
+    #     print('!!!! qt: factor 100')
+    #     # return clf_aux.means_, clf_aux.covariances_
+    # else:
+    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    #     # return clf.means_, clf.covariances_
+    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
 
     return clf.means_, clf.covariances_, clf.weights_
-    # return
 
 #----------------------------------------------------------------------
 if __name__ == "__main__":
