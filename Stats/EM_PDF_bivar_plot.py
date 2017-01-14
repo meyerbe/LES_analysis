@@ -136,6 +136,14 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     nt = time.size
     colors = ['b', 'g']
 
+    for k in range(z_max):
+        for n in range(nt):
+            for j in range(2):
+                if means_[n, k, 0, j] < means_[n, k, 1, j]:
+                    aux = means_[n, k, 1, j]
+                    means_[n, k, 1, j] = means_[n, k, 0, j]
+                    means_[n, k, 0, j] = aux
+
     # over time at given level
     means = means_[:,z0,:,:]
     covars = covars_[:,z0,:,:]
@@ -147,11 +155,6 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     fig.suptitle(var_name+ r': mean values of $f_1$, $f_2$ (z=' + np.str(zrange_[z0] * dz) + 'm)', fontsize=20)
     for j in range(2):      # loop over variables
         plt.subplot(2,2,j+1)
-        for i in range(nt):
-            if means[i,0,j] < means[i,1,j]:
-                aux = means[i,1,j]
-                means[i,1,j] = means[i,0,j]
-                means[i, 0, j] = aux
         plt.plot(time[:], means[:, 0, j], 'o-')
         plt.plot(time[:], means[:, 1, j], 'o-')
         plt.plot(time[:], means_tot[:, j], 'ro-')
@@ -186,29 +189,24 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     fig.suptitle(var_name + r': mean values of $f_1$, $f_2$ (t=' + np.str(time_[t0]) + ')', fontsize=20)
     for j in range(2):  # loop over variables
         plt.subplot(2, 2, j + 1)
-        for k in range(z_max):
-            if means[k, 0, j] < means[i, 1, j]:
-                aux = means[i, 1, j]
-                means[k, 1, j] = means[i, 0, j]
-                means[k, 0, j] = aux
         for comp in range(ncomp):
-            plt.plot(zrange_[:] * dz, means[:, comp, j], 'o-', color=colors[comp], label='comp ' + np.str(comp))
-        plt.plot(zrange_[:] * dz, means_tot[:, j], 'ro-', label='total')
-        plt.xlabel('height z')
-        plt.ylabel(r'$<$' + var_name[j] + r'$>$')
+            plt.plot(means[:, comp, j], zrange_[:] * dz, 'o-', color=colors[comp], label='comp ' + np.str(comp))
+        plt.plot(means_tot[:, j], zrange_[:] * dz, 'ro-', label='total')
+        plt.xlabel(r'$<$' + var_name[j] + r'$>$')
+        plt.ylabel('height z')
 
         plt.subplot(2, 2, 2 + j + 1)
         for comp in range(ncomp):
-            for i in range(z_max):
-                plt.plot(zrange_[i] * dz, means[i, comp, j], 'o', color=colors[comp], label='comp '+np.str(comp))
-                bar = 0.5 * np.sqrt(covars[i, comp, j, j])
-                plt.plot([zrange_[i] * dz, zrange_[i] * dz], [means[i, comp, j] - bar, means[i, comp, j] + bar], color=colors[comp])
-        plt.xlabel('height z')
-        plt.ylabel(r'$<$' + var_name[j] + r'$>$')
+            plt.plot(means[:, comp, j], zrange_[:] * dz, 'o', markersize=4,
+                     color=colors[comp], label='comp '+np.str(comp))
+            bar = 0.5 * np.sqrt(covars[:, comp, j, j])
+            plt.plot([means[:, comp, j] - bar, means[:, comp, j] + bar], [zrange_[:] * dz, zrange_[:] * dz], color=colors[comp])
+        plt.xlabel(r'$<$' + var_name[j] + r'$>$')
+        plt.ylabel('height z')
     ax = plt.subplot(2, 2, 1)
     ax.legend()
     plt.savefig(
-            os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_a_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
+            os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     plt.close()
 
     # plt.figure()
@@ -268,9 +266,9 @@ def bivar_plot_covars(var_name, means_, covars_, mean_tot_, covars_tot_, z0,t0,t
                 plt.xlabel('time')
                 plt.ylabel(var_name[i]+var_name[j])
             plt.plot(time[:], covars_tot[:,i,j],'ro-',label='total')
-            if n==1:
-                plt.legend()
             n += 1
+    ax = plt.subplot(1,3,1)
+    ax.legend()
     plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'covars_time_' + var_name + '_z' + str(np.int(zrange_[z0]*dz)) + 'm.png')
     plt.close()
 
@@ -285,13 +283,13 @@ def bivar_plot_covars(var_name, means_, covars_, mean_tot_, covars_tot_, z0,t0,t
         for j in range(i, 2):
             plt.subplot(1, 3, n)
             for comp in range(ncomp):
-                plt.plot(dz*zrange_, covars[:, comp, i, j], 'o-', color=colors[comp], label='comp '+np.str(comp))
-                plt.xlabel('height z')
-                plt.ylabel(var_name[i] + var_name[j])
-            plt.plot(dz*zrange_[:], covars_tot[:, i, j], 'ro-', label='total')
-            if n == 1:
-                plt.legend()
+                plt.plot(covars[:, comp, i, j], dz*zrange_, 'o-', color=colors[comp], label='comp '+np.str(comp))
+                plt.xlabel(var_name[i] + var_name[j])
+                plt.ylabel('height z')
+            plt.plot(covars_tot[:, i, j], dz*zrange_[:], 'ro-', label='total')
             n += 1
+    ax = plt.subplot(1, 3, 1)
+    ax.legend()
     plt.savefig(
         os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'covars_level_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     plt.close()
@@ -347,9 +345,6 @@ def read_in_nml(path, case_name):
 #     return variable
 
 #----------------------------------------------------------------------
-
-
-
 #----------------------------------------------------------------------
 
 
