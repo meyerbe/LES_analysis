@@ -119,11 +119,14 @@ def main():
             means_[i, :, :] = clf.means_[:, :]
             covariance_[i,:,:,:] = clf.covariances_[:,:,:]
 
-        dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+            '''(3) Compute Kernel-Estimate PDF '''
+            Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
 
-        '''(3) Compute Kernel-Estimate PDF '''
-        Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+
+        '''(4) Save Gaussian Mixture PDFs '''
+        dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar,
+                      len(zrange))
 
     #     if var1 == 'w' and var2 == 's':
     #         means_time_ws[count_t,:,:,:] = means_[:,:,:]
@@ -247,8 +250,8 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     # plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
     ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
     plt.colorbar(ax1, shrink=0.8)
-    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_KDE_' + var_name1 + '_' + var_name2 + '_' + str(
-        time) + '_z' + str(np.int(z)) + 'm.png')
+    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(
+        time) + '_z' + str(np.int(z)) + 'm_KDE.png')
     if var_name1 == 'qt':
         plt.xlabel(var_name1 + ' (amp=' + np.str(amp) + ')')
         plt.ylabel(var_name2)
@@ -410,8 +413,8 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
         plt.xlabel(var_name1)
         plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
 
-    plt.savefig(fullpath_out+'figures_CloudClosure/CC_univariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + 'm.png')
+    plt.savefig(fullpath_out+'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+        np.int(z)) + 'm_univariate.png')
 
     plt.close()
     return
