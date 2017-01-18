@@ -40,8 +40,8 @@
 
 
 # IO
-`read_in_netcdf4`: example for reading in NetCDF4 files
 
+`io_read_in_files.py`: read in nc-files, Namelist files etc.
 
 
 

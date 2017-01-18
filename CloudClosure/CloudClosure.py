@@ -32,6 +32,7 @@ TO DO:
 (2) compute bivariate Gaussian PDF for (th_l, q_t)
     (a) compute mean and covariance
 (3) test quality of this PDF fitting --> how?
+    (a) fit Kernel-Density-Estimated PDF & compare to Gaussian PDF (relative entropy minimisation)
 '''
 
 
@@ -68,6 +69,7 @@ def main():
     '''
     global zrange
     zrange = np.arange(0,36,2)
+    # zrange = np.arange(0, 8, 4)
     print('zrange', zrange)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -77,12 +79,17 @@ def main():
         # var_list = ['w', 's']
 
 
+    global ncomp
+    global nvar
+    ncomp = 1
+    nvar = 2
 
-    '''(1) compute liquid potential temperature from temperature and moisture'''
-    p0 = 1e5
-    # T, ql, qi = sat_adj(p0, 6500, 1e-3)
-
+    count_t = 0
     for d in files:
+        '''(1) compute liquid potential temperature from temperature and moisture'''
+        p0 = 1e5
+        # T, ql, qi = sat_adj(p0, 6500, 1e-3)
+
         nc_file_name = str(d)
         fullpath_in = os.path.join(in_path, 'fields', nc_file_name)
         print('fullpath_in', fullpath_in)
@@ -92,19 +99,13 @@ def main():
         qi = np.zeros(shape=T.shape)
         theta_l = thetali(p0,T,qt,ql,qi)
 
-    '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
-    global ncomp
-    global nvar
-    ncomp = 1
-    nvar = 2
-    data = np.ndarray(shape=((nx * ny), nvar))
-    means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+        '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
+        data = np.ndarray(shape=((nx * ny), nvar))
+        means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+        covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
 
-    count_t = 0
-    for d in files:
         nc_file_name = 'CC_' + str(d)
-        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+        # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
 
         data1_ = theta_l.reshape((nx * ny), nz)
         data2_ = qt.reshape((nx * ny), nz)
@@ -120,6 +121,9 @@ def main():
 
         dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, 'qtT', ncomp, nvar, len(zrange))
         dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+
+        '''(3) Compute Kernel-Estimate PDF '''
+        Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
 
     #     if var1 == 'w' and var2 == 's':
     #         means_time_ws[count_t,:,:,:] = means_[:,:,:]
@@ -137,8 +141,6 @@ def Gaussian_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
-    # print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
-    # print('covar=' + np.str(clf.covariances_.shape))
     print('')
 
     if var_name1 == 'qt' or var_name2 == 'qt':
@@ -165,6 +167,95 @@ def Gaussian_univariate(data, var_name, time, iz):
         plot_PDF_samples(data, var_name, clf, time, iz)
 
     return clf.means_, clf.covariances_, clf.weights_
+#----------------------------------------------------------------------
+def Kernel_density_estimate(data, var_name1, var_name2, time, z):
+    from sklearn.neighbors.kde import KernelDensity
+    ''' Kerne Density Estimation:
+    from sklearn.neighbors import KernelDensity
+    '''
+    amp = 100
+    data_aux = np.ndarray(shape=((nx * ny), nvar))
+    data_aux[:, 0] = data[:, 0]
+    data_aux[:, 1] = data[:, 1] * amp
+
+    # construct a kernel density estimate of the distribution
+    print(" - computing KDE in spherical coordinates")
+    # kde = KernelDensity(bandwidth=0.04, metric='haversine',
+    #                     kernel='gaussian', algorithm='ball_tree')
+    # kde.fit(Xtrain[ytrain == i])
+    kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(data)
+    # kde.score_samples(data)
+    #
+    kde_aux = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(data_aux)
+    # kde_aux.score_samples(data_aux)
+
+
+    # Plotting
+    n_sample = 100
+    x = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    X, Y = np.meshgrid(x, y)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z = np.exp(kde.score_samples(XX)).reshape(X.shape)
+    x_aux = np.linspace(np.amin(data_aux[:, 0]), np.amax(data_aux[:, 0]), n_sample)
+    y_aux = np.linspace(np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1]), n_sample)
+    X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
+    XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
+    Z_aux = kde_aux.score_samples(XX_aux).reshape(X.shape)
+
+    plt.figure(figsize=(12, 16))
+    plt.subplot(3, 2, 1)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contour(X, Y, Z, colors='w', levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(3, 2, 2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contour(X_aux, Y_aux, Z_aux, colors='w', levels=np.linspace(10, 20, 11))
+    plt.colorbar(ax1, shrink=0.8)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' (amp=' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
+
+    plt.subplot(3, 2, 3)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contour(X, Y, np.exp(Z))
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(3, 2, 4)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contour(X_aux, Y_aux, np.exp(Z_aux))
+    plt.colorbar(ax1, shrink=0.8)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' (amp=' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
+
+    plt.subplot(3, 2, 5)
+    ax1 = plt.contourf(X, Y, np.exp(Z))
+    plt.colorbar(ax1, shrink=0.8)
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    plt.subplot(3, 2, 6)
+    # plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
+    plt.colorbar(ax1, shrink=0.8)
+    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_KDE_' + var_name1 + '_' + var_name2 + '_' + str(
+        time) + '_z' + str(np.int(z)) + 'm.png')
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' (amp=' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
+    return
 #----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
     '''
@@ -211,7 +302,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     import matplotlib.cm as cm
 
     data_aux = np.ndarray(shape=((nx * ny), nvar))
-    data_aux[:, 0] = data[:, 0] * amp
+    data_aux[:, 0] = data[:, 0]
     data_aux[:, 1] = data[:, 1] * amp
     clf_aux = mixture.GaussianMixture(n_components=ncomp, covariance_type='full')
     clf_aux.fit(data_aux)
@@ -264,7 +355,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.subplot(3, 2, 2)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
-    ax1 = plt.contour(X, Y, Z_aux, colors='w', levels=np.linspace(10, 20, 11))
+    ax1 = plt.contour(X_aux, Y_aux, Z_aux, colors='w', levels=np.linspace(10, 20, 11))
     plt.colorbar(ax1, shrink=0.8)
     plt.xlim([x1_min, x1_max])
     plt.ylim([x2_min, x2_max])
