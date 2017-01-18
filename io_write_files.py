@@ -4,6 +4,7 @@ import json as  simplejson
 import os
 
 # ____________________
+''' PICKLES '''
 def dump_pickle(data,out_path,file_name):
     data_ = (1.4,42)
     # output = open(os.path.join(out_path,'data.pkl'), 'w')
@@ -27,4 +28,6 @@ def test_pickle(in_path,file_name):
     print(means_)
     print('-------------------------')
     print('')
-    retur
+    return
+
+# ____________________

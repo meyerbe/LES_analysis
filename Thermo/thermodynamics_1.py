@@ -118,7 +118,7 @@ def sat_adj(p0, s, qt):
     # Compute temperature
     pv_1 = pv_c(p0,qt,qt)                       # eos_c: same
     pd_1 = p0 - pv_1                            # eos_c: same
-    print('p0, pv_1, pd_1', p0, pv_1, pd_1)
+    # print('p0, pv_1, pd_1', p0, pv_1, pd_1)
     T_1 = temperature_no_ql(pd_1,pv_1,s,qt)     # eos_c: same
     #Compute saturation vapor pressure
     pv_star_1 = get_pv_star(T_1)                # eos_c: pv_star_1 = lookup(LT, T_1) # ???
@@ -284,7 +284,7 @@ def sat_adj_firstguess(p0, s, qt):
 # ---------------------------------------------------------------------------
 # from entropies.h
 def sd_c(pd, T):
-    print('pd', pd, 'T', T)
+    # print('pd', pd, 'T', T)
     if T<0 or pd<0:
         print('sd: negative pd or T', pd, T)
     return sd_tilde + cpd*np.log(T/T_tilde) - Rd*np.log(pd/p_tilde)
@@ -294,7 +294,6 @@ def sv_c(pv, T):
 
 def sc_c(L, T):
     return -L/T
-
 
 def pv_c(p0, qt, qv):
     return p0 * eps_vi * qv /(1.0 - qt + eps_vi * qv)

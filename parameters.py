@@ -12,7 +12,7 @@ cpd = 1004.0
 cpv = 1859.0
 cl = 4218.0
 ci = 2106.0
-# define kappa 0.285956175299
+kappa = 0.285956175299
 # define Tf 273.15
 # define Tt 273.16
 global T_tilde, p_tilde, sd_tilde, sv_tilde
