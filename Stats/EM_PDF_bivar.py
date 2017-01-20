@@ -1,6 +1,7 @@
 import netCDF4 as nc
 import argparse
 import os
+import sys
 import json as  simplejson
 import pylab as plt
 from matplotlib.colors import LogNorm
@@ -12,7 +13,8 @@ import itertools
 from scipy import linalg
 from sklearn import mixture
 
-from read_in_files import read_in_netcdf_fields
+sys.path.append("..")
+from io_read_in_files import read_in_netcdf_fields
 
 label_size = 10
 plt.rcParams['xtick.labelsize'] = label_size
@@ -123,7 +125,7 @@ def main():
     count_t = 0
     for d in files:
         nc_file_name = 'EM2_bivar_' + str(d)
-        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+        create_statistics_file(os.path.join(fullpath_out,'EM2'), nc_file_name, ncomp, nvar, len(zrange))
 
         fullpath_in = os.path.join(args.path, 'fields', d)
         print(fullpath_in)
@@ -149,9 +151,9 @@ def main():
 
                     mean_tot[i,:], covariance_tot[i,:,:] = covariance_estimate_from_multicomp_pdf(clf)
 
-                dump_variable(os.path.join(fullpath_out, nc_file_name),'means', means_, var1+var2, ncomp, nvar, len(zrange))
-                dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
-                dump_variable(os.path.join(fullpath_out, nc_file_name), 'weights', weights_, var1 + var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'means', means_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'weights', weights_, var1+var2, ncomp, nvar, len(zrange))
 
                 # dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', mean_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
                 # dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
@@ -170,15 +172,12 @@ def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
-    # print('means=' + np.str(clf.means_.shape) + ', ' +np.str(clf.means_))
-    # print('covar=' + np.str(clf.covariances_.shape))
     print('')
 
     # mean_tot, covariance_tot = covariance_estimate_from_multicomp_pdf(clf)
 
     if var_name1 == 'qt' or var_name2 == 'qt':
         plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-        print('!!!! qt: factor 100')
     else:
         plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
     # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
@@ -208,14 +207,20 @@ def covariance_estimate_from_multicomp_pdf(clf):
 # def plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z):
 def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     print('')
-    print('plot PDF samples qt')
+    amp = 100
+    print('plot PDF samples qt: amp = '+np.str(amp))
 
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
 
     data_aux = np.ndarray(shape=((nx * ny), nvar))
-    data_aux[:, 0] = data[:, 0] * 1e2
-    data_aux[:, 1] = data[:, 1] * 1e2
+    if var_name1 == 'qt':
+        data_aux[:, 0] = data[:, 0] * amp
+        data_aux[:, 1] = data[:, 1]
+    elif var_name2 == 'qt':
+        data_aux[:, 0] = data[:, 0]
+        data_aux[:, 1] = data[:, 1] * amp
+
     clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf_aux.fit(data_aux)
 
@@ -274,7 +279,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     Z1_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx1_aux, sigmay=sy1_aux, mux=mx1_aux, muy=my1_aux, sigmaxy=sxy1_aux)
     Z2_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx2_aux, sigmay=sy2_aux, mux=mx2_aux, muy=my2_aux, sigmaxy=sxy2_aux)
 
-    plt.figure(figsize=(12, 16))
+    fig = plt.figure(figsize=(12, 16))
 
     plt.subplot(4, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.5)
@@ -297,8 +302,12 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + '  (* ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + '  (* ' + np.str(amp) + ')')
 
     plt.subplot(4, 2, 5)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.3)
@@ -323,9 +332,12 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     # plt.xlim([x1_min, x1_max])
     # plt.ylim([x2_min, x2_max])
     plt.title('EM PDF')
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + '  (* ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + '  (* ' + np.str(amp) + ')')
 
     plt.subplot(4, 2, 7)
     levels = np.linspace(0, fact_, 7)
@@ -352,13 +364,18 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     #                   linewidths=2)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('f=f1+f2')
-    # plt.xlim([x1_min, x1_max])
-    # plt.ylim([x2_min, x2_max])
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + '  (* ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + '  (* ' + np.str(amp) + ')')
 
-    plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    fig.suptitle('EM2 PDF: '+var_name1+var_name2, fontsize=20)
+    plt.savefig(os.path.join(
+        fullpath_out,'EM2_bivar_figures','EM2_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
+    )
 
     plt.close()
     return
@@ -404,7 +421,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
     Z2 = mlab.bivariate_normal(X, Y, sigmax=sx2, sigmay=sy2, mux=mx2, muy=my2, sigmaxy=sxy2)
 
-    plt.figure(figsize=(12, 12))
+    fig = plt.figure(figsize=(12, 12))
     levels_tot = np.linspace(0, fact, 10)
     if fact <= 2:
         levels_cont = np.arange(0, fact, 0.2)
@@ -468,7 +485,6 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.subplot(3, 2, 6)
     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.05)
     ax1 = plt.contour(X, Y, np.exp(Z), levels=levels_cont, linewidths=1.5)
-    # ax1 = plt.contour(X, Y, Z1+Z2, linewidths=1.5)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'wo', markersize=6)
     plt.plot([clf.means_[1, 0]], [clf.means_[1, 1]], 'wo', markersize=6)
     plt.colorbar(ax1, shrink=0.8)
@@ -478,8 +494,11 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('f = f1 + f2')
 
-    plt.savefig(fullpath_out+'figures_EM2_bivar/EM_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + 'm.png')
+    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2, fontsize=20)
+    plt.savefig(os.path.join(
+        fullpath_out,'EM2_bivar_figures','EM2_PDF_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+            np.int(z)) + 'm.png')
+    )
 
     plt.close()
     return

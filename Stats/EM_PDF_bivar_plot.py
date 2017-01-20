@@ -61,13 +61,11 @@ def main():
     '''
     var_list = ['ws','wqt','sqt']
 
-    '''read in nc-files - bivar'''
-    count_t = 0
 
     d = files[0]
     var = 'ws'
     nc_file_name = 'EM2_bivar_' + str(d)
-    fullpath_in = os.path.join(in_path, nc_file_name)
+    fullpath_in = os.path.join(in_path, 'EM2', nc_file_name)
     means = read_in_netcdf(var, 'means', fullpath_in)
     time_ = read_in_netcdf('t', 'time', fullpath_in)
     print('time', time, time_)
@@ -85,10 +83,12 @@ def main():
     mean_tot_time = np.ndarray(shape=(len(files), z_max, nvar))
     covar_tot_time = np.zeros(shape=(len(files), z_max, nvar, nvar))
 
+    '''(1) read in nc-files - bivar'''
     for var in var_list:
+        count_t = 0
         for d in files:
             nc_file_name = 'EM2_bivar_' + str(d)
-            fullpath_in = os.path.join(in_path, nc_file_name)
+            fullpath_in = os.path.join(in_path, 'EM2', nc_file_name)
             print('fullpath_in', fullpath_in)
             means = read_in_netcdf(var, 'means', fullpath_in)
             covars = read_in_netcdf(var, 'covariances', fullpath_in)
@@ -101,6 +101,20 @@ def main():
             mean_tot_time[count_t,:,:], covar_tot_time[count_t,:,:,:] = covariance_estimate_from_multicomp_pdf(means, covars, weights)
             count_t += 1
 
+        '''(2) sort PDF components according to their mean'''
+        for i1 in range(2):  # loop over variables
+            for n in range(time.size):
+                for k in range(z_max):
+                    if means_time[n, k, 0, i1] < means_time[n, k, 1, i1]:
+                        aux = means_time[n, k, 1, i1]
+                        means_time[n, k, 1, i1] = means_time[n, k, 0, i1]
+                        means_time[n, k, 0, i1] = aux
+                        for i2 in range(2):
+                            aux = covariance_time[n, k, 1, i1, i2]
+                            covariance_time[n, k, 1, i1, i2] = covariance_time[n, k, 0, i1, i2]
+                            covariance_time[n, k, 0, i1, i2] = aux
+
+        '''(3) plot'''
         print('calling plot covars: ')
         print(zrange_, zrange_.shape, means_time.shape)
         print(time)
@@ -108,8 +122,8 @@ def main():
             # for t0 in [1,6,12]:
             # for t0 in [0,6,12,18]:
             for t0 in [0,1]:
-                bivar_plot_means(var, means_time, covariance_time, mean_tot_time, covar_tot_time, z0,t0,time_)
-                bivar_plot_covars(var, means_time, covariance_time, mean_tot_time, covar_tot_time, z0,t0,time_)
+                bivar_plot_means(var, means_time, covariance_time, mean_tot_time, covar_tot_time, z0, t0, time_)
+                bivar_plot_covars(var, means_time, covariance_time, mean_tot_time, covar_tot_time, z0, t0, time_)
     return
 
 #----------------------------------------------------------------------
@@ -136,20 +150,19 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     nt = time.size
     colors = ['b', 'g']
 
-    for k in range(z_max):
-        for n in range(nt):
-            for j in range(2):
-                if means_[n, k, 0, j] < means_[n, k, 1, j]:
-                    aux = means_[n, k, 1, j]
-                    means_[n, k, 1, j] = means_[n, k, 0, j]
-                    means_[n, k, 0, j] = aux
+    # for k in range(z_max):
+    #     for n in range(nt):
+    #         for j in range(2):
+    #             if means_[n, k, 0, j] < means_[n, k, 1, j]:
+    #                 aux = means_[n, k, 1, j]
+    #                 means_[n, k, 1, j] = means_[n, k, 0, j]
+    #                 means_[n, k, 0, j] = aux
 
     # over time at given level
     means = means_[:,z0,:,:]
     covars = covars_[:,z0,:,:]
     means_tot = mean_tot_[:,z0,:]
     covar_tot = covar_tot_[:, z0, :, :]
-    print(time.shape, means.shape)
 
     fig = plt.figure(figsize=(10,8))
     fig.suptitle(var_name+ r': mean values of $f_1$, $f_2$ (z=' + np.str(zrange_[z0] * dz) + 'm)', fontsize=20)
@@ -175,7 +188,7 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
         # plt.title('means ' + var_name[j] + ' (z=' + np.str(zrange_[z0] * dz) + 'm)')
         plt.xlabel('time')
         plt.ylabel(r'$<$' + var_name[j] + r'$>$')
-    plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'means_time_a_' + var_name + '_z' + str(np.int(zrange_[z0]*dz)) + 'm.png')
+    plt.savefig(os.path.join(fullpath_out,'EM2_bivar_figures/') + 'means_time_a_' + var_name + '_z' + str(np.int(zrange_[z0]*dz)) + 'm.png')
     plt.close()
 
     # over levels, at given time
@@ -183,7 +196,6 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     covars = covars_[t0, :, :, :]
     means_tot = mean_tot_[t0, :, :]
     covar_tot = covar_tot_[t0, :, :, :]
-    print(means.shape)
 
     fig = plt.figure(figsize=(10, 8))
     fig.suptitle(var_name + r': mean values of $f_1$, $f_2$ (t=' + np.str(time_[t0]) + ')', fontsize=20)
@@ -206,7 +218,7 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     ax = plt.subplot(2, 2, 1)
     ax.legend()
     plt.savefig(
-            os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
+            os.path.join(fullpath_out, 'EM2_bivar_figures/') + 'means_levels_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     plt.close()
 
     # plt.figure()
@@ -219,7 +231,7 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     # plt.xlabel('height z')
     # plt.ylabel(var_name)
     # plt.savefig(
-    #     os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_a_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
+    #     os.path.join(fullpath_out, 'EM2_bivar_figures/') + 'means_levels_a_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     # plt.figure()
     # for comp in range(ncomp):
     #     for i in range(z_max):
@@ -228,7 +240,7 @@ def bivar_plot_means(var_name, means_, covars_, mean_tot_, covar_tot_, z0,t0, ti
     # plt.xlabel('height z')
     # plt.ylabel(var_name)
     # plt.savefig(
-    #     os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'means_levels_b_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
+    #     os.path.join(fullpath_out, 'EM2_bivar_figures/') + 'means_levels_b_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     return
 
 #----------------------------------------------------------------------
@@ -238,17 +250,17 @@ def bivar_plot_covars(var_name, means_, covars_, mean_tot_, covars_tot_, z0,t0,t
     global time, ncomp, zrange_
     nt = time.size
     colors = ['b', 'g']
-    for i1 in range(2):  # loop over variables
-        for j in range(nt):
-            for k in range(z_max):
-                if means_[j,k, 0, i1] < means_[j,k, 1, i1]:
-                    aux = means_[j,k,1,i1]
-                    means_[j,k,1,i1] = means_[j,k,0,i1]
-                    means_[j,k,0,i1] = aux
-                    for i2 in range(2):
-                        aux = covars_[j,k,0,i1,i2]
-                        covars_[j,k,0,i1,i2] = covars_[j,k,1,i1,i2]
-                        covars_[j,k,1,i1,i2] = aux
+    # for i1 in range(2):  # loop over variables
+    #     for n in range(nt):
+    #         for k in range(z_max):
+    #             if means_[n,k, 0, i1] < means_[n,k, 1, i1]:
+    #                 aux = means_[n,k,1,i1]
+    #                 means_[n,k,1,i1] = means_[n,k,0,i1]
+    #                 means_[n,k,0,i1] = aux
+    #                 for i2 in range(2):
+    #                     aux = covars_[n,k,0,i1,i2]
+    #                     covars_[n,k,0,i1,i2] = covars_[n,k,1,i1,i2]
+    #                     covars_[n,k,1,i1,i2] = aux
 
     # over time at given level
     means = means_[:,z0,:,:]
@@ -269,7 +281,7 @@ def bivar_plot_covars(var_name, means_, covars_, mean_tot_, covars_tot_, z0,t0,t
             n += 1
     ax = plt.subplot(1,3,1)
     ax.legend()
-    plt.savefig(os.path.join(fullpath_out,'figures_EM2_bivar/') + 'covars_time_' + var_name + '_z' + str(np.int(zrange_[z0]*dz)) + 'm.png')
+    plt.savefig(os.path.join(fullpath_out,'EM2_bivar_figures/') + 'covars_time_' + var_name + '_z' + str(np.int(zrange_[z0]*dz)) + 'm.png')
     plt.close()
 
     # over levels, at given time
@@ -291,7 +303,7 @@ def bivar_plot_covars(var_name, means_, covars_, mean_tot_, covars_tot_, z0,t0,t
     ax = plt.subplot(1, 3, 1)
     ax.legend()
     plt.savefig(
-        os.path.join(fullpath_out, 'figures_EM2_bivar/') + 'covars_level_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
+        os.path.join(fullpath_out, 'EM2_bivar_figures/') + 'covars_level_' + var_name + '_t' + str(np.int(time_[t0])) + '.png')
     plt.close()
     return
 
