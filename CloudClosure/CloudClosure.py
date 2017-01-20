@@ -54,7 +54,6 @@ def main():
     read_in_nml(args.path, case_name)
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
     global fullpath_out
-    # fullpath_out = os.path.join(args.path, 'CloudStatistics')
     fullpath_out = args.path
     print('fullpath_out:', fullpath_out)
     # ______________________
@@ -72,8 +71,8 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(0,36,2)
-    # zrange = np.arange(0, 8, 4)
+    # zrange = np.arange(0,36,2)
+    zrange = np.arange(0, 8, 4)
     print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -109,7 +108,7 @@ def main():
         covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
 
         nc_file_name = 'CC_' + str(d)
-        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+        create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name, ncomp, nvar, len(zrange))
 
         data1_ = theta_l.reshape((nx * ny), nz)
         data2_ = qt.reshape((nx * ny), nz)
@@ -128,8 +127,8 @@ def main():
 
 
         '''(4) Save Gaussian Mixture PDFs '''
-        dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
         count_t += 1
     #     if var1 == 'w' and var2 == 's':
     #         means_time_ws[count_t,:,:,:] = means_[:,:,:]
@@ -426,8 +425,6 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
             fullpath_out,'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
                          + str(np.int(z)) + 'm_univariate.png')
     )
-        # fullpath_out+'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        # np.int(z)) + 'm_univariate.png')
 
     plt.close()
     return
@@ -545,10 +542,9 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
-    path_out = os.path.join(path, 'CloudClosure')
-    global time, zrangepath_out
+    global time, zrange
     print('create file:', path, file_name)
-    rootgrp = nc.Dataset(os.path.join(path_out,file_name), 'w', format='NETCDF4')
+    rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
     means_grp.createDimension('nz', nz_)
@@ -576,35 +572,34 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     return
 
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-    path_out = os.path.join(path,'CloudClosure')
-    print('-------- dump variable --------', var_name, group_name, path_out)
+    print('-------- dump variable --------', var_name, group_name, path)
     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
     if group_name == 'means':
-        add_means(path_out, var_name, ncomp, nvar)
+        add_means(path, var_name, ncomp, nvar)
         data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 for k in range(nvar):
                     data[i,j,k] = data_[i,j,k]
-        write_mean(path_out, group_name, data, var_name)
+        write_mean(path, group_name, data, var_name)
 
     elif group_name == 'covariances':
-        add_covariance(path_out, var_name, ncomp, nvar)
+        add_covariance(path, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp, nvar, nvar), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 for k1 in range(nvar):
                     for k2 in range(nvar):
                         data[i, j, k1, k2] = data_[i, j, k1, k2]
-        write_covar(path_out, group_name, data, var_name)
+        write_covar(path, group_name, data, var_name)
 
     elif group_name == 'weights':
-        add_weights(path_out, var_name, ncomp, nvar)
+        add_weights(path, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 data[i, j] = data_[i, j]
-        write_weights(path_out, group_name, data, var_name)
+        write_weights(path, group_name, data, var_name)
 
     # write_field(path, group_name, data, var_name)
     # print('--------')
