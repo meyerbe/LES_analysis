@@ -14,7 +14,7 @@ from scipy import linalg
 from sklearn import mixture
 
 sys.path.append("..")
-from read_in_files import read_in_netcdf
+from io_read_in_files import read_in_netcdf
 
 from thermodynamics import sat_adj
 from thermodynamics import thetali
@@ -33,6 +33,9 @@ TO DO:
     (a) compute mean and covariance
 (3) test quality of this PDF fitting --> how?
     (a) fit Kernel-Density-Estimated PDF & compare to Gaussian PDF (relative entropy minimisation)
+    ???? is optimal number of kernels chosen ???
+    !!!!! output / compute optimal number of kernels !!!!
+    !!!!! (b) compare two PDFs (measure difference) !!!!!
 '''
 
 
@@ -51,6 +54,7 @@ def main():
     read_in_nml(args.path, case_name)
     print('nx,ny,nz; ntot:', nx, ny, nz, ntot)
     global fullpath_out
+    # fullpath_out = os.path.join(args.path, 'CloudStatistics')
     fullpath_out = args.path
     print('fullpath_out:', fullpath_out)
     # ______________________
@@ -70,7 +74,7 @@ def main():
     global zrange
     zrange = np.arange(0,36,2)
     # zrange = np.arange(0, 8, 4)
-    print('zrange', zrange)
+    print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
         var_list = ['u','w','s']
@@ -105,7 +109,7 @@ def main():
         covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
 
         nc_file_name = 'CC_' + str(d)
-        # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+        create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
 
         data1_ = theta_l.reshape((nx * ny), nz)
         data2_ = qt.reshape((nx * ny), nz)
@@ -125,13 +129,12 @@ def main():
 
         '''(4) Save Gaussian Mixture PDFs '''
         dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar,
-                      len(zrange))
-
+        dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+        count_t += 1
     #     if var1 == 'w' and var2 == 's':
     #         means_time_ws[count_t,:,:,:] = means_[:,:,:]
     #         covariance_time_ws[count_t, :, :, :] = covariance_[:, :, :]
-    #     count_t += 1
+
     # # z0 = 2
     # # plot_means(means_time_ws, 'w', 's', z0)
     return
@@ -206,7 +209,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
     Z_aux = kde_aux.score_samples(XX_aux).reshape(X.shape)
 
-    plt.figure(figsize=(12, 16))
+    fig = plt.figure(figsize=(12, 16))
     plt.subplot(3, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
     ax1 = plt.contour(X, Y, Z, colors='w', levels=np.linspace(10, 20, 11))
@@ -250,14 +253,18 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     # plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
     ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
     plt.colorbar(ax1, shrink=0.8)
-    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(
-        time) + '_z' + str(np.int(z)) + 'm_KDE.png')
     if var_name1 == 'qt':
         plt.xlabel(var_name1 + ' (amp=' + np.str(amp) + ')')
         plt.ylabel(var_name2)
     else:
         plt.xlabel(var_name1)
         plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
+
+    fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
+    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(
+        time) + '_z' + str(np.int(z)) + 'm_KDE.png')
+    plt.close()
+
     return
 #----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
@@ -346,7 +353,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     # sxy1_aux = clf_aux.covariances_[0, 1, 0]
     # Z1_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx1_aux, sigmay=sy1_aux, mux=mx1_aux, muy=my1_aux, sigmaxy=sxy1_aux)
 
-    plt.figure(figsize=(12, 16))
+    fig = plt.figure(figsize=(12, 16))
     plt.subplot(3, 2, 1)
     plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
     ax1 = plt.contour(X, Y, Z, colors='w', levels=np.linspace(10, 20, 11))
@@ -413,8 +420,14 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
         plt.xlabel(var_name1)
         plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
 
-    plt.savefig(fullpath_out+'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + 'm_univariate.png')
+    fig.suptitle('Cloud Closure: Univariate Gaussian PDF fit', fontsize=20)
+    plt.savefig(
+        os.path.join(
+            fullpath_out,'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
+                         + str(np.int(z)) + 'm_univariate.png')
+    )
+        # fullpath_out+'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+        # np.int(z)) + 'm_univariate.png')
 
     plt.close()
     return
@@ -532,9 +545,10 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
 def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     # ncomp: number of Gaussian components in EM
     # nvar: number of variables of multi-variate Gaussian components
-    global time, zrange
+    path_out = os.path.join(path, 'CloudClosure')
+    global time, zrangepath_out
     print('create file:', path, file_name)
-    rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
+    rootgrp = nc.Dataset(os.path.join(path_out,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
     means_grp.createDimension('nz', nz_)
@@ -562,34 +576,35 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     return
 
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-    print('-------- dump variable --------', var_name, group_name)
+    path_out = os.path.join(path,'CloudClosure')
+    print('-------- dump variable --------', var_name, group_name, path_out)
     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
     if group_name == 'means':
-        add_means(path, var_name, ncomp, nvar)
+        add_means(path_out, var_name, ncomp, nvar)
         data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 for k in range(nvar):
                     data[i,j,k] = data_[i,j,k]
-        write_mean(path, group_name, data, var_name)
+        write_mean(path_out, group_name, data, var_name)
 
     elif group_name == 'covariances':
-        add_covariance(path, var_name, ncomp, nvar)
+        add_covariance(path_out, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp, nvar, nvar), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 for k1 in range(nvar):
                     for k2 in range(nvar):
                         data[i, j, k1, k2] = data_[i, j, k1, k2]
-        write_covar(path, group_name, data, var_name)
+        write_covar(path_out, group_name, data, var_name)
 
     elif group_name == 'weights':
-        add_weights(path, var_name, ncomp, nvar)
+        add_weights(path_out, var_name, ncomp, nvar)
         data = np.empty((nz_, ncomp), dtype=np.double, order='c')
         for i in range(nz_):
             for j in range(ncomp):
                 data[i, j] = data_[i, j]
-        write_weights(path, group_name, data, var_name)
+        write_weights(path_out, group_name, data, var_name)
 
     # write_field(path, group_name, data, var_name)
     # print('--------')
