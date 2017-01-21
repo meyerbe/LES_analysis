@@ -89,8 +89,6 @@ def main():
     # ______________________
     global time
     time = np.zeros((1))
-    # for d in files:
-    #     time[i] = d[0:-3]
     for d in files:
         time = np.sort(np.append(time, np.int(d[0:-3])))
     # ______________________
@@ -128,7 +126,7 @@ def main():
     count_t = 0
     for d in files:
         nc_file_name = 'EM2_bivar_' + str(d)
-        create_statistics_file(os.path.join(fullpath_out,'EM2'), nc_file_name, ncomp, nvar, len(zrange))
+        create_statistics_file(os.path.join(fullpath_out,'EM2_bivar'), nc_file_name, ncomp, nvar, len(zrange))
 
         fullpath_in = os.path.join(args.path, 'fields', d)
         print(fullpath_in)
@@ -154,9 +152,9 @@ def main():
 
                     mean_tot[i,:], covariance_tot[i,:,:] = covariance_estimate_from_multicomp_pdf(clf)
 
-                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'means', means_, var1+var2, ncomp, nvar, len(zrange))
-                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
-                dump_variable(os.path.join(fullpath_out, 'EM2', nc_file_name), 'weights', weights_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2_bivar', nc_file_name), 'means', means_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2_bivar', nc_file_name), 'covariances', covariance_, var1+var2, ncomp, nvar, len(zrange))
+                dump_variable(os.path.join(fullpath_out, 'EM2_bivar', nc_file_name), 'weights', weights_, var1+var2, ncomp, nvar, len(zrange))
 
                 # dump_variable(os.path.join(fullpath_out, nc_file_name), 'means', mean_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
                 # dump_variable(os.path.join(fullpath_out, nc_file_name), 'covariances', covariance_tot, var1 + var2+'tot', ncomp, nvar,len(zrange))
@@ -174,19 +172,38 @@ def main():
 def Gaussian_mixture_bivariate(data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=2,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
-    clf.fit(data)
+    # clf.fit(data)
     print('')
-
     # mean_tot, covariance_tot = covariance_estimate_from_multicomp_pdf(clf)
+    if var_name1 == 'qt' or var_name2 == 'qt':
+        clf.fit(data)
+        amp = 100
+        data_aux = np.ndarray(shape=((nx * ny), nvar))
+        if var_name1 == 'qt':
+            data_aux[:, 0] = data[:, 0] * amp
+        else:
+            data_aux[:, 0] = data[:, 0]
+        if var_name2 == 'qt':
+            data_aux[:, 1] = data[:, 1] * amp
+        else:
+            data_aux[:, 1] = data[:, 1]
 
-    # if var_name1 == 'qt' or var_name2 == 'qt':
-    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-    # else:
-    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+        clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
+        clf_aux.fit(data_aux)
 
+        plot_PDF_samples(data_aux, var_name1, var_name2, clf_aux, amp, time, z)
+        # return clf_aux.means_, clf_aux.covariances_
+        return clf_aux
+    else:
+        amp = 1
+        clf.fit(data)
+        plot_PDF_samples(data, var_name1, var_name2, clf, amp, time, z)
+        return clf
+
+    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
     # return clf.means_, clf.covariances_, clf.weights_
-    return clf
+    # return clf
+
 #----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
     '''
@@ -383,19 +400,18 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     plt.close()
     return
 #----------------------------------------------------------------------
-def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
+def plot_PDF_samples(data, var_name1, var_name2, clf, amp, time, z):
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
 
-    amp = 100
-    if var_name1 == 'qt':
-        # print('plot PDF samples qt: amp = ' + np.str(amp))
-        data[:, 0] = data[:, 0] * amp
-        data[:, 1] = data[:, 1]
-    elif var_name2 == 'qt':
-        # print('plot PDF samples qt: amp = ' + np.str(amp))
-        data[:, 0] = data[:, 0]
-        data[:, 1] = data[:, 1] * amp
+    # if var_name1 == 'qt':
+    #     # print('plot PDF samples qt: amp = ' + np.str(amp))
+    #     data[:, 0] = data[:, 0] * amp
+    #     data[:, 1] = data[:, 1]
+    # elif var_name2 == 'qt':
+    #     # print('plot PDF samples qt: amp = ' + np.str(amp))
+    #     data[:, 0] = data[:, 0]
+    #     data[:, 1] = data[:, 1] * amp
 
     det1 = np.linalg.det(clf.covariances_[0, :, :])
     det2 = np.linalg.det(clf.covariances_[1, :, :])
