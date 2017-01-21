@@ -40,7 +40,7 @@ TO DO:
 
 
 '''
-Cloud Closer Schemes..*[ad]:
+Cloud Closer Schemes:
 
 '''
 
