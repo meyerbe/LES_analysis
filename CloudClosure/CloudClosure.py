@@ -123,7 +123,9 @@ def main():
             covariance_[i,:,:,:] = clf.covariances_[:,:,:]
 
             '''(3) Compute Kernel-Estimate PDF '''
-            Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+
+            relative_entropy(data, clf, kde)
 
 
         '''(4) Save Gaussian Mixture PDFs '''
@@ -136,10 +138,37 @@ def main():
 
     # # z0 = 2
     # # plot_means(means_time_ws, 'w', 's', z0)
+
+
     return
 
 
+#----------------------------------------------------------------------
+def relative_entropy(data, clf, kde):
+    print('Relative Entropy')
+    # rel_ent_clf = D(p_clf || p_kde)
+    # rel_ent_kde = D(p_kde || p_clf )
 
+    rel_ent_clf = 0
+    rel_ent_kdf = 0
+    n_sample = 50
+    x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    X, Y = np.meshgrid(x_, y_)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z_clf = np.exp(clf.score_samples(XX)).reshape(X.shape)
+    Z_kde = np.exp(kde.score_samples(XX)).reshape(X.shape)
+    for i in range(n_sample):
+        for j in range(n_sample):
+            rel_ent_clf += Z_clf[i,j] * np.log(Z_clf[i,j] / Z_kde[i,j])
+            rel_ent_kdf += Z_kde[i, j] * np.log(Z_kde[i, j] / Z_clf[i, j])
+
+    print('rel entr D(clf || kdf): ', rel_ent_clf)
+    print('rel entr D(kdf || clf): ', rel_ent_kdf)
+    # rel_ent_clf_np = np.sum(Z_clf * np.log(Z_clf / Z_kde))
+    # rel_ent_kdf_np = np.sum(Z_kde * np.log(Z_kde / Z_clf))
+
+    return
 #----------------------------------------------------------------------
 def Gaussian_bivariate(data, var_name1, var_name2, time, z):
     global ncomp
@@ -194,12 +223,11 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     kde_aux = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(data_aux)
     # kde_aux.score_samples(data_aux)
 
-
     # Plotting
     n_sample = 100
-    x = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
-    y = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
-    X, Y = np.meshgrid(x, y)
+    x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    X, Y = np.meshgrid(x_, y_)
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = np.exp(kde.score_samples(XX)).reshape(X.shape)
     x_aux = np.linspace(np.amin(data_aux[:, 0]), np.amax(data_aux[:, 0]), n_sample)
@@ -260,11 +288,11 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
         plt.ylabel(var_name2 + ' (amp=' + np.str(amp) + ')')
 
     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
-    plt.savefig(fullpath_out + 'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(
-        time) + '_z' + str(np.int(z)) + 'm_KDE.png')
+    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_' + str(
+        time) + '_z' + str(np.int(z)) + 'm_KDE.png'))
     plt.close()
 
-    return
+    return kde, kde_aux
 #----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
     '''
@@ -422,7 +450,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     fig.suptitle('Cloud Closure: Univariate Gaussian PDF fit', fontsize=20)
     plt.savefig(
         os.path.join(
-            fullpath_out,'figures_CloudClosure/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
+            fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
                          + str(np.int(z)) + 'm_univariate.png')
     )
 
@@ -525,7 +553,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('f = f1 + f2')
 
-    plt.savefig(fullpath_out+'figures_CloudClosure/CC_univariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    plt.savefig(fullpath_out+'CloudClosure_figures/CC_univariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
         np.int(z)) + 'm.png')
 
     plt.close()
