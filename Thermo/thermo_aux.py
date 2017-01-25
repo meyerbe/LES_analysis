@@ -1,8 +1,12 @@
 ''' Auxiliary thermodynamic functions from LES '''
+import sys
 
-import numpy as np
-from parameters import *
 from math import *
+import numpy as np
+
+sys.path.append("..")
+from parameters import *
+
 
 
 # ---------------------------------------------------------------------------
@@ -25,6 +29,11 @@ def temperature_no_ql(pd,pv,s,qt):
 
     return temp
 
+
+def thetas_c(s, qt):
+    return T_tilde*np.exp((s-(1.0-qt)*sd_tilde - qt*sv_tilde)/cpm_c(qt))
+
+
 # ---------------------------------------------------------------------------
 ''' Latent Heat '''
 # from Microphysics.pxd - L_fp(T,lambda)
@@ -36,6 +45,8 @@ def latent_heat(T):
 def latent_heat_constant(T, Lambda):
     return 2.501e6
 
+def cpm_c(qt):
+    return (1.0-qt) * cpd + qt * cpv
 
 
 # ---------------------------------------------------------------------------
