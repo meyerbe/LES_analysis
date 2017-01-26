@@ -89,49 +89,50 @@ def main():
     global nvar
     ncomp = 1
     nvar = 2
+    data_all = np.ndarray(shape=(0, nvar))
+    nc_file_name_out = 'CC_' + str(d[0:-3]) + '_alltime.nc'
+    create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
 
-    for d in files:
-        '''(1) compute liquid potential temperature from temperature and moisture'''
-        p0 = 1e5
-        # T, ql, qi = sat_adj(p0, 6500, 1e-3)
+    for i in range(len(zrange)):
+        iz = zrange[i]
+        for d in files:
+            '''(1) compute liquid potential temperature from temperature and moisture'''
+            p0 = 1e5
+            # T, ql, qi = sat_adj(p0, 6500, 1e-3)
 
-        nc_file_name = str(d)
-        fullpath_in = os.path.join(in_path, 'fields', nc_file_name)
-        print('fullpath_in', fullpath_in)
-        T = read_in_netcdf('temperature', 'fields', fullpath_in)
-        qt = read_in_netcdf('qt', 'fields', fullpath_in)
-        ql = read_in_netcdf('ql', 'fields', fullpath_in)
-        qi = np.zeros(shape=T.shape)
-        theta_l = thetali(p0,T,qt,ql,qi)
+            nc_file_name = str(d)
+            fullpath_in = os.path.join(in_path, 'fields', nc_file_name)
+            print('fullpath_in', fullpath_in)
+            T = read_in_netcdf('temperature', 'fields', fullpath_in)
+            qt = read_in_netcdf('qt', 'fields', fullpath_in)
+            ql = read_in_netcdf('ql', 'fields', fullpath_in)
+            qi = np.zeros(shape=T.shape)
+            theta_l = thetali(p0,T,qt,ql,qi)
 
-        data = np.ndarray(shape=((nx * ny), nvar))
-        means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-        covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+            data = np.ndarray(shape=((nx * ny), nvar))
+            means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+            covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
 
-        nc_file_name = 'CC_' + str(d)
-        create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name, ncomp, nvar, len(zrange))
-
-        data1_ = theta_l.reshape((nx * ny), nz)
-        data2_ = qt.reshape((nx * ny), nz)
-        for i in range(len(zrange)):
-            iz = zrange[i]
+            data1_ = theta_l.reshape((nx * ny), nz)
+            data2_ = qt.reshape((nx * ny), nz)
             data[:, 0] = data1_[:, iz]
             data[:, 1] = data2_[:, iz]
+            data_all = np.append(data_all, data, axis=0)
 
             '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
-            # # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
-            # clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
-            # means_[i, :, :] = clf.means_[:, :]
-            # covariance_[i,:,:,:] = clf.covariances_[:,:,:]
+            # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
+            clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            means_[i, :, :] = clf.means_[:, :]
+            covariance_[i,:,:,:] = clf.covariances_[:,:,:]
 
             '''(3) Compute Kernel-Estimate PDF '''
             kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
 
-            # relative_entropy(data, clf, kde)
+            relative_entropy(data, clf, kde)
 
         '''(4) Save Gaussian Mixture PDFs '''
-        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
 
     return
 
@@ -313,7 +314,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
 
     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
     plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_' + str(
-        time) + '_z' + str(np.int(z)) + 'm_KDE.png'))
+        time) + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
     plt.close()
 
     print('KDE shapes: ', kde.score_samples(XX).shape, X.shape)
@@ -405,7 +406,6 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
     XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
     Z_aux = clf_aux.score_samples(XX_aux).reshape(X_aux.shape)
-    print(np.amin(Z_aux), np.amax(Z_aux))
 
     # mx1 = clf.means_[0, 0]
     # my1 = clf.means_[0, 1]
@@ -476,7 +476,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     plt.savefig(
         os.path.join(
             fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
-                         + str(np.int(z)) + 'm_bivariate.png')
+                         + str(np.int(z)) + 'm_bivariate_alltime.png')
     )
 
     plt.close()
@@ -536,7 +536,6 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.xlabel(var_name1)
     plt.ylabel(var_name2)
     plt.colorbar(ax1,shrink=0.8)
-    # print(x1_min, x2_min, x1_max, x2_max    )
     plt.xlim([x1_min,x1_max])
     plt.ylim([x2_min, x2_max])
     plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
@@ -579,7 +578,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.title('f = f1 + f2')
 
     plt.savefig(fullpath_out+'CloudClosure_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + 'm.png')
+        np.int(z)) + 'm_alltime.png')
 
     plt.close()
     return
