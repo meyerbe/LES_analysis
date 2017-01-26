@@ -119,16 +119,16 @@ def main():
             data[:, 1] = data2_[:, iz]
             data_all = np.append(data_all, data, axis=0)
 
-            '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
-            # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
-            clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
-            means_[i, :, :] = clf.means_[:, :]
-            covariance_[i,:,:,:] = clf.covariances_[:,:,:]
+        '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
+        # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
+        clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+        means_[i, :, :] = clf.means_[:, :]
+        covariance_[i,:,:,:] = clf.covariances_[:,:,:]
 
-            '''(3) Compute Kernel-Estimate PDF '''
-            kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+        '''(3) Compute Kernel-Estimate PDF '''
+        kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
 
-            relative_entropy(data, clf, kde)
+        relative_entropy(data, clf, kde)
 
         '''(4) Save Gaussian Mixture PDFs '''
     dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
@@ -253,7 +253,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = '+str(bw))
 
     plt.subplot(3, 2, 2)
-    bw = 1e-2
+    bw = 3e-2
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
     # kde.score_samples(data)
     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
@@ -265,7 +265,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     plt.subplot(3, 2, 3)
-    bw = 8e-3
+    bw = 1e-2
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
     # kde.score_samples(data)
     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
@@ -277,7 +277,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     plt.subplot(3, 2, 4)
-    bw = 5e-3
+    bw = 8e-3
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
     # kde.score_samples(data)
     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
@@ -289,7 +289,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     plt.subplot(3, 2, 5)
-    bw = 2e-3
+    bw = 5e-3
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
     # kde.score_samples(data)
     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
@@ -301,7 +301,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     plt.subplot(3, 2, 6)
-    bw = 1e-3
+    bw = 2e-3
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
     # kde.score_samples(data)
     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
@@ -313,8 +313,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
-    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_' + str(
-        time) + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
+    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
     plt.close()
 
     print('KDE shapes: ', kde.score_samples(XX).shape, X.shape)
@@ -475,7 +474,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     fig.suptitle('Cloud Closure: Univariate Gaussian PDF fit', fontsize=20)
     plt.savefig(
         os.path.join(
-            fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
+            fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_z'
                          + str(np.int(z)) + 'm_bivariate_alltime.png')
     )
 
@@ -577,7 +576,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('f = f1 + f2')
 
-    plt.savefig(fullpath_out+'CloudClosure_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
+    plt.savefig(fullpath_out+'CloudClosure_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_z' + str(
         np.int(z)) + 'm_alltime.png')
 
     plt.close()
