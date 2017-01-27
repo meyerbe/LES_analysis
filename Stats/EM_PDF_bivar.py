@@ -4,7 +4,6 @@ import os
 import sys
 import json as  simplejson
 import pylab as plt
-from matplotlib.colors import LogNorm
 from matplotlib import colors, ticker, cm
 
 import pickle

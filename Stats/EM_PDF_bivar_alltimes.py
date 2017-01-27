@@ -130,7 +130,6 @@ def main():
     for i in range(len(zrange)):
         iz = zrange[i]
         print('i = ' + np.str(iz) + ': '+np.str(data_all.shape))
-        count_t = 0
         for n1 in range(len(var_list)):
             var1 = var_list[n1]
             for n2 in range(n1,len(var_list)):

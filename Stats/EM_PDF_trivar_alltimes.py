@@ -103,8 +103,6 @@ def main():
         var_list = ['w','u','s']
     else:
         var_list = ['w','s','qt']
-    # var_list = ['s']
-
 
     '''
     Tri - variate PDF for (s, qt, w)
@@ -113,71 +111,77 @@ def main():
     ncomp = 2
     nvar = 3
     data = np.ndarray(shape=((nx * ny), nvar))
+    data_all = np.ndarray(shape=(0, nvar))
     means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
     weights_ = np.zeros(shape=(len(zrange), 2))
     mean_tot = np.ndarray(shape=(len(zrange), nvar))
     covariance_tot = np.zeros(shape=(len(zrange), nvar, nvar))
     # ---
-    for d in files:
-        print('- - - - time: ' + str(d) + '- - - -')
-        nc_file_name = 'EM2_trivar_' + str(d)
-        create_statistics_file(os.path.join(fullpath_out, 'EM2_trivar'), nc_file_name, ncomp, nvar, len(zrange))
 
-        fullpath_in = os.path.join(args.path, 'fields', d)
-        print(fullpath_in)
-        for n1 in range(len(var_list)):
-            var1 = var_list[n1]
-            # data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
-            for n2 in range(n1, len(var_list)):
-                var2 = var_list[n2]
-                # data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
-                for n3 in range(n2, len(var_list)):
-                    var3 = var_list[n3]
+    nc_file_name = 'EM2_trivar_alltimes.nc'
+    create_statistics_file(os.path.join(fullpath_out, 'EM2_trivar_alltimes'), nc_file_name, ncomp, nvar, len(zrange))
+    for i in range(len(zrange)):
+        iz = zrange[i]
+        print('i = ' + np.str(iz) + ': ' + np.str(data_all.shape))
+        for d in files:
+            fullpath_in = os.path.join(args.path, 'fields', d)
+            print(fullpath_in)
+            var1 = 'w'
+            var2 = 'temperature'
+            var3 = 'qt'
+            data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
+            data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
+            data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
+            print('----', var1, 'T', var3)
 
-                    var1 = 'w'
-                    var2 = 'temperature'
-                    var3 = 'qt'
-                    data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
-                    data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
-                    data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
-                    print('----', var1, var2, var3)
-                    if var1 == var2 or var2 == var3 or var1 == var3:
-                        continue
-                    for i in range(len(zrange)):
-                        iz = zrange[i]
-                        data[:, 0] = data1_[:, iz]
-                        data[:, 1] = data2_[:, iz]
-                        data[:, 2] = data3_[:, iz]
+            data[:, 0] = data1_[:, iz]
+            data[:, 1] = data2_[:, iz]
+            data[:, 2] = data3_[:, iz]
 
-                        clf = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), iz*dz)
-                        means_[i, :, :] = clf.means_[:, :]
-                        covariance_[i, :, :, :] = clf.covariances_[:, :, :]
-                        weights_[i, :] = clf.weights_[:]
+            data_all = np.append(data_all, data, axis=0)
 
-                        print('')
-                        print('checking: ')
-                        if var1 == 'w':
-                            print('w max (z=', np.str(iz), ': ', np.amax(data1_[:, iz]), np.amax(data[:, 0]))
-                        if var3 == 'qt':
-                            print('qt max (z=', np.str(iz), ': ', np.amax(data3_[:, iz]), np.amax(data[:, 2]))
+        clf = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), iz*dz)
+        means_[i, :, :] = clf.means_[:, :]
+        covariance_[i, :, :, :] = clf.covariances_[:, :, :]
+        weights_[i, :] = clf.weights_[:]
 
-                        mean_tot[i, :], covariance_tot[i, :, :] = covariance_estimate_from_multicomp_pdf(clf)
+        mean_tot[i, :], covariance_tot[i, :, :] = covariance_estimate_from_multicomp_pdf(clf)
 
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'means', means_, var1+var2+var3,
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'means', means_, var1+var2+var3,
                                       ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances', covariance_,
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances', covariance_,
                                       var1 + var2 + var3, ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'weights', weights_, var1+var2+var3,
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'weights', weights_, var1+var2+var3,
                                       ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'mean_tot', mean_tot, var1+var2+var3,
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'mean_tot', mean_tot, var1+var2+var3,
                                     ncomp, nvar,len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances_tot', covariance_tot, var1+var2+var3,
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances_tot', covariance_tot, var1+var2+var3,
                                     ncomp, nvar,len(zrange))
 
     return
 
 #----------------------------------------------------------------------
+#----------------------------------------------------------------------
+def axis_label(var_name1, var_name2, amp_qt, amp_w):
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + '  (* ' + np.str(amp_qt) + ')')
+        plt.ylabel(var_name2)
+    elif var_name1 == 'w':
+        plt.xlabel(var_name1 + '  (* ' + np.str(amp_w) + ')')
+        plt.ylabel(var_name2)
+    if var_name2 == 'qt':
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + '  (* ' + np.str(amp_qt) + ')')
+    elif var_name2 == 'w':
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + '  (* ' + np.str(amp_w) + ')')
+
+    return
+
+
 #----------------------------------------------------------------------
 def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
     # !!! when assigning data_aux = data --> data is changed as soon as data_aux is changed! (no effect on other modules)
@@ -192,7 +196,6 @@ def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
     clf = mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
 
-    data_aux = np.ndarray(shape=((nx * ny), nvar))
     data_aux = np.array(data,copy=True)
     if var_name1 == 'w':
         print('normalising w')
@@ -207,11 +210,11 @@ def Gaussian_mixture_trivariate(data, var_name1, var_name2, var_name3, time, z):
 
     clf_aux = mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf_aux.fit(data_aux)
-    plot_PDF_samples(data_aux, var_name1, var_name2, var_name3, clf_aux, amp_qt, amp_w, time, z)
+    plot_PDF_samples(data_aux, var_name1, var_name2, var_name3, clf_aux, amp_qt, amp_w, z)
     return clf_aux
 
 #----------------------------------------------------------------------
-def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, time, z):
+def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, z):
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
     print('Plot: '+var_name1+var_name2+var_name3)
@@ -225,18 +228,6 @@ def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, 
     x_ = np.linspace(np.amin(data[:,0]), np.amax(data[:,0]), n_sample)
     y_ = np.linspace(np.amin(data[:,1]), np.amax(data[:,1]), n_sample)
     z_ = np.linspace(np.amin(data[:,2]), np.amax(data[:,2]), n_sample)
-    # x_ = np.linspace(0,4, n_sample)
-    # y_ = np.linspace(10, 40, n_sample)
-    # z_ = np.linspace(100, 400, n_sample)
-
-    # X, Y, Z = np.meshgrid(x_, y_, z_)
-    # XX = np.array([X.ravel(), Y.ravel(), Z.ravel()]).T
-    # # ZZ = clf.score_samples(XX).reshape(X.shape)
-    # ZZ = clf.score_samples(XX)
-    # print(zrange.shape, nvar, ncomp, n_sample, data.shape)
-    # print('plotting: ZZ', ZZ.shape, XX.shape)
-    # ZZ = ZZ.reshape(X.shape)
-    # print(ZZ.shape)
 
     XX_ = np.ndarray(shape=(n_sample**nvar,nvar))
     delta_i = n_sample*n_sample
@@ -248,21 +239,23 @@ def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, 
                 XX_[shift, 0] = x_[i]
                 XX_[shift, 1] = y_[j]
                 XX_[shift, 2] = z_[k]
-
     print('')
     ZZ_ = clf.score_samples(XX_)
+    # print('ZZ_: ', np.amin(np.exp(ZZ_)), np.amax(np.exp(ZZ_)), np.exp(ZZ_))
     ZZ = np.ndarray(shape=(n_sample, n_sample, n_sample))
     for k in range(n_sample**nvar):
         k_shift = np.mod(k,delta_j)
         j_shift = (np.mod(k,delta_i) - k_shift) / delta_j
         i_shift = (k - k_shift - n_sample*j_shift) / delta_i
+        # print('k, ishift, jshift, kshift: ', k, i_shift, j_shift, k_shift)
         ZZ[i_shift, j_shift, k_shift] = ZZ_[k]
 
-    plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, time, z)
-    plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, time, z)
-# ----------------------------------------------------------------------
-def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, time, z):
-    fig = plt.figure(figsize=(18, 15))
+
+    plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z)
+    plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z)
+#----------------------------------------------------------------------
+def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z):
+    fig = plt.figure(figsize=(20, 15))
 
     plt.subplot(3, 5, 1)
     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.3)
@@ -284,8 +277,8 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     ax1 = plt.hist2d(data[:, 0], data[:, 1], bins=30, normed=True)
     # xxx
     ax2 = plt.contour(x_, y_, np.sum(np.exp(ZZ), axis=2).T, colors='w', linewidths=2)
+    plt.colorbar(ax2, shrink=0.8)
     # xxx
-    plt.colorbar(ax2,shrink=0.8)
     plt.title('EM2 PDF')
     axis_label(var_name1, var_name2, amp_qt, amp_w)
 
@@ -310,8 +303,9 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     ax1 = plt.hist2d(data[:,0], data[:, 2], bins=30, normed=True)
     # xxx
     ax2 = plt.contour(x_, z_ , np.sum(np.exp(ZZ), axis=1).T, colors='w', linewidths=2)
-    # xxx
     plt.colorbar(ax2, shrink=0.8)
+    # xxx
+    # plt.colorbar(ax1, shrink=0.8)
     plt.title('EM2 PDF')
     axis_label(var_name1, var_name3, amp_qt, amp_w)
 
@@ -334,23 +328,24 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     ax1 = plt.hist2d(data[:,1], data[:,2], bins=30, normed=True)
     # xxx
     ax2 = plt.contour(y_, z_, np.sum(np.exp(ZZ), axis=0).T, colors='w', linewidths=2)
+    plt.colorbar(ax2, shrink=0.8)
     # xxx
     plt.title('EM2 PDF')
     axis_label(var_name2, var_name3, amp_qt, amp_w)
-    plt.colorbar(ax2, shrink=0.8)
+    # plt.colorbar(ax1, shrink=0.8)
 
-    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (t=' + str(time) + ', z=' + str(z) +'m)', fontsize=20)
+
+    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (z=' + str(z) +'m)', fontsize=20)
     plt.savefig(os.path.join(
-        fullpath_out,'EM2_trivar_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_' + str(time) + '_z' + str(
+        fullpath_out,'EM2_trivar_alltimes_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_z' + str(
             np.int(z)) + 'm.png')
     )
 
     plt.close()
 
-
     return
-# ----------------------------------------------------------------------
-def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, time, z):
+#----------------------------------------------------------------------
+def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z):
     fig = plt.figure(figsize=(20, 15))
 
     plt.subplot(3, 5, 1)
@@ -398,6 +393,7 @@ def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, 
     # xxx
     # lvls = np.exp(np.arange(-5,6,1))
     lvls = np.logspace(-1, 5, 10)
+    print('levels', lvls)
     ax2 = plt.contour(x_, z_ , np.sum(np.exp(ZZ), axis=1).T, levels=lvls, colors='w', norm=LogNorm(), linewidths=3)
     plt.colorbar(ax2,shrink=0.8)
     # xxx
@@ -430,109 +426,18 @@ def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, 
     axis_label(var_name2, var_name3, amp_qt, amp_w)
     # plt.colorbar(ax1, shrink=0.8)
 
-    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (t=' + str(time) + ', z=' + str(z) +'m)', fontsize=20)
+
+    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (z=' + str(z) +'m)', fontsize=20)
     plt.savefig(os.path.join(
-        fullpath_out,'EM2_trivar_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_' + str(time) + '_z' + str(
+        fullpath_out,'EM2_trivar_alltimes_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_z' + str(
             np.int(z)) + 'm_log.png')
     )
 
     plt.close()
 
-
-    return
-#----------------------------------------------------------------------
-def axis_label(var_name1, var_name2, amp_qt, amp_w):
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    if var_name1 == 'qt':
-        plt.xlabel(var_name1 + '  (* ' + np.str(amp_qt) + ')')
-        plt.ylabel(var_name2)
-    elif var_name1 == 'w':
-        plt.xlabel(var_name1 + '  (* ' + np.str(amp_w) + ')')
-        plt.ylabel(var_name2)
-    if var_name2 == 'qt':
-        plt.xlabel(var_name1)
-        plt.ylabel(var_name2 + '  (* ' + np.str(amp_qt) + ')')
-    elif var_name2 == 'w':
-        plt.xlabel(var_name1)
-        plt.ylabel(var_name2 + '  (* ' + np.str(amp_w) + ')')
-
     return
 
 
-
-#----------------------------------------------------------------------
-# compute matrices
-# def compute_Zmatrix(data,var_name1,var_name2,var_name3,clf,amp_qt,amp_w,time,z):
-#     # data normal (without amplification works well for var1, var2)
-#     # data aux: ZZ seems to be out of range (for var1, var2)
-#
-#     n_sample = 300
-#     x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
-#     y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
-#     z_ = np.linspace(np.amin(data[:, 2]), np.amax(data[:, 2]), n_sample)
-#     X, Y, Z = np.meshgrid(x_, y_, z_)
-#     XX = np.array([X.ravel(), Y.ravel(), Z.ravel()]).T
-#
-#     print('Computing Z matrix')
-#     if var_name1 == 'w' and var_name3 == 'qt':
-#         print('max w: ', np.amax(data[:, 0]), np.amin(data[:, 0]), np.amax(x_), np.amin(x_), np.amax(X))
-#         print('max s: ', np.amax(data[:, 1]), np.amin(data[:, 1]), np.amax(y_), np.amin(y_), np.amax(Y))
-#         print('max qt: ', np.amax(data[:, 2]), np.amin(data[:, 2]), np.amax(z_), np.amin(z_), np.amax(Z))
-#
-#     ZZ = clf.score_samples(XX).reshape(X.shape)
-#     print ''
-#     print('ZZ: ', ZZ.shape, XX.shape, X.shape, x_.shape)
-#
-#
-#     plt.figure()
-#     a = (np.sum(np.exp(ZZ),axis=2))
-#     print('----a', np.str(np.amax(np.exp(ZZ[:,:,100]))), np.str(np.amax(a)), ZZ.shape, a.shape)
-#     plt.figure()
-#     plt.contourf(x_, y_, a)
-#     plt.colorbar()
-#     # plt.contour(x_, z_, np.exp(ZZ[:, 100, :]), colors='k', linewidth=2)
-#     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.8)
-#     plt.xlabel(var_name1 + ' *' + np.str(amp_w))
-#     plt.ylabel(var_name2)
-#     plt.savefig(os.path.join(
-#         fullpath_out, 'EM2_trivar_figures',
-#         'test_EM2_PDF_trivariate_' + var_name1 + var_name2 + '_' + str(time) + '_sum_z' + str(
-#             np.int(z)) + 'm.png')
-#     )
-#
-#     a = (np.sum(np.exp(ZZ), axis=1))
-#     print('----a', np.str(np.amax(np.exp(ZZ[:, 100, :]))), np.str(np.amax(a)), ZZ.shape, a.shape)
-#     plt.figure()
-#     plt.contourf(x_, z_, a)
-#     plt.colorbar()
-#     # plt.contour(x_, z_, np.exp(ZZ[:, 100, :]), colors='k', linewidth=2)
-#     plt.scatter(data[:, 0], data[:, 2], s=2, alpha=0.8)
-#     plt.xlabel(var_name1 + ' *' + np.str(amp_w))
-#     plt.ylabel(var_name3 + ' *' + np.str(amp_qt))
-#     plt.savefig(os.path.join(
-#         fullpath_out, 'EM2_trivar_figures',
-#         'test_EM2_PDF_trivariate_' + var_name1 + var_name3 + '_' + str(time) + '_sum_z' + str(
-#             np.int(z)) + 'm.png')
-#     )
-#
-#     a = (np.sum(np.exp(ZZ), axis=0))
-#     print('----a', np.str(np.amax(np.exp(ZZ[100, :, :]))), np.str(np.amax(a)), ZZ.shape, a.shape)
-#     plt.figure()
-#     plt.contourf(y_, z_, a)
-#     plt.colorbar()
-#     # plt.contour(x_, z_, np.exp(ZZ[:, 100, :]), colors='k', linewidth=2)
-#     plt.scatter(data[:, 1], data[:, 2], s=2, alpha=0.8)
-#     plt.xlabel(var_name2)
-#     plt.ylabel(var_name3+ ' *' + np.str(amp_qt))
-#     plt.savefig(os.path.join(
-#         fullpath_out, 'EM2_trivar_figures',
-#         'test_EM2_PDF_trivariate_' + var_name2 + var_name3 + '_' + str(time) + '_sum_z' + str(
-#             np.int(z)) + 'm.png')
-#     )
-#     # plt.show()
-#
-#     return ZZ
 
 # ----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
