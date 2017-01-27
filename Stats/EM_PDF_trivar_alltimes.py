@@ -250,11 +250,11 @@ def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, 
         # print('k, ishift, jshift, kshift: ', k, i_shift, j_shift, k_shift)
         ZZ[i_shift, j_shift, k_shift] = ZZ_[k]
 
-
-    plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z)
-    plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z)
+    score = clf.score(data)
+    plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_qt, amp_w, z)
+    plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_qt, amp_w, z)
 #----------------------------------------------------------------------
-def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z):
+def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_qt, amp_w, z):
     fig = plt.figure(figsize=(20, 15))
 
     plt.subplot(3, 5, 1)
@@ -270,6 +270,9 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     # xxx
     ax1 = plt.contourf(x_, y_, np.sum(np.exp(ZZ),axis=2).T)
     # xxx
+    # plt.text(0.1, 0.9, 'score='+str(score), ha='center', va='center')#, transform=ax.transAxes)
+    # text(x, y, s, fontdict=None, withdash=False, **kwargs)
+    # plt.text(1, 1, 'HOIHOI',color='r')
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM2 PDF')
     axis_label(var_name1, var_name2, amp_qt, amp_w)
@@ -335,7 +338,7 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     # plt.colorbar(ax1, shrink=0.8)
 
 
-    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (z=' + str(z) +'m)', fontsize=20)
+    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (score='+str(score)+'; z=' + str(z) +'m)', fontsize=20)
     plt.savefig(os.path.join(
         fullpath_out,'EM2_trivar_alltimes_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_z' + str(
             np.int(z)) + 'm.png')
@@ -345,7 +348,7 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
 
     return
 #----------------------------------------------------------------------
-def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_w, z):
+def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_qt, amp_w, z):
     fig = plt.figure(figsize=(20, 15))
 
     plt.subplot(3, 5, 1)
@@ -393,7 +396,6 @@ def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, 
     # xxx
     # lvls = np.exp(np.arange(-5,6,1))
     lvls = np.logspace(-1, 5, 10)
-    print('levels', lvls)
     ax2 = plt.contour(x_, z_ , np.sum(np.exp(ZZ), axis=1).T, levels=lvls, colors='w', norm=LogNorm(), linewidths=3)
     plt.colorbar(ax2,shrink=0.8)
     # xxx
@@ -427,7 +429,8 @@ def plot_PDF_log(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, 
     # plt.colorbar(ax1, shrink=0.8)
 
 
-    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (z=' + str(z) +'m)', fontsize=20)
+    fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (score=' + str(score) + '; z=' + str(z) + 'm)',
+                 fontsize=20)
     plt.savefig(os.path.join(
         fullpath_out,'EM2_trivar_alltimes_figures','EM2_PDF_trivariate_' + var_name1 + var_name2 + var_name3 + '_z' + str(
             np.int(z)) + 'm_log.png')
