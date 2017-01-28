@@ -16,11 +16,10 @@ from sklearn import mixture
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf_fields
 
-
 label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
-
+plt.rcParams['legend.fontsize'] = 10
 
 '''
 Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
@@ -96,13 +95,15 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(10, 31, 10)
-    print('zrange', zrange)
+    zrange = np.arange(10, 11, 5)
+    # zrange = np.asarray([5,10,20,30,50,70,80,100])
+    print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
-        var_list = ['w','u','s']
+        var_list = ['w', 'u', 's']
     else:
-        var_list = ['w','s','qt']
+        var_list = ['w', 's', 'qt']
+    var_corr_list = ['wsqt']
 
     '''
     Tri - variate PDF for (s, qt, w)
