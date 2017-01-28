@@ -90,7 +90,7 @@ def main():
     ncomp = 1
     nvar = 2
     data_all = np.ndarray(shape=(0, nvar))
-    nc_file_name_out = 'CC_' + str(d[0:-3]) + '_alltime.nc'
+    nc_file_name_out = 'CC_alltime.nc'
     create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
 
     for i in range(len(zrange)):
@@ -313,7 +313,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
-    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
+    plt.savefig(os.path.join(fullpath_out,'CloudClosure_alltimes_figures','CC_' + var_name1 + '_' + var_name2 + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
     plt.close()
 
     print('KDE shapes: ', kde.score_samples(XX).shape, X.shape)
@@ -474,7 +474,7 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     fig.suptitle('Cloud Closure: Univariate Gaussian PDF fit', fontsize=20)
     plt.savefig(
         os.path.join(
-            fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_z'
+            fullpath_out,'CloudClosure_alltimes_figures/CC_' + var_name1 + '_' + var_name2 + '_z'
                          + str(np.int(z)) + 'm_bivariate_alltime.png')
     )
 
@@ -576,7 +576,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('f = f1 + f2')
 
-    plt.savefig(fullpath_out+'CloudClosure_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_z' + str(
+    plt.savefig(fullpath_out+'CloudClosure_alltimes_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_z' + str(
         np.int(z)) + 'm_alltime.png')
 
     plt.close()
