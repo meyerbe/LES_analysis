@@ -11,7 +11,7 @@ import pickle
 import numpy as np
 import itertools
 from scipy import linalg
-from sklearn import mixture
+from sklearn import mixture, preprocessing
 
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf
@@ -21,12 +21,18 @@ from thermodynamics import theta_li
 
 
 label_size = 10
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 15
-plt.rcParams['xtick.direction']='out'
-plt.rcParams['ytick.direction']='out'
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['lines.linewidth'] = 2
+
 '''
+Using sklearn.preprocessing.StandardScaler to normalise input data onto normally distributed data (mean zero and standard deviation between 0 and 1)
+
+
 TO DO:
 - only in levels that are in cloud layer (condition on ql!= 0)
 
@@ -74,7 +80,7 @@ def main():
     '''
     global zrange
     # zrange = np.arange(0,36,2)
-    zrange = np.arange(12, 20, 8)
+    zrange = np.arange(15, 30, 5)
     print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -83,45 +89,61 @@ def main():
         var_list = ['w','s','qt']
         # var_list = ['w', 's']
 
-
     global ncomp
     global nvar
     ncomp = 1
     nvar = 2
 
     for d in files:
-        '''(1) compute liquid potential temperature from temperature and moisture'''
         p0 = 1e5
         # T, ql, qi = sat_adj(p0, 6500, 1e-3)
-
         nc_file_name = str(d)
         fullpath_in = os.path.join(in_path, 'fields', nc_file_name)
         print('fullpath_in', fullpath_in)
-        T = read_in_netcdf('temperature', 'fields', fullpath_in)
-        qt = read_in_netcdf('qt', 'fields', fullpath_in)
-        ql = read_in_netcdf('ql', 'fields', fullpath_in)
+        nc_file_name = 'CC_s_' + str(d)
+        # create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name, ncomp, nvar, len(zrange))
+
+
+
+        '''(0) Read in Data & compute liquid potential temperature from temperature and moisture'''
+        s = read_in_netcdf('s', 'fields', fullpath_in).reshape((nx * ny), nz)
+        T = read_in_netcdf('temperature', 'fields', fullpath_in).reshape((nx * ny), nz)
+        qt = read_in_netcdf('qt', 'fields', fullpath_in).reshape((nx * ny), nz)
+        ql = read_in_netcdf('ql', 'fields', fullpath_in).reshape((nx * ny), nz)
         qi = np.zeros(shape=T.shape)
-        theta_l = theta_li(p0,T,qt,ql,qi)
+        theta_l = theta_li(p0,T,qt,ql,qi).reshape((nx * ny), nz)
 
-        data = np.ndarray(shape=((nx * ny), nvar))
-        means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-        covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+        data_th = np.ndarray(shape=((nx * ny), nvar))
+        data_s = np.ndarray(shape=((nx * ny), nvar))
 
-        nc_file_name = 'CC_' + str(d)
-        create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name, ncomp, nvar, len(zrange))
-
-        data1_ = theta_l.reshape((nx * ny), nz)
-        data2_ = qt.reshape((nx * ny), nz)
         for i in range(len(zrange)):
             iz = zrange[i]
-            data[:, 0] = data1_[:, iz]
-            data[:, 1] = data2_[:, iz]
+            data_th[:, 0] = theta_l[:, iz]
+            data_th[:, 1] = qt[:, iz]
+            data_s[:, 0] = s[:, iz]
+            data_s[:, 1] = qt[:, iz]
+            print('!!! zi ql: ', np.amax(ql[:,iz]), iz*dz, d)
+
+            '''(1) Normalise Data (zero mean and normalised standard deviation)'''
+            data_th_norm = preprocessing.StandardScaler().fit_transform(data_th)
+            data_s_norm = preprocessing.StandardScaler().fit_transform(data_s)
+            # X_test = X_scaler.transform(X_test)
+            plot_data_comp(data_th, data_s, data_th_norm, data_s_norm, ql[:,iz], np.int(d[0:-3]), iz * dz)
 
             '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
             # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
-            clf = Gaussian_bivariate(data, 'theta_l', 'qt', np.int(d[0:-3]), iz * dz)
-            means_[i, :, :] = clf.means_[:, :]
-            covariance_[i,:,:,:] = clf.covariances_[:,:,:]
+            clf_th = Gaussian_bivariate(data_th, 'theta_l', 'qt', np.int(d[0:-3]), iz * dz)
+            clf_th_norm = Gaussian_bivariate(data_th_norm, 'theta_l', 'qt', np.int(d[0:-3]), iz * dz)
+            plot_PDF_samples_qt(data_th, data_th_norm, 'theta_l', 'qt', clf_th, clf_th_norm, np.int(d[0:-3]), iz * dz)
+            # plot_PDF_samples(data_th_norm, data_th_norm, 'theta_l', 'qt', clf_th_norm, clf_th_norm, np.int(d[0:-3]), iz * dz)
+            clf_s = Gaussian_bivariate(data_s, 's', 'qt', np.int(d[0:-3]), iz * dz)
+            clf_s_norm = Gaussian_bivariate(data_s_norm, 's', 'qt', np.int(d[0:-3]), iz * dz)
+            plot_PDF_samples_qt(data_s, data_s_norm, 's', 'qt', clf_s, clf_s_norm, np.int(d[0:-3]), iz * dz)
+            # plot_PDF_samples(data_s_norm, data_s_norm, 's', 'qt', clf_s_norm, clf_s_norm, np.int(d[0:-3]), iz * dz)
+            # plot_both_PDF(data_th_norm, data_s_norm, clf_th_norm, clf_s_norm, np.int(d[0:-3]), iz * dz)
+
+            # means_[i, :, :] = clf.means_[:, :]
+            # covariance_[i,:,:,:] = clf.covariances_[:,:,:]
 
             '''(3) Compute Kernel-Estimate PDF '''
             # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
@@ -130,7 +152,36 @@ def main():
             # relative_entropy(data, clf, kde)
 
             '''(5) Compute Liquid Water '''
-            ql_computed = compute_ql(p0, data1_, data2_)
+            nn = np.int(1e2)
+            S, y = clf_s.sample(n_samples=nn)
+            S_norm, y = clf_s_norm.sample(n_samples=nn)
+            Th, y = clf_th.sample(n_samples=nn)
+            Th_norm, y = clf_th_norm.sample(n_samples=nn)
+            print('....', S_norm.shape, y.shape)
+            print(S[:,0])
+            print(S[:,1])
+            print('')
+
+            ql_computed = np.zeros(nn)
+            for i in range(nn):
+                if S[i,1] <= 0.016:
+                    print(S[i,0], S[i,1])
+                    ql_computed[i] = compute_ql(p0, S[i,0], Th[i, 0], S[i,1])
+
+
+            # print(ql_computed)
+
+            if np.amax(ql_computed) > 0:
+                plt.figure()
+                lim = 1e-5
+                if np.amax(ql) > 0.0:
+                    plt.hist(ql_computed, bins=50, range=(lim, np.amax(ql)))
+                else:
+                    plt.hist(ql_computed, normed=True)
+                plt.suptitle('ql computed ('+str(iz*dz)+', '+str(np.int(d[0:-3])))
+                plt.show()
+            else:
+                print('unsat')
 
         '''(4) Save Gaussian Mixture PDFs '''
         # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
@@ -140,12 +191,15 @@ def main():
 
 
 #----------------------------------------------------------------------
-def compute_ql(p0, theta_l, qt):
-    print('Compute ql')
+def compute_ql(p0, s, theta_l, qt):
+    print('Compute ql: '+str(s)+', '+str(qt))
 
     ql = np.array(qt, copy=True)
+    # T, ql = sat_adj_theta(p0, theta_l, qt)
 
-    T, ql = sat_adj_theta(p0, theta_l, qt)
+    T, ql, qi = sat_adj(p0, s, qt)
+    # sat_adj(p0, s, qt)
+
 
     return ql
 #----------------------------------------------------------------------
@@ -178,34 +232,10 @@ def relative_entropy(data, clf, kde):
 def Gaussian_bivariate(data, var_name1, var_name2, time, z):
     global ncomp
     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
-    # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
     print('')
 
-    if var_name1 == 'qt' or var_name2 == 'qt':
-        plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-        print('!!!! qt: factor 100')
-    else:
-        plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-
-    # return clf.means_, clf.covariances_, clf.weights_
     return clf
-#----------------------------------------------------------------------
-def Gaussian_univariate(data, var_name, time, iz):
-    for i in range(1):
-        print('Gaussian mixture: '+ var_name + ', height: '+np.str(iz*dz))
-        clf = mixture.GaussianMixture(n_components=1,covariance_type='full')
-
-        clf.fit(data[:,i].reshape(nx*ny,1))
-
-        # print(var_name + ': means=' + np.str(clf.means_))
-        # print(var_name + ': covar=' + np.str(clf.covariances_))
-        # print(var_name + ': ', clf.means_.shape, clf.covariances_.shape)
-
-        plot_PDF_samples(data, var_name, clf, time, iz)
-
-    return clf.means_, clf.covariances_, clf.weights_
 #----------------------------------------------------------------------
 def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     from sklearn.neighbors.kde import KernelDensity
@@ -248,9 +278,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
     XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
 
-
-
-    fig = plt.figure(figsize=(12, 16))
+    fig = plt.figure(figsize=(12, 18))
     plt.subplot(3, 2, 1)
     bw = 5e-2
     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
@@ -324,7 +352,7 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     plt.title('bw = ' + str(bw))
 
     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
-    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures','CC_' + var_name1 + '_' + var_name2 + '_' + str(
+    plt.savefig(os.path.join(fullpath_out,'CloudClosure_figures_norm','CC_' + var_name1 + '_' + var_name2 + '_' + str(
         time) + '_z' + str(np.int(z)) + 'm_KDE.png'))
     plt.close()
 
@@ -332,19 +360,6 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     print(kde.get_params())
 
     return kde, kde
-
-#----------------------------------------------------------------------
-def labeling(var_name1, var_name2, amp):
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    if var_name1 == 'qt':
-        plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
-        plt.ylabel(var_name2)
-    else:
-        plt.xlabel(var_name1)
-        plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
-
-    return
 #----------------------------------------------------------------------
 def covariance_estimate_from_multicomp_pdf(clf):
     '''
@@ -365,8 +380,125 @@ def covariance_estimate_from_multicomp_pdf(clf):
 
 
 #----------------------------------------------------------------------
-# def plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z):
-def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
+def plot_both_PDF(data1, data2, clf1, clf2, time, z):
+    n_sample = 300
+    x1 = np.linspace(np.amin(data1[:, 0]), np.amax(data1[:, 0]), n_sample)
+    y1 = np.linspace(np.amin(data1[:, 1]), np.amax(data1[:, 1]), n_sample)
+    x2 = np.linspace(np.amin(data2[:, 0]), np.amax(data2[:, 0]), n_sample)
+    y2 = np.linspace(np.amin(data2[:, 1]), np.amax(data2[:, 1]), n_sample)
+
+    XX1_ = np.ndarray(shape=(n_sample ** nvar, nvar))
+    XX2_ = np.ndarray(shape=(n_sample ** nvar, nvar))
+    for i in range(n_sample):
+        for j in range(n_sample):
+            shift = i * n_sample + j
+            XX1_[shift, 0] = x1[i]
+            XX1_[shift, 1] = y1[j]
+            XX2_[shift, 0] = x2[i]
+            XX2_[shift, 1] = y2[j]
+
+    Z1_ = clf1.score_samples(XX1_)
+    Z2_ = clf2.score_samples(XX2_)
+    Z1 = np.ndarray(shape=(n_sample, n_sample))
+    Z2 = np.ndarray(shape=(n_sample, n_sample))
+    for k in range(n_sample**nvar):
+        j_shift = np.mod(k, n_sample)
+        i_shift = (k - j_shift) / n_sample
+        Z1[i_shift, j_shift] = Z1_[k]
+        Z2[i_shift, j_shift] = Z2_[k]
+
+    fig = plt.figure(figsize=(12,18))
+    plt.subplot(3, 2, 1)
+    plt.scatter(data1[:,0], data1[:,1], alpha=0.2, s=5)
+    ax1 = plt.contour(x1, y1, Z1)
+    plt.colorbar(ax1)
+    plt.title('data1')
+    labeling('th_l', 'qt', 0)
+    plt.subplot(3, 2, 2)
+    plt.scatter(data2[:, 0], data2[:, 1], alpha=0.2, s=5)
+    ax1 = plt.contour(x2, y2, Z2)
+    plt.colorbar(ax1)
+    plt.title('data2')
+    labeling('s', 'qt', 0)
+    plt.subplot(3,2,3)
+    ax1 = plt.contourf(x1,y1,Z1)
+    plt.colorbar(ax1)
+    plt.title('Z1')
+    plt.subplot(3, 2, 4)
+    ax1 = plt.contourf(x2, y2, Z2)
+    plt.title('Z2')
+    plt.colorbar(ax1)
+    plt.subplot(3, 2, 5)
+    plt.contourf(x1, y1, Z1)
+    ax1 = plt.contour(x2, y2,  Z2)
+    plt.colorbar(ax1)
+    plt.subplot(3, 2, 6)
+    ax1 = plt.contour(x1, y1, Z1)
+    plt.contourf(x2, y2, Z2)
+    plt.colorbar(ax1)
+    fig.suptitle('')
+    plt.savefig(
+        os.path.join(
+            fullpath_out, 'CloudClosure_figures_norm/CC_comp_' + str(time) + '_z' + str(np.int(z)) + 'm.png')
+    )
+    plt.close()
+    return
+#--------------------------
+def plot_data_comp(data_th, data_s, data_th_norm, data_s_norm, ql, time, z):
+    plt.figure(figsize=(12,18))
+    plt.subplot(4, 2, 1)
+    lim = 1e-5
+    if np.amax(ql) > 0.0:
+        plt.hist(ql[:], bins=50, range=(lim, np.amax(ql)))
+    else:
+        plt.hist(ql, normed=True)
+    plt.title(r'$q_l$')
+    plt.subplot(4, 2, 2)
+    plt.scatter(data_th[:,1], ql[:], alpha=0.2, s=5)
+    plt.xlim([np.amin(data_th[:,1]),np.amax(data_th[:,1])])
+    plt.ylim([-0.0001, np.amax(ql)])
+    plt.plot([np.amin(data_th[:,1]),np.amax(data_th[:,1])],[lim, lim],'k',linewidth=1)
+    lim = 0.016
+    plt.plot([lim, lim], [np.amin(ql), np.amax(ql)], 'r', linewidth=2)
+    labeling('qt', 'ql', 1)
+    plt.title(r'$q_l$')
+
+    plt.subplot(4, 2, 3)
+    plt.scatter(data_th[:,0], data_th[:,1], alpha=0.2, s=5)
+    plt.title(r'$\theta$')
+    labeling('th_l', 'qt', 1)
+    plt.subplot(4, 2, 4)
+    plt.scatter(data_th_norm[:, 0], data_th_norm[:, 1], alpha=0.2, s=5)
+    labeling('th_l', 'qt', 1)
+    plt.title(r'$\theta$ normalised')
+    plt.subplot(4, 2, 5)
+    plt.scatter(data_s[:,0],data_s[:,1], alpha=0.2, s=5)
+    plt.title(r'$s$')
+    labeling('s', 'qt', 1)
+    plt.subplot(4, 2, 6)
+    plt.scatter(data_s_norm[:, 0], data_s_norm[:, 1], alpha=0.2, s=5)
+    plt.title(r'$s$ normalised')
+    labeling('s', 'qt', 1)
+    plt.subplot(4, 2, 7)
+    ax1 = plt.contourf(data_th[:,0].reshape(nx,ny))
+    ax2 = plt.contour(data_th_norm[:, 0].reshape(nx, ny), colors = 'k', linewidths=1)
+    plt.colorbar(ax1)
+    plt.colorbar(ax2)
+    plt.title(r'$\theta$')
+    plt.subplot(4, 2, 8)
+    ax1 = plt.contourf(data_s[:, 0].reshape(nx, ny))
+    ax2 = plt.contour(data_s_norm[:, 0].reshape(nx, ny), colors='k', linewidths=1)
+    plt.colorbar(ax1)
+    plt.colorbar(ax2)
+    plt.title(r'$s$')
+    plt.savefig(
+        os.path.join(
+            fullpath_out, 'CloudClosure_figures_norm/data_' + str(time) + '_z' + str(np.int(z)) + 'm.png')
+    )
+    plt.close()
+    return
+#--------------------------
+def plot_PDF_samples_qt(data, data_norm, var_name1, var_name2, clf, clf_norm, time, z):
     global ncomp
     amp = 1e2
     print('')
@@ -388,98 +520,84 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
 
     # Plotting
     n_sample = 100
-    x1_max = np.amax(data[:, 0])
-    x1_min = np.amin(data[:, 0])
-    x2_max = np.amax(data[:, 1])
-    x2_min = np.amin(data[:, 1])
-    x = np.linspace(x1_min, x1_max, n_sample)
-    y = np.linspace(x2_min, x2_max, n_sample)
+    x = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    x_norm = np.linspace(np.amin(data_norm[:, 0]), np.amax(data_norm[:, 0]), n_sample)
+    y_norm = np.linspace(np.amin(data_norm[:, 1]), np.amax(data_norm[:, 1]), n_sample)
+    # x = np.linspace(x1_min, x1_max, n_sample)
+    # y = np.linspace(x2_min, x2_max, n_sample)
     X, Y = np.meshgrid(x, y)
     XX = np.array([X.ravel(), Y.ravel()]).T
     Z = clf.score_samples(XX).reshape(X.shape)
+
     x_aux = np.linspace(np.amin(data_aux[:,0]), np.amax(data_aux[:,0]), n_sample)
     y_aux = np.linspace(np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1]), n_sample)
     X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
     XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
     Z_aux = clf_aux.score_samples(XX_aux).reshape(X_aux.shape)
-    print(np.amin(Z_aux), np.amax(Z_aux))
 
-    # mx1 = clf.means_[0, 0]
-    # my1 = clf.means_[0, 1]
-    # sx1 = np.sqrt(clf.covariances_[0, 0, 0])
-    # sy1 = np.sqrt(clf.covariances_[0, 1, 1])
-    # sxy1 = clf.covariances_[0, 1, 0]
-    # Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
-    # mx1_aux = clf_aux.means_[0, 0]
-    # my1_aux = clf_aux.means_[0, 1]
-    # sx1_aux = np.sqrt(clf_aux.covariances_[0, 0, 0])
-    # sy1_aux = np.sqrt(clf_aux.covariances_[0, 1, 1])
-    # sxy1_aux = clf_aux.covariances_[0, 1, 0]
-    # Z1_aux = mlab.bivariate_normal(X_aux, Y_aux, sigmax=sx1_aux, sigmay=sy1_aux, mux=mx1_aux, muy=my1_aux, sigmaxy=sxy1_aux)
+    X, Y = np.meshgrid(x_norm, y_norm)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z_norm = clf_norm.score_samples(XX).reshape(X.shape)
 
-    fig = plt.figure(figsize=(12, 16))
+    fig = plt.figure(figsize=(12, 18))
     plt.subplot(3, 2, 1)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
     ax1 = plt.contour(X, Y, Z, colors='w', levels=np.linspace(10, 20, 11))
     plt.colorbar(ax1,shrink=0.8)
-    plt.xlim([x1_min,x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    plt.xlim([np.amin(data_aux[:, 0]), np.amax(data_aux[:, 0])])
+    plt.ylim([np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1])])
+    plt.title(var_name1 + var_name2 + ' (data)')
+    labeling(var_name1, var_name2, amp)
     plt.subplot(3, 2, 2)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_norm[:, 0], data_norm[:, 1], s=5, alpha=0.2)
     ax1 = plt.contour(X_aux, Y_aux, Z_aux, colors='w', levels=np.linspace(10, 20, 11))
     plt.colorbar(ax1, shrink=0.8)
-    plt.xlim([x1_min, x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    labeling(var_name1, var_name2, amp)
+    plt.xlim([np.amin(data_norm[:,0]), np.amax(data_norm[:,0])])
+    plt.ylim([np.amin(data_norm[:, 1]), np.amax(data_norm[:, 1])])
+    plt.title(var_name1 + var_name2 + ' (data normalised)')
+    labeling(var_name1, var_name2, 1)
 
     plt.subplot(3, 2, 3)
-    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
-    levels = np.linspace(0, fact_, 10)
-    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels, linewidths=2)
-    plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'o', markersize=8)
-    plt.colorbar(ax1, shrink=0.8)
-    plt.title('EM PDF')
-    plt.xlim([x1_min, x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    plt.subplot(3, 2, 4)
     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
-    # ax1 = plt.contour(X_aux, Y_aux, np.exp(Z_aux), levels=levels, linewidths=2)
+    levels = np.linspace(0, fact_, 10)
     ax1 = plt.contour(X_aux, Y_aux, np.exp(Z_aux), linewidths=2)
     plt.plot([clf_aux.means_[0, 0]], [clf_aux.means_[0, 1]], 'o', markersize=8)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
     labeling(var_name1, var_name2, amp)
+    plt.subplot(3, 2, 4)
+    plt.scatter(data_norm[:, 0], data_norm[:, 1], s=5, alpha=0.2)
+    ax1 = plt.contour(x_norm, y_norm, np.exp(Z_norm), linewidths=2)
+    plt.plot([clf_norm.means_[0, 0]], [clf_norm.means_[0, 1]], 'o', markersize=8)
+    plt.colorbar(ax1, shrink=0.8)
+    plt.title('EM PDF')
+    labeling(var_name1, var_name2, 1)
 
     plt.subplot(3, 2, 5)
-    ax1 = plt.contourf(X, Y, np.exp(Z))
+    ax1 = plt.contourf(x_aux, y_aux, np.exp(Z_aux))
     # plt.scatter(X, Y, s=2, alpha=0.5)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    labeling(var_name1, var_name2, amp)
     plt.subplot(3, 2, 6)
-    ax1 = plt.contourf(X_aux, Y_aux, np.exp(Z_aux))
+    ax1 = plt.contourf(x_norm, y_norm, np.exp(Z_norm))
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
-    labeling(var_name1, var_name2, amp)
+    labeling(var_name1, var_name2, 1)
 
-    fig.suptitle('Cloud Closure: Univariate Gaussian PDF fit', fontsize=20)
+    fig.suptitle('Cloud Closure: Bivariate Gaussian PDF fit (t=' + str(time) + ', z=' + str(z)+')', fontsize=20)
     plt.savefig(
         os.path.join(
-            fullpath_out,'CloudClosure_figures/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
+            fullpath_out,'CloudClosure_figures_norm/CC_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z'
                          + str(np.int(z)) + 'm_bivariate.png')
     )
 
     plt.close()
     return
-#----------------------------------------------------------------------
-def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
+#--------------------------
+def plot_PDF_samples(data, data_norm, var_name1, var_name2, clf, clf_norm, time, z):
+    print('pdf samples', var_name1, var_name2)
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
 
@@ -504,7 +622,7 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     sxy1 = clf.covariances_[0, 1, 0]
     Z1 = mlab.bivariate_normal(X, Y, sigmax=sx1, sigmay=sy1, mux=mx1, muy=my1, sigmaxy=sxy1)
 
-    plt.figure(figsize=(12, 12))
+    fig = plt.figure(figsize=(12, 18))
     levels_tot = np.linspace(0, fact_, 10)
     if fact_ <= 2:
         levels_cont = np.arange(0, fact_, 0.2)
@@ -529,16 +647,14 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.colorbar(ax1,shrink=0.8)
     plt.xlim([x1_min,x1_max])
     plt.ylim([x2_min, x2_max])
-    plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    plt.colorbar(ax1,shrink=0.8)
-    # print(x1_min, x2_min, x1_max, x2_max    )
-    plt.xlim([x1_min,x1_max])
-    plt.ylim([x2_min, x2_max])
-    plt.title(var_name1 + var_name2 + ' (data), t=' + str(time) + ', z=' + str(z))
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
+    plt.title(var_name1 + var_name2 + ' (data)')
+    # plt.subplot(3, 2, 2)
+    # plt.scatter(data_norm[:, 0], data_norm[:, 1], s=2, alpha=0.05)
+    # ax1 = plt.contour(X, Y, Z, levels=np.linspace(10, 20, 2))
+    # plt.colorbar(ax1, shrink=0.8)
+    # plt.xlim([x1_min, x1_max])
+    # plt.ylim([x2_min, x2_max])
+    # plt.title(var_name1 + var_name2 + ' (data normalised)')
 
     plt.subplot(3, 2, 3)
     ax1 = plt.hist2d(data[:, 0], data[:, 1], bins=30, normed=True)
@@ -548,7 +664,8 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('data histogram')
     plt.subplot(3, 2, 4)
-    ax1 = plt.contourf(X, Y, np.exp(Z),levels=levels_contf)
+    # ax1 = plt.contourf(X, Y, np.exp(Z),levels=levels_contf)
+    ax1 = plt.contourf(X, Y, np.exp(Z))
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
     plt.xlabel(var_name1)
@@ -565,7 +682,8 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.subplot(3, 2, 6)
     plt.scatter(data[:, 0], data[:, 1], s=2, alpha=0.05)
-    ax1 = plt.contour(X, Y, np.exp(Z), levels=levels_cont, linewidths=1.5)
+    # ax1 = plt.contour(X, Y, np.exp(Z), levels=levels_cont, linewidths=1.5)
+    ax1 = plt.contour(X, Y, np.exp(Z))
     # ax1 = plt.contour(X, Y, Z1+Z2, linewidths=1.5)
     plt.plot([clf.means_[0, 0]], [clf.means_[0, 1]], 'wo', markersize=6)
     plt.colorbar(ax1, shrink=0.8)
@@ -575,12 +693,29 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
     plt.ylabel(var_name2)
     plt.title('f = f1 + f2')
 
-    plt.savefig(fullpath_out+'CloudClosure_figures/CC_bivariate_' + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(
-        np.int(z)) + 'm.png')
+    fig.suptitle('Cloud Closure: Bivariate Gaussian PDF fit ('
+                 +  var_name1 + var_name2 + '; t=' + str(time) + ', z=' + str(z)+')'
+                 , fontsize=20)
+
+    plt.savefig(os.path.join(
+        fullpath_out, 'CloudClosure_figures_norm/CC_bivariate_'
+        + var_name1 + '_' + var_name2 + '_' + str(time) + '_z' + str(np.int(z)) + 'm.png'
+    ))
 
     plt.close()
     return
+#--------------------------
+def labeling(var_name1, var_name2, amp):
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
 
+    return
 
 
 #----------------------------------------------------------------------
@@ -667,16 +802,6 @@ def add_covariance(path, var_name, ncomp, nvar):
     var = group.createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
     rootgrp.close()
     return
-
-# def add_weights(path, var_name, ncomp, nvar):
-#     # print('add weights: ', var_name, path)
-#     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     rootgrp = nc.Dataset(path, 'r+')
-#     group = rootgrp.groups['weights']
-#     var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
-#     rootgrp.close()
-#     return
-
 
 def write_mean(path, group_name, data, var_name):
     print('write mean:', path, var_name, data.shape)
