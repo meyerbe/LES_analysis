@@ -95,8 +95,8 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    # zrange = np.arange(10, 31, 5)
-    zrange = np.asarray([5,10,20,30,50,70,80,100])
+    # zrange = np.arange(10, 11, 5)
+    zrange = np.asarray([5,10,20,30,50,70,80,90])
     print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -135,7 +135,7 @@ def main():
             data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
             data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
             data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
-            print('----', var1, 'T', var3)
+            print('----', var1, var2, var3)
 
             data[:, 0] = data1_[:, iz]
             data[:, 1] = data2_[:, iz]

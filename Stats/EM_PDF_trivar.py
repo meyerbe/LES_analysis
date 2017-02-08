@@ -93,29 +93,31 @@ def main():
     # ______________________
     '''
     zrange:     z-values for which the PDF is fitted
-    var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(10, 31, 10)
+    # zrange = np.arange(10, 31, 10)
+    zrange = np.arange(10, 21, 10)
     print('zrange', zrange*dz)
     print('_______________________')
-    if case_name == 'DCBLSoares':
-        var_list = ['w','u','s']
-    else:
-        var_list = ['w','s','qt']
 
     '''
-    Tri - variate PDF for (s, qt, w)
+    Tri - variate PDF for (t, qt, w)
     '''
     global nvar, ncomp
     ncomp = 2
     nvar = 3
+    thetali_flag = True
     data = np.ndarray(shape=((nx * ny), nvar))
-    means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    weights_ = np.zeros(shape=(len(zrange), 2))
-    mean_tot = np.ndarray(shape=(len(zrange), nvar))
-    covariance_tot = np.zeros(shape=(len(zrange), nvar, nvar))
+    means_t_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    covariance_t_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    weights_t_ = np.zeros(shape=(len(zrange), 2))
+    mean_tot_t = np.ndarray(shape=(len(zrange), nvar))
+    covariance_tot_t = np.zeros(shape=(len(zrange), nvar, nvar))
+    means_thl_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    covariance_thl_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    weights_thl_ = np.zeros(shape=(len(zrange), 2))
+    mean_tot_thl = np.ndarray(shape=(len(zrange), nvar))
+    covariance_tot_thl = np.zeros(shape=(len(zrange), nvar, nvar))
     # ---
     for d in files:
         print('- - - - time: ' + str(d) + '- - - -')
@@ -124,54 +126,66 @@ def main():
 
         fullpath_in = os.path.join(args.path, 'fields', d)
         print(fullpath_in)
-        for n1 in range(len(var_list)):
-            var1 = var_list[n1]
-            # data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
-            for n2 in range(n1, len(var_list)):
-                var2 = var_list[n2]
-                # data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
-                for n3 in range(n2, len(var_list)):
-                    var3 = var_list[n3]
 
-                    var1 = 'w'
-                    var2 = 'temperature'
-                    var3 = 'qt'
-                    data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
-                    data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
-                    data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
-                    print('----', var1, var2, var3)
-                    if var1 == var2 or var2 == var3 or var1 == var3:
-                        continue
-                    for i in range(len(zrange)):
-                        iz = zrange[i]
-                        data[:, 0] = data1_[:, iz]
-                        data[:, 1] = data2_[:, iz]
-                        data[:, 2] = data3_[:, iz]
+        var1 = 'w'
+        var2a = 'temperature'
+        var2b = 'thetali'
+        var3 = 'qt'
+        data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
+        data2a_ = read_in_netcdf_fields(var2a, fullpath_in).reshape((nx * ny, nz))
+        try:
+            data2b_ = read_in_netcdf_fields(var2b, fullpath_in).reshape((nx * ny, nz))
+            print('thetali in fields')
+        except:
+            thetali_flag = False
+            print('thetali NOT in fields')
+        data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
 
-                        clf = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), iz*dz)
-                        means_[i, :, :] = clf.means_[:, :]
-                        covariance_[i, :, :, :] = clf.covariances_[:, :, :]
-                        weights_[i, :] = clf.weights_[:]
+        for i in range(len(zrange)):
+            iz = zrange[i]
+            data[:, 0] = data1_[:, iz]
+            data[:, 1] = data2a_[:, iz]
+            data[:, 2] = data3_[:, iz]
 
-                        print('')
-                        print('checking: ')
-                        if var1 == 'w':
-                            print('w max (z=', np.str(iz), ': ', np.amax(data1_[:, iz]), np.amax(data[:, 0]))
-                        if var3 == 'qt':
-                            print('qt max (z=', np.str(iz), ': ', np.amax(data3_[:, iz]), np.amax(data[:, 2]))
+            clf_t = Gaussian_mixture_trivariate(data, var1, var2a, var3, np.int(d[0:-3]), iz*dz)
+            means_t_[i, :, :] = clf_t.means_[:, :]
+            covariance_t_[i, :, :, :] = clf_t.covariances_[:, :, :]
+            weights_t_[i, :] = clf_t.weights_[:]
+            mean_tot_t[i, :], covariance_tot_t[i, :, :] = covariance_estimate_from_multicomp_pdf(clf_t)
 
-                        mean_tot[i, :], covariance_tot[i, :, :] = covariance_estimate_from_multicomp_pdf(clf)
+            if thetali_flag:
+                data[:, 1] = data2b_[:, iz]
+                clf_thl = Gaussian_mixture_trivariate(data, var1, var2b, var3, np.int(d[0:-3]), iz * dz)
+                means_thl_[i, :, :] = clf_thl.means_[:, :]
+                covariance_thl_[i, :, :, :] = clf_thl.covariances_[:, :, :]
+                weights_thl_[i, :] = clf_thl.weights_[:]
+                mean_tot_thl[i, :], covariance_tot_thl[i, :, :] = covariance_estimate_from_multicomp_pdf(clf_thl)
 
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'means', means_, var1+var2+var3,
+            print('')
+
+
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'means', means_t_, var1+var2a+var3,
                                       ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances', covariance_,
-                                      var1 + var2 + var3, ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'weights', weights_, var1+var2+var3,
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances', covariance_t_,
+                                      var1 + var2a + var3, ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'weights', weights_t_, var1+var2a+var3,
                                       ncomp, nvar, len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'mean_tot', mean_tot, var1+var2+var3,
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'mean_tot', mean_tot_t, var1+var2a+var3,
                                     ncomp, nvar,len(zrange))
-        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances_tot', covariance_tot, var1+var2+var3,
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances_tot', covariance_tot_t, var1+var2a+var3,
                                     ncomp, nvar,len(zrange))
+
+        if thetali_flag:
+            dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'means', means_thl_,
+                          var1 + var2b + var3, ncomp, nvar, len(zrange))
+            dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances', covariance_thl_,
+                          var1 + var2b + var3, ncomp, nvar, len(zrange))
+            dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'weights', weights_thl_,
+                          var1 + var2b + var3, ncomp, nvar, len(zrange))
+            dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'mean_tot', mean_tot_thl,
+                          var1 + var2b + var3, ncomp, nvar, len(zrange))
+            dump_variable(os.path.join(fullpath_out, 'EM2_trivar', nc_file_name), 'covariances_tot', covariance_tot_thl,
+                          var1 + var2b + var3, ncomp, nvar, len(zrange))
 
     return
 
