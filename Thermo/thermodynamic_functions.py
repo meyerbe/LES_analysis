@@ -16,6 +16,27 @@ def pv_c(p0,qt,qv):
     return p0 * eps_vi * qv / (1.0-qt+eps_vi*qv)
 
 # ---------------------------------------------------------------------------
+''' Entropy '''
+# inline double sd_c(double pd, double T){
+#     return sd_tilde + cpd*log(T/T_tilde) -Rd*log(pd/p_tilde);
+# }
+#
+# inline double sv_c(double pv, double T){
+#     return sv_tilde + cpv*log(T/T_tilde) - Rv * log(pv/p_tilde);
+# }
+#
+# inline double sc_c(double L, double T){
+#     return -L/T;
+# }
+def s_dry(pd, T):
+    return sd_tilde
+
+def s_vap(pv, T):
+    return sv_tilde
+
+def s_cond(L, T):
+    return -L/T
+# ---------------------------------------------------------------------------
 ''' Temperature '''
 # T(pd,pv,s,qt)
 def temperature_no_ql(pd,pv,s,qt):
@@ -26,13 +47,11 @@ def temperature_no_ql(pd,pv,s,qt):
         temp = T_tilde * exp( (s-(1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)))/cp ) * exp( -qt*sv_tilde/cp ) * (pv/cp)**(pv/p_tilde)
     else:
         print('pv < 0: not physical!!')
-
     return temp
 
-
+# Entropy Potential Temperature
 def thetas_c(s, qt):
     return T_tilde*np.exp((s-(1.0-qt)*sd_tilde - qt*sv_tilde)/cpm_c(qt))
-
 
 # ---------------------------------------------------------------------------
 ''' Latent Heat '''
@@ -48,9 +67,8 @@ def latent_heat_constant(T, Lambda):
 def cpm_c(qt):
     return (1.0-qt) * cpd + qt * cpv
 
-
 # ---------------------------------------------------------------------------
-''' Clausius Clapeyron '''
+''' Condensation / Clausius Clapeyron '''
 #def CC_const_Lv(T):
 #    pv_star = 0.0
 #    return pv_star

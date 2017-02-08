@@ -95,8 +95,8 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(10, 11, 5)
-    # zrange = np.asarray([5,10,20,30,50,70,80,100])
+    # zrange = np.arange(10, 31, 5)
+    zrange = np.asarray([5,10,20,30,50,70,80,100])
     print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -129,7 +129,8 @@ def main():
             fullpath_in = os.path.join(args.path, 'fields', d)
             print(fullpath_in)
             var1 = 'w'
-            var2 = 'temperature'
+            # var2 = 'temperature'
+            var2 = 'thetali'
             var3 = 'qt'
             data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
             data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
@@ -142,7 +143,7 @@ def main():
 
             data_all = np.append(data_all, data, axis=0)
 
-        clf = Gaussian_mixture_trivariate(data, var1, var2, var3, np.int(d[0:-3]), iz*dz)
+        clf = Gaussian_mixture_trivariate(data_all, var1, var2, var3, np.int(d[0:-3]), iz*dz)
         means_[i, :, :] = clf.means_[:, :]
         covariance_[i, :, :, :] = clf.covariances_[:, :, :]
         weights_[i, :] = clf.weights_[:]

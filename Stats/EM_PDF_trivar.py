@@ -97,14 +97,12 @@ def main():
     '''
     global zrange
     zrange = np.arange(10, 31, 10)
-    print('zrange', zrange)
+    print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
         var_list = ['w','u','s']
     else:
         var_list = ['w','s','qt']
-    # var_list = ['s']
-
 
     '''
     Tri - variate PDF for (s, qt, w)
@@ -215,9 +213,6 @@ def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, 
     import matplotlib.mlab as mlab
     import matplotlib.cm as cm
     print('Plot: '+var_name1+var_name2+var_name3)
-    # print('in plotting max w: ', np.amax(data[:, 0]), np.amin(data[:,0]))
-    # print('in plotting max temp: ', np.amax(data[:, 1]), np.amin(data[:, 1]))
-    # print('in plotting max qt: ', np.amax(data[:, 2]), np.amin(data[:,2]))
     print('')
 
     # Plotting
@@ -225,18 +220,6 @@ def plot_PDF_samples(data, var_name1, var_name2, var_name3, clf, amp_qt, amp_w, 
     x_ = np.linspace(np.amin(data[:,0]), np.amax(data[:,0]), n_sample)
     y_ = np.linspace(np.amin(data[:,1]), np.amax(data[:,1]), n_sample)
     z_ = np.linspace(np.amin(data[:,2]), np.amax(data[:,2]), n_sample)
-    # x_ = np.linspace(0,4, n_sample)
-    # y_ = np.linspace(10, 40, n_sample)
-    # z_ = np.linspace(100, 400, n_sample)
-
-    # X, Y, Z = np.meshgrid(x_, y_, z_)
-    # XX = np.array([X.ravel(), Y.ravel(), Z.ravel()]).T
-    # # ZZ = clf.score_samples(XX).reshape(X.shape)
-    # ZZ = clf.score_samples(XX)
-    # print(zrange.shape, nvar, ncomp, n_sample, data.shape)
-    # print('plotting: ZZ', ZZ.shape, XX.shape)
-    # ZZ = ZZ.reshape(X.shape)
-    # print(ZZ.shape)
 
     XX_ = np.ndarray(shape=(n_sample**nvar,nvar))
     delta_i = n_sample*n_sample
