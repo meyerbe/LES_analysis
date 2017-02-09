@@ -19,11 +19,14 @@ from io_read_in_files import read_in_netcdf_fields
 label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = 15
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 10
 
 '''
-Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
-(1) Fit A GMM to data points to get means, covariance matrices and relaive weights
+Trivariate Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
+(1) Fit A GMM to data points to get means, covariance matrices and relative weights
     --> use the expectation-maximization algorithm
 (2) check out to which mode each data point belongs (class probability)
 
@@ -95,8 +98,8 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    # zrange = np.arange(10, 11, 5)
-    zrange = np.asarray([5,10,20,30,50,70,80,90])
+    zrange = np.arange(10, 11, 5)
+    # zrange = np.asarray([5,10,20,30,50,70,80,90])
     print('zrange', zrange*dz)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -106,60 +109,102 @@ def main():
     var_corr_list = ['wsqt']
 
     '''
-    Tri - variate PDF for (s, qt, w)
+    Tri - variate PDF for (w, t, qt)
     '''
     global nvar, ncomp
     ncomp = 2
     nvar = 3
+    thetali_flag = True
     data = np.ndarray(shape=((nx * ny), nvar))
     data_all = np.ndarray(shape=(0, nvar))
-    means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
-    covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
-    weights_ = np.zeros(shape=(len(zrange), 2))
-    mean_tot = np.ndarray(shape=(len(zrange), nvar))
-    covariance_tot = np.zeros(shape=(len(zrange), nvar, nvar))
+    means_t_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    covariance_t_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    weights_t_ = np.zeros(shape=(len(zrange), 2))
+    mean_tot_t = np.ndarray(shape=(len(zrange), nvar))
+    covariance_tot_t = np.zeros(shape=(len(zrange), nvar, nvar))
+    means_thl_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+    covariance_thl_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+    weights_thl_ = np.zeros(shape=(len(zrange), 2))
+    mean_tot_thl = np.ndarray(shape=(len(zrange), nvar))
+    covariance_tot_thl = np.zeros(shape=(len(zrange), nvar, nvar))
     # ---
 
     nc_file_name = 'EM2_trivar_alltimes.nc'
     create_statistics_file(os.path.join(fullpath_out, 'EM2_trivar_alltimes'), nc_file_name, ncomp, nvar, len(zrange))
+
+    var1 = 'w'
+    var2a = 'temperature'
+    var2b = 'thetali'
+    var3 = 'qt'
+    try:
+        fullpath_in = os.path.join(args.path, 'fields', files[0])
+        read_in_netcdf_fields('thetali', fullpath_in).reshape((nx * ny, nz))
+        print('thetali in fields')
+    except:
+        thetali_flag = False
+        print('thetali NOT in fields')
+
     for i in range(len(zrange)):
         iz = zrange[i]
         print('i = ' + np.str(iz) + ': ' + np.str(data_all.shape))
         for d in files:
             fullpath_in = os.path.join(args.path, 'fields', d)
             print(fullpath_in)
-            var1 = 'w'
-            # var2 = 'temperature'
-            var2 = 'thetali'
-            var3 = 'qt'
             data1_ = read_in_netcdf_fields(var1, fullpath_in).reshape((nx * ny, nz))
-            data2_ = read_in_netcdf_fields(var2, fullpath_in).reshape((nx * ny, nz))
+            data2_ = read_in_netcdf_fields(var2a, fullpath_in).reshape((nx * ny, nz))
             data3_ = read_in_netcdf_fields(var3, fullpath_in).reshape((nx * ny, nz))
-            print('----', var1, var2, var3)
-
+            print('----', var1, var2a, var3)
             data[:, 0] = data1_[:, iz]
             data[:, 1] = data2_[:, iz]
             data[:, 2] = data3_[:, iz]
 
             data_all = np.append(data_all, data, axis=0)
 
-        clf = Gaussian_mixture_trivariate(data_all, var1, var2, var3, np.int(d[0:-3]), iz*dz)
-        means_[i, :, :] = clf.means_[:, :]
-        covariance_[i, :, :, :] = clf.covariances_[:, :, :]
-        weights_[i, :] = clf.weights_[:]
+        clf_t = Gaussian_mixture_trivariate(data_all, var1, var2a, var3, np.int(d[0:-3]), iz*dz)
+        means_t_[i, :, :] = clf_t.means_[:, :]
+        covariance_t_[i, :, :, :] = clf_t.covariances_[:, :, :]
+        weights_t_[i, :] = clf_t.weights_[:]
 
-        mean_tot[i, :], covariance_tot[i, :, :] = covariance_estimate_from_multicomp_pdf(clf)
+        if thetali_flag:
+            count = 0
+            shift = nx*ny
+            for d in files:
+                fullpath_in = os.path.join(args.path, 'fields', d)
+                print(fullpath_in)
+                data2_ = read_in_netcdf_fields(var2b, fullpath_in).reshape((nx * ny, nz))
+                data_all[count*shift:(count+1)*shift, 1] = data2_[:, iz]
+                count += 1
 
-    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'means', means_, var1+var2+var3,
-                                      ncomp, nvar, len(zrange))
-    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances', covariance_,
-                                      var1 + var2 + var3, ncomp, nvar, len(zrange))
-    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'weights', weights_, var1+var2+var3,
-                                      ncomp, nvar, len(zrange))
-    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'mean_tot', mean_tot, var1+var2+var3,
-                                    ncomp, nvar,len(zrange))
-    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances_tot', covariance_tot, var1+var2+var3,
-                                    ncomp, nvar,len(zrange))
+            clf_thl = Gaussian_mixture_trivariate(data_all, var1, var2b, var3, np.int(d[0:-3]), iz * dz)
+            means_thl_[i, :, :] = clf_thl.means_[:, :]
+            covariance_thl_[i, :, :, :] = clf_thl.covariances_[:, :, :]
+            weights_thl_[i, :] = clf_thl.weights_[:]
+
+        mean_tot_t[i, :], covariance_tot_t[i, :, :] = covariance_estimate_from_multicomp_pdf(clf_t)
+        mean_tot_thl[i, :], covariance_tot_thl[i, :, :] = covariance_estimate_from_multicomp_pdf(clf_thl)
+
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'means', means_t_,
+                                    var1+var2a+var3, ncomp, nvar, len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances', covariance_t_,
+                                    var1 + var2a + var3, ncomp, nvar, len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'weights', weights_t_,
+                                    var1+var2a+var3, ncomp, nvar, len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'mean_tot', mean_tot_t,
+                                    var1+var2a+var3,ncomp, nvar,len(zrange))
+    dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances_tot', covariance_tot_t,
+                                    var1+var2a+var3,ncomp, nvar,len(zrange))
+
+    if thetali_flag:
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'means', means_thl_,
+                var1 + var2b + var3, ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances', covariance_thl_,
+                var1 + var2b + var3, ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'weights', weights_thl_,
+                var1 + var2b + var3, ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'mean_tot', mean_tot_thl,
+                var1 + var2b + var3, ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(fullpath_out, 'EM2_trivar_alltimes', nc_file_name), 'covariances_tot', covariance_tot_thl,
+                var1 + var2b + var3, ncomp, nvar, len(zrange))
 
     return
 
@@ -310,7 +355,6 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_q
     ax2 = plt.contour(x_, z_ , np.sum(np.exp(ZZ), axis=1).T, colors='w', linewidths=2)
     plt.colorbar(ax2, shrink=0.8)
     # xxx
-    # plt.colorbar(ax1, shrink=0.8)
     plt.title('EM2 PDF')
     axis_label(var_name1, var_name3, amp_qt, amp_w)
 
@@ -338,7 +382,6 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, score, amp_q
     plt.title('EM2 PDF')
     axis_label(var_name2, var_name3, amp_qt, amp_w)
     # plt.colorbar(ax1, shrink=0.8)
-
 
     fig.suptitle('EM2 PDF: ' + var_name1 + var_name2 + var_name3 + ' (score='+str(score)+'; z=' + str(z) +'m)', fontsize=20)
     plt.savefig(os.path.join(
@@ -470,20 +513,20 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
-    cov_grp = rootgrp.createGroup('covariances')
-    weights_grp = rootgrp.createGroup('weights')
-    mean_tot_grp = rootgrp.createGroup('mean_tot')
-    cov_tot_grp = rootgrp.createGroup('covariances_tot')
     means_grp.createDimension('nz', nz_)
     means_grp.createDimension('ncomp', ncomp)
     means_grp.createDimension('nvar', nvar)
+    cov_grp = rootgrp.createGroup('covariances')
     cov_grp.createDimension('nz', nz_)
     cov_grp.createDimension('ncomp', ncomp)
     cov_grp.createDimension('nvar', nvar)
+    weights_grp = rootgrp.createGroup('weights')
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
+    mean_tot_grp = rootgrp.createGroup('mean_tot')
     mean_tot_grp.createDimension('nz', nz_)
     mean_tot_grp.createDimension('nvar', nvar)
+    cov_tot_grp = rootgrp.createGroup('covariances_tot')
     cov_tot_grp.createDimension('nz', nz_)
     cov_tot_grp.createDimension('nvar', nvar)
     ts_grp = rootgrp.createGroup('time')
@@ -494,6 +537,8 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     z_grp = rootgrp.createGroup('z-profile')
     z_grp.createDimension('nz', len(zrange))
     var = z_grp.createVariable('height', 'f8', ('nz'))
+    for i in range(len(zrange)):
+        var[i] = zrange[i]
     rootgrp.close()
     print('create file end')
     return

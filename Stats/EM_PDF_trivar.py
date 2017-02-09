@@ -16,7 +16,7 @@ from sklearn import mixture
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf_fields
 
-label_size = 10
+label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 15
@@ -95,6 +95,7 @@ def main():
     # ______________________
     '''
     zrange:     z-values for which the PDF is fitted
+    var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
     # zrange = np.arange(10, 21, 10)
@@ -103,7 +104,7 @@ def main():
     print('_______________________')
 
     '''
-    Tri - variate PDF for (t, qt, w)
+    Tri - variate PDF for (w, t, qt)
     '''
     global nvar, ncomp
     ncomp = 2
@@ -345,7 +346,6 @@ def plot_PDF(data, x_, y_, z_, ZZ, var_name1, var_name2, var_name3, amp_qt, amp_
     )
 
     plt.close()
-
 
     return
 # ----------------------------------------------------------------------
