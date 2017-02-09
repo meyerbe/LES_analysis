@@ -99,7 +99,7 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(0,36,2)
+    zrange = np.arange(0,72,2)
     print('zrange', zrange)
     print('_______________________')
     if case_name == 'DCBLSoares':
@@ -420,7 +420,6 @@ def plot_PDF_samples_log(data, var_name1, var_name2, clf, amp, time, z):
     plt.title('data histogram')
     plt.subplot(3, 2, 4)
     ax1 = plt.contourf(X, Y, np.exp(Z), norm=colors.LogNorm())
-    # ax1 = plt.contourf(X, Y, Z)
     plt.colorbar(ax1, shrink=0.8)
     plt.title('EM PDF')
     axis_label(var_name1, var_name2, amp)

@@ -33,7 +33,7 @@ def read_in_netcdf_fields(variable_name, fullpath_in):
 
 # ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
-    print('read in netcdf', variable_name, group_name)
+    print('io_read_in_files: read in netcdf', variable_name, group_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     grp = rootgrp.groups[group_name]
     var = grp.variables[variable_name]
