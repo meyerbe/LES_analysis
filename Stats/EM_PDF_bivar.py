@@ -113,8 +113,7 @@ def main():
     '''
     Bi-variate PDF for (s,qt,w)
     '''
-    global ncomp
-    global nvar
+    global nvar, ncomp
     ncomp = 2
     nvar = 2
     data = np.ndarray(shape=((nx * ny), nvar))
@@ -692,10 +691,10 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
     ts_grp = rootgrp.createGroup('time')
-    ts_grp.createDimension('nt',len(time)-1)
-    var = ts_grp.createVariable('t','f8',('nt'))
-    for i in range(len(time)-1):
-        var[i] = time[i+1]
+    ts_grp.createDimension('nt', len(time) - 1)
+    var = ts_grp.createVariable('t', 'f8', ('nt'))
+    for i in range(len(time) - 1):
+        var[i] = time[i + 1]
     z_grp = rootgrp.createGroup('z-profile')
     z_grp.createDimension('nz', len(zrange))
     var = z_grp.createVariable('height', 'f8', ('nz'))

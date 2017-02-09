@@ -16,15 +16,17 @@ from sklearn import mixture
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf_fields
 
-
-label_size = 8
+label_size = 10
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = 15
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
 
 
 '''
-Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
-(1) Fit A GMM to data points to get means, covariance matrices and relaive weights
+Trivariate Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
+(1) Fit A GMM to data points to get means, covariance matrices and relative weights
     --> use the expectation-maximization algorithm
 (2) check out to which mode each data point belongs (class probability)
 
@@ -557,20 +559,20 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
     dimgrp = rootgrp.createGroup('dims')
     means_grp = rootgrp.createGroup('means')
-    cov_grp = rootgrp.createGroup('covariances')
-    weights_grp = rootgrp.createGroup('weights')
-    mean_tot_grp = rootgrp.createGroup('mean_tot')
-    cov_tot_grp = rootgrp.createGroup('covariances_tot')
     means_grp.createDimension('nz', nz_)
     means_grp.createDimension('ncomp', ncomp)
     means_grp.createDimension('nvar', nvar)
+    cov_grp = rootgrp.createGroup('covariances')
     cov_grp.createDimension('nz', nz_)
     cov_grp.createDimension('ncomp', ncomp)
     cov_grp.createDimension('nvar', nvar)
+    weights_grp = rootgrp.createGroup('weights')
     weights_grp.createDimension('nz', nz_)
     weights_grp.createDimension('EM2', 2)
+    mean_tot_grp = rootgrp.createGroup('mean_tot')
     mean_tot_grp.createDimension('nz', nz_)
     mean_tot_grp.createDimension('nvar', nvar)
+    cov_tot_grp = rootgrp.createGroup('covariances_tot')
     cov_tot_grp.createDimension('nz', nz_)
     cov_tot_grp.createDimension('nvar', nvar)
     ts_grp = rootgrp.createGroup('time')
@@ -581,6 +583,8 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
     z_grp = rootgrp.createGroup('z-profile')
     z_grp.createDimension('nz', len(zrange))
     var = z_grp.createVariable('height', 'f8', ('nz'))
+    for i in range(len(zrange)):
+        var[i] = zrange[i]
     rootgrp.close()
     print('create file end')
     return

@@ -98,7 +98,6 @@ def main():
             means = read_in_netcdf(var, 'means', fullpath_in)
             covars = read_in_netcdf(var, 'covariances', fullpath_in)
             weights = read_in_netcdf(var, 'weights', fullpath_in)
-            print('WEIGHT', weights.shape, len(files), z_max, nvar)
 
             means_time[count_t,:,:,:] = means[:,:,:]
             covariance_time[count_t, :, :, :] = covars[:, :, :]
@@ -107,12 +106,15 @@ def main():
             mean_tot_time[count_t,:,:], covar_tot_time[count_t,:,:,:] = covariance_estimate_from_multicomp_pdf(means, covars, weights)
             count_t += 1
 
-        '''(2) sort PDF components according to their mean'''
+        '''(2) sort PDF components according to weights'''
         print('Sorting A')
         for n in range(time.size):
             for k in range(z_max):
-                for i1 in range(nvar):  # loop over variables
-                    if means_time[n, k, 0, i1] < means_time[n, k, 1, i1]:
+                if weights_time[n, k, 0] < weights_time[n, k, 1]:
+                    aux = weights_time[n, k, 1]
+                    weights_time[n, k, 1] = weights_time[n, k, 0]
+                    weights_time[n, k, 0] = aux
+                    for i1 in range(nvar):  # loop over variables
                         aux = means_time[n, k, 1, i1]
                         means_time[n, k, 1, i1] = means_time[n, k, 0, i1]
                         means_time[n, k, 0, i1] = aux
@@ -120,23 +122,18 @@ def main():
                             aux = covariance_time[n, k, 1, i1, i2]
                             covariance_time[n, k, 1, i1, i2] = covariance_time[n, k, 0, i1, i2]
                             covariance_time[n, k, 0, i1, i2] = aux
-                        aux = weights_time[n, k, 1]
-                        weights_time[n, k, 1] = weights_time[n, k, 0]
-                        weights_time[n, k, 0] = aux
-
-
         '''(2a) plot'''
         print('Plotting')
-        # bivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
-        # bivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
-        bivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
-        print('')
+        bivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
+        bivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
+        bivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,'sortA')
 
-        '''(3) sort PDF components according to Var[w]'''
+
+        '''(3) sort PDF components according to their mean'''
         print('Sorting B')
         for n in range(time.size):
             for k in range(z_max):
-                if weights_time[n, k, 0] > weights_time[n, k, 1]:
+                if means_time[n, k, 0, 0] < means_time[n, k, 1, 0]:
                     aux = weights_time[n, k, 1]
                     weights_time[n, k, 1] = weights_time[n, k, 0]
                     weights_time[n, k, 0] = aux
@@ -153,8 +150,31 @@ def main():
         print('Plotting')
         bivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
         bivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
+        bivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,'sortB')
+        print('')
+
+        '''(4) sort PDF components according to Var[w]'''
+        print('Sorting B')
+        for n in range(time.size):
+            for k in range(z_max):
+                if covariance_time[n, k, 0, 0, 0] < covariance_time[n, k, 1, 0, 0]:
+                    aux = weights_time[n, k, 1]
+                    weights_time[n, k, 1] = weights_time[n, k, 0]
+                    weights_time[n, k, 0] = aux
+                    for i1 in range(nvar):  # loop over variables
+                        aux = means_time[n, k, 1, i1]
+                        means_time[n, k, 1, i1] = means_time[n, k, 0, i1]
+                        means_time[n, k, 0, i1] = aux
+                        for i2 in range(nvar):
+                            aux = covariance_time[n, k, 1, i1, i2]
+                            covariance_time[n, k, 1, i1, i2] = covariance_time[n, k, 0, i1, i2]
+                            covariance_time[n, k, 0, i1, i2] = aux
+        '''(4a) plot'''
+        print('Plotting')
+        bivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
+        bivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
         bivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,
-                           'sortB')
+                           'sortC')
     return
 
 #----------------------------------------------------------------------
@@ -326,8 +346,8 @@ def bivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_tot
 
         fig = plt.figure(figsize=(10, 5))
         fig.suptitle(var_name + r': weights of $f_1$, $f_2$ (z=' + np.str(zrange_[z0] * dz) + 'm)', fontsize=20)
-        plt.plot(time[:], weights[:, 0], 'o-', label='comp '+np.str(comp))
-        plt.plot(time[:], weights[:, 1], 'o-', label='comp '+np.str(comp))
+        plt.plot(time[:], weights[:, 0], 'o-', label='comp 0')
+        plt.plot(time[:], weights[:, 1], 'o-', label='comp 1')
         plt.legend()
         plt.title('weights '+' (z=' + np.str(zrange_[z0] * dz) + 'm)')
         plt.xlabel('time')
@@ -342,27 +362,27 @@ def bivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_tot
         weights = weights_[t0, :, :]
         means = means_[t0, :, :, :]
         covars = covars_[t0, :, :, :]
-        # means_tot = mean_tot_[t0, :, :]
-        # covar_tot = covar_tot_[t0, :, :, :]
 
         fig = plt.figure(figsize=(10, 8))
         fig.suptitle(var_name + r': weights values of $f_1$, $f_2$ (t=' + np.str(time_[t0]) + ')', fontsize=20)
         plt.subplot(1, 3, 1)
         for comp in range(ncomp):
             plt.plot(weights[:, comp], zrange_[:] * dz, 'o-', color=colors[comp], label='comp ' + np.str(comp))
-    #         plt.plot(means_tot[:, j], zrange_[:] * dz, 'ro-', label='total')
         plt.xlabel('weights ' + var_name)
         plt.ylabel('height z')
         plt.subplot(1, 3, 2)
         for comp in range(ncomp):
-            plt.plot(means[:, comp, 0], zrange_[:] * dz, 'o-', color=colors[comp], label='<w>, comp ' + np.str(comp))
-        plt.xlabel('means ' + var_name)
+            plt.plot(means[:, comp, 0], zrange_[:] * dz, 'o-', color=colors[comp],
+                     label='<' + var_name[0] + '>, comp ' + np.str(comp))
+        plt.xlabel('mean ' + var_name[0] + var_name[0])
         plt.ylabel('height z')
         plt.legend()
         plt.subplot(1, 3, 3)
         for comp in range(ncomp):
-            plt.plot(covars[:, comp, 0, 0], zrange_[:] * dz, 'o-', color=colors[comp], label='<ww>, comp ' + np.str(comp))
-        plt.xlabel('covariances ' + var_name)
+            plt.plot(covars[:, comp, 0, 0], zrange_[:] * dz, 'o-', color=colors[comp],
+                     label='<'+var_name[0]+var_name[0]+'>, comp ' + np.str(comp))
+        plt.legend()
+        plt.xlabel('covariance '+ var_name[0] + var_name[0])
         plt.ylabel('height z')
 
         plt.savefig(
@@ -394,31 +414,6 @@ def read_in_nml(path, case_name):
     global in_path
     in_path = path
 # ----------------------------------------------------------------------
-#----------------------------------------------------------------------
-# def read_in(variable_name, group_name, fullpath_in):
-#     f = File(fullpath_in)
-#
-#     #Get access to the profiles group
-#     profiles_group = f[group_name]
-#     #Get access to the variable dataset
-#     variable_dataset = profiles_group[variable_name]
-#     #Get the current shape of the dataset
-#     variable_dataset_shape = variable_dataset.shape
-#
-#     variable = np.ndarray(shape = variable_dataset_shape)
-#     for t in range(variable_dataset_shape[0]):
-#         if group_name == "timeseries":
-#             variable[t] = variable_dataset[t]
-#         elif group_name == "profiles":
-#             variable[t,:] = variable_dataset[t, :]
-#         elif group_name == "correlations":
-#             variable[t,:] = variable_dataset[t, :]
-#         elif group_name == "fields":
-#             variable[t] = variable_dataset[t]
-#
-#     f.close()
-#     return variable
-
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
 
