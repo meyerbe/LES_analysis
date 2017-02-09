@@ -18,6 +18,9 @@ from io_read_in_files import read_in_netcdf
 label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = 15
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 10
 
 '''
@@ -60,10 +63,11 @@ def main():
     zrange:     z-values for which the PDF is fitted
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
-    # if case_name == 'DCBLSoares':
-    #     var_list = ['w', 'u', 's']
-    # else:
-    #     var_list = ['w', 'temperature', 'qt']
+    global z_max, zrange, ncomp, nvar, var_list
+    if case_name == 'DCBLSoares':
+        var_list = ['w', 'u', 's']
+    else:
+        var_list = ['w', 'temperature', 'qt']
     var_corr_list = ['wtemperatureqt', 'wthetaliqt']
 
     d = files[0]
@@ -73,7 +77,6 @@ def main():
     means = read_in_netcdf(var, 'means', fullpath_in)
     time_ = read_in_netcdf('t', 'time', fullpath_in)
     print('time', time, time_)
-    global z_max, zrange, ncomp, nvar
     zrange = read_in_netcdf('height', 'z-profile', fullpath_in)
     print('zrange from data: ', zrange)
     z_max = means.shape[0]
@@ -88,6 +91,8 @@ def main():
 
     '''(1) read in nc-files - trivar EM2 PDF'''
     for var in var_corr_list:
+        if var == 'wthetliqt':
+            var_list[2] = 'thetali'
         count_t = 0
         print('')
         print('read in ' + var)
@@ -124,10 +129,10 @@ def main():
                             covariance_time[n, k, 0, i1, i2] = aux
         '''(2a) plot'''
         print('Plotting')
-        # trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
-        # trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
+        trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
+        trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortA')
         trivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,'sortA')
-
+        print('')
 
         '''(3) sort PDF components according to their mean'''
         print('Sorting B')
@@ -148,13 +153,13 @@ def main():
 
         '''(3a) plot'''
         print('Plotting')
-        # trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
-        # trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
+        trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
+        trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
         trivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,'sortB')
         print('')
 
         '''(4) sort PDF components according to Var[w]'''
-        print('Sorting B')
+        print('Sorting C')
         for n in range(time.size):
             for k in range(z_max):
                 if covariance_time[n, k, 0, 0, 0] < covariance_time[n, k, 1, 0, 0]:
@@ -171,12 +176,37 @@ def main():
                             covariance_time[n, k, 0, i1, i2] = aux
         '''(4a) plot'''
         print('Plotting')
-        # trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
-        # trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
+        trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
+        trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortC')
         trivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,
                            'sortC')
+        print('')
 
         '''(5) sort PDF components according to E[qt] or Var[qt]'''
+        print('Sorting D')
+        for n in range(time.size):
+            for k in range(z_max):
+                if means_time[n, k, 0, 2] < means_time[n, k, 1, 2]:
+                    aux = weights_time[n, k, 1]
+                    weights_time[n, k, 1] = weights_time[n, k, 0]
+                    weights_time[n, k, 0] = aux
+                    for i1 in range(nvar):  # loop over variables
+                        aux = means_time[n, k, 1, i1]
+                        means_time[n, k, 1, i1] = means_time[n, k, 0, i1]
+                        means_time[n, k, 0, i1] = aux
+                        for i2 in range(nvar):
+                            aux = covariance_time[n, k, 1, i1, i2]
+                            covariance_time[n, k, 1, i1, i2] = covariance_time[n, k, 0, i1, i2]
+                            covariance_time[n, k, 0, i1, i2] = aux
+
+        '''(5a) plot'''
+        print('Plotting')
+        trivar_plot_means(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
+        trivar_plot_covars(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_, 'sortB')
+        trivar_plot_weights(var, means_time, covariance_time, weights_time, mean_tot_time, covar_tot_time, time_,
+                            'sortD')
+        print('')
+
     return
 
 #----------------------------------------------------------------------
@@ -198,8 +228,7 @@ def covariance_estimate_from_multicomp_pdf(means, covars, weights):
 #----------------------------------------------------------------------
 def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_, time_, sort_type):
     print('plotting means')
-    print(os.path.join(fullpath_out, 'figures_EM2_trivar'))
-    global time, ncomp, zrange, nvar
+    global time, ncomp, zrange, nvar, var_list
     nt = time.size
     colors = ['b', 'g']
 
@@ -210,17 +239,17 @@ def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_
         means_tot = mean_tot_[:,z0,:]
         covar_tot = covar_tot_[:, z0, :, :]
 
-        fig = plt.figure(figsize=(10,8))
+        fig = plt.figure(figsize=(12, 10))
         fig.suptitle(var_name+ r': mean values of $f_1$, $f_2$ (z=' + np.str(zrange[z0] * dz) + 'm)', fontsize=20)
         for j in range(nvar):      # loop over variables
-            plt.subplot(2,2,j+1)
+            plt.subplot(2,3,j+1)
             plt.plot(time[:], means[:, 0, j], 'o-')
             plt.plot(time[:], means[:, 1, j], 'o-')
             plt.plot(time[:], means_tot[:, j], 'ro-')
             plt.xlabel('time')
-            plt.ylabel(r'$<$'+var_name[j]+r'$>$')
+            plt.ylabel(r'$<$'+var_list[j]+r'$>$')
 
-            plt.subplot(2, 2, 2+j+1)
+            plt.subplot(2, 3, 3+j+1)
             plt.plot(time[:],means[:,0,j],'o',color=colors[0])
             plt.plot(time[:], means[:, 1, j], 'o', color=colors[1])
             plt.plot(time[:], means_tot[:, j], 'ro')
@@ -231,8 +260,9 @@ def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_
                     bar = 0.5 * np.sqrt(covar_tot[n, j, j])
                     plt.plot([time[n], time[n]], [means_tot[n, j] - bar, means_tot[n, j] + bar], color='r')
             plt.xlabel('time')
-            plt.ylabel(r'$<$' + var_name[j] + r'$>$')
-        plt.savefig(os.path.join(fullpath_out,'EM2_trivar_figures/') + 'means_time_a_' + var_name + '_' + sort_type + '_z' + str(np.int(zrange[z0] * dz)) + 'm.png')
+            plt.ylabel(r'$<$'+var_list[j]+r'$>$')
+        plt.savefig(os.path.join(fullpath_out,'EM2_trivar_figures', sort_type,
+                'means_time_' + var_name + '_' + sort_type + '_z' + str(np.int(zrange[z0] * dz)) + 'm.png'))
         plt.close()
 
     '''over levels, at given time'''
@@ -242,63 +272,62 @@ def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_
         means_tot = mean_tot_[t0, :, :]
         covar_tot = covar_tot_[t0, :, :, :]
 
-        fig = plt.figure(figsize=(10, 8))
+        fig = plt.figure(figsize=(12, 10))
         fig.suptitle(var_name + r': mean values of $f_1$, $f_2$ (t=' + np.str(time_[t0]) + ')', fontsize=20)
-        for j in range(2):  # loop over variables
-            plt.subplot(2, 2, j + 1)
+        for j in range(nvar):  # loop over variables
+            plt.subplot(2, 3, j + 1)
             for comp in range(ncomp):
-                plt.plot(means[:, comp, j], zrange[:] * dz, 'o-', color=colors[comp], label='comp ' + np.str(comp))
-            plt.plot(means_tot[:, j], zrange[:] * dz, 'ro-', label='total')
-            plt.xlabel(r'$<$' + var_name[j] + r'$>$')
+                plt.plot(means[:, comp, j], zrange[:] * dz, 'o-', color=colors[comp], markersize=4, label='comp ' + np.str(comp))
+            plt.plot(means_tot[:, j], zrange[:] * dz, 'ro-', markersize=4, label='total')
+            plt.xlabel(r'$<$' + var_list[j] + r'$>$')
             plt.ylabel('height z')
 
-            plt.subplot(2, 2, 2 + j + 1)
+            plt.subplot(2, 3, 3 + j + 1)
             for comp in range(ncomp):
                 plt.plot(means[:, comp, j], zrange[:] * dz, 'o', markersize=4,
                          color=colors[comp], label='comp '+np.str(comp))
                 bar = 0.5 * np.sqrt(covars[:, comp, j, j])
                 plt.plot([means[:, comp, j] - bar, means[:, comp, j] + bar], [zrange[:] * dz, zrange[:] * dz], color=colors[comp])
-            plt.xlabel(r'$<$' + var_name[j] + r'$>$')
+                plt.xlabel(r'$<$' + var_list[j] + r'$>$')
             plt.ylabel('height z')
-        ax = plt.subplot(2, 2, 1)
+        ax = plt.subplot(2, 3, 1)
         ax.legend()
-        plt.savefig(
-                os.path.join(fullpath_out, 'EM2_trivar_figures/') + 'means_levels_' + var_name + '_' + sort_type + '_t' + str(np.int(time_[t0])) + '.png')
+        plt.savefig(os.path.join(fullpath_out, 'EM2_trivar_figures', sort_type,
+                'means_levels_' + var_name + '_' + sort_type + '_t' + str(np.int(time_[t0])) + '.png'))
         plt.close()
 
     return
 #----------------------------------------------------------------------
 def trivar_plot_covars(var_name, means_, covars_, weights_, mean_tot_, covars_tot_, time_, sort_type):
     print('plotting covars', covars_.shape)
-    print('')
     global nvar, time
-    print(os.path.join(fullpath_out, 'figures_EM2_trivar'))
     global time, ncomp, zrange
     nt = time.size
     colors = ['b', 'g']
 
-    ''' (A) over time at given level '''
-    for z0 in range(zrange.shape[0]):
-        means = means_[:,z0,:,:]
-        covars = covars_[:,z0,:,:,:]
-        weights = weights_[:, z0, :]
-        covars_tot = covars_tot_[:,z0,:,:]
-        fig = plt.figure(figsize=(12,5))
-        n = 1
-        for i in range(nvar):
-            for j in range(i,nvar):
-                plt.subplot(1, 3, n)
-                for comp in range(ncomp):
-                    plt.plot(time[:],covars[:,comp,i,j],'o-', label='comp '+np.str(comp))
-                    plt.xlabel('time')
-                    plt.ylabel(var_name[i]+var_name[j])
-                plt.plot(time[:], covars_tot[:, i, j], 'ro-', label='total')
-                n += 1
-        ax = plt.subplot(1,3,1)
-        ax.legend()
-        fig.suptitle(var_name + r': covariance values of $f_1$, $f_2$ (z=' + np.str(zrange[z0] * dz) + 'm)', fontsize=20)
-        plt.savefig(os.path.join(fullpath_out,'EM2_trivar_figures/') + 'covars_time_' + var_name + '_' + sort_type + '_z' + str(np.int(zrange[z0] * dz)) + 'm.png')
-        plt.close()
+    # ''' (A) over time at given level '''
+    # for z0 in range(zrange.shape[0]):
+    #     means = means_[:,z0,:,:]
+    #     covars = covars_[:,z0,:,:,:]
+    #     weights = weights_[:, z0, :]
+    #     covars_tot = covars_tot_[:,z0,:,:]
+    #     fig = plt.figure(figsize=(12,5))
+    #     n = 1
+    #     for i in range(nvar):
+    #         for j in range(i,nvar):
+    #             plt.subplot(2, 3, n)
+    #             for comp in range(ncomp):
+    #                 plt.plot(time[:],covars[:,comp,i,j],'o-', label='comp '+np.str(comp))
+    #                 plt.xlabel('time')
+    #                 plt.ylabel(var_list[i]+var_list[j])
+    #             plt.plot(time[:], covars_tot[:, i, j], 'ro-', label='total')
+    #             n += 1
+    #     ax = plt.subplot(2,3,1)
+    #     ax.legend()
+    #     fig.suptitle(var_name + r': covariance values of $f_1$, $f_2$ (z=' + np.str(zrange[z0] * dz) + 'm)', fontsize=20)
+    #     plt.savefig(os.path.join(fullpath_out, 'EM2_trivar_figures', sort_type,
+    #             'covars_time_' + var_name + '_' + sort_type + '_z' + str(np.int(zrange[z0] * dz)) + 'm.png'))
+    #     plt.close()
 
     ''' (B) over levels, at given time '''
     for t0 in range(time.size):
@@ -308,28 +337,41 @@ def trivar_plot_covars(var_name, means_, covars_, weights_, mean_tot_, covars_to
         covars_tot = covars_tot_[t0, :, :, :]
         fig = plt.figure(figsize=(12, 10))
         n = 1
-        for i in range(2):
-            for j in range(i, 2):
+        for i in range(nvar):
+            for j in range(i, nvar):
                 plt.subplot(2, 3, n)
                 for comp in range(ncomp):
-                    plt.plot(covars[:, comp, i, j], dz * zrange, 'o-', color=colors[comp], label='comp ' + np.str(comp))
-                    plt.xlabel(var_name[i] + var_name[j])
+                    plt.plot(covars[:, comp, i, j], dz * zrange, 'o-', color=colors[comp], markersize=4, label='comp ' + np.str(comp))
+                    plt.xlabel(var_list[i] + var_list[j])
                     plt.ylabel('height z')
-                plt.plot(covars_tot[:, i, j], dz * zrange[:], 'ro-', label='total')
-                plt.subplot(2, 3, n + 3)
-                for comp in range(ncomp):
-                    plt.plot(weights[:,comp] *covars[:, comp, i, j], dz * zrange, 'o-', color=colors[comp], label='weight*comp ' + np.str(comp))
-                    plt.xlabel(var_name[i] + var_name[j])
-                    plt.ylabel('height z')
-                plt.plot(covars_tot[:, i, j], dz * zrange[:], 'ro-', label='total')
+                plt.plot(covars_tot[:, i, j], dz * zrange[:], 'ro-', markersize=4, label='total')
                 n += 1
         ax = plt.subplot(2, 3, 1)
         ax.legend()
-        ax = plt.subplot(2, 3, 4)
+        fig.suptitle(var_name + r': covariance values of $f_1$, $f_2$ (t=' + np.str(time[t0]) + ')', fontsize=20)
+        plt.savefig(
+            os.path.join(fullpath_out, 'EM2_trivar_figures', sort_type,
+                'covars_level_' + var_name + '_' + sort_type + '_t' + str(np.int(time_[t0])) + '.png'))
+        plt.close()
+
+        fig = plt.figure(figsize=(12, 10))
+        n = 1
+        for i in range(nvar):
+            for j in range(i, nvar):
+                plt.subplot(2, 3, n)
+                for comp in range(ncomp):
+                    plt.plot(weights[:,comp] *covars[:, comp, i, j], dz * zrange, 'o-',
+                             markersize=4, color=colors[comp], label='weight*comp ' + np.str(comp))
+                    plt.xlabel(var_list[i] + var_list[j])
+                    plt.ylabel('height z')
+                plt.plot(covars_tot[:, i, j], dz * zrange[:], 'ro-', markersize=4, label='total')
+                n += 1
+        ax = plt.subplot(2, 3, 1)
         ax.legend()
         fig.suptitle(var_name + r': covariance values of $f_1$, $f_2$ (t=' + np.str(time[t0]) + ')', fontsize=20)
         plt.savefig(
-            os.path.join(fullpath_out, 'EM2_trivar_figures/') + 'covars_level_' + var_name + '_' + sort_type + '_t' + str(np.int(time_[t0])) + '.png')
+            os.path.join(fullpath_out, 'EM2_trivar_figures', sort_type,
+                    'covars_level_alpha_' + var_name + '_' + sort_type + '_t' + str(np.int(time_[t0])) + '.png'))
         plt.close()
     return
 #----------------------------------------------------------------------
@@ -343,7 +385,7 @@ def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_to
     for z0 in range(zrange.shape[0]):
         weights = weights_[:, z0, :]
 
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure(figsize=(8, 4))
         fig.suptitle(var_name + r': weights of $f_1$, $f_2$ (z=' + np.str(zrange[z0] * dz) + 'm)', fontsize=20)
         plt.plot(time[:], weights[:, 0], 'o-', label='comp 0')
         plt.plot(time[:], weights[:, 1], 'o-', label='comp 1')
@@ -353,8 +395,8 @@ def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_to
         plt.ylabel('weights ' + var_name)
 
         plt.savefig(os.path.join(
-            fullpath_out,'EM2_trivar_figures/') + 'weights_time_a_' + var_name + '_' + sort_type +
-                    '_z' + str(np.int(zrange[z0] * dz)) + 'm.png')
+            fullpath_out,'EM2_trivar_figures', sort_type,
+                'weights_time_a_' + var_name + '_' + sort_type + '_z' + str(np.int(zrange[z0] * dz)) + 'm.png'))
         plt.close()
 
     ''' (B) over levels, at given time '''
@@ -374,7 +416,7 @@ def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_to
         for comp in range(ncomp):
             plt.plot(means[:, comp, 0], zrange[:] * dz, 'o-', color=colors[comp],
                      label='<' + var_name[0] + '>, comp ' + np.str(comp))
-        plt.xlabel('mean ' + var_name[0] + var_name[0])
+        plt.xlabel('mean ' + var_name[0])
         plt.ylabel('height z')
         plt.legend()
         plt.subplot(1, 3, 3)
@@ -386,9 +428,9 @@ def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_to
         plt.ylabel('height z')
 
         plt.savefig(
-            os.path.join(fullpath_out,
-                         'EM2_trivar_figures/') + 'weights_levels_' + var_name + '_' + sort_type + '_t' + str(
-                np.int(time_[t0])) + '.png')
+            os.path.join(fullpath_out, 'EM2_trivar_figures', sort_type,
+                'weights_levels_' + var_name + '_' + sort_type + '_t' + str(
+                np.int(time_[t0])) + '.png'))
         plt.close()
     return
 

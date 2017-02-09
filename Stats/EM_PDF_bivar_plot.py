@@ -18,6 +18,9 @@ from io_read_in_files import read_in_netcdf
 label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = 15
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 10
 
 '''

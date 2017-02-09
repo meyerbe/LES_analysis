@@ -22,7 +22,7 @@ plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 15
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
-
+plt.rcParams['legend.fontsize'] = 10
 
 '''
 Trivariate Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
@@ -97,8 +97,8 @@ def main():
     zrange:     z-values for which the PDF is fitted
     '''
     global zrange
-    # zrange = np.arange(10, 31, 10)
-    zrange = np.arange(10, 21, 10)
+    # zrange = np.arange(10, 21, 10)
+    zrange = np.arange(0, 85, 2)
     print('zrange', zrange*dz)
     print('_______________________')
 

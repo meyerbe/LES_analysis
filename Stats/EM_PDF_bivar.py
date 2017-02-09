@@ -23,7 +23,7 @@ plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 15
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
-
+plt.rcParams['legend.fontsize'] = 10
 
 '''
 Bivariate Gaussian Mixture Model = Superposition of multiple Gaussian Distributions
@@ -66,10 +66,11 @@ Input:
 3D fields at given time-step
 
 Output:
-means(z) = [m1(z),m2(z)] --> shape = nz x ncomp x nvar
-covars(z) = [[c11(z),c12(z)],[c21(z),c22(z)]] --> shape = nz x ncomp x nvar x nvar
-
+means(z) = [m1(z),m2(z)]                        --> shape = nz x ncomp x nvar
+covars(z) = [[c11(z),c12(z)],[c21(z),c22(z)]]   --> shape = nz x ncomp x nvar x nvar
+weight(z)                                       --> shape = ncomp
 '''
+
 
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')

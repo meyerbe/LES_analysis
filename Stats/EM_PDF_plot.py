@@ -16,6 +16,10 @@ from sklearn import mixture
 label_size = 8
 plt.rcParams['xtick.labelsize'] = label_size
 plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = 15
+plt.rcParams['xtick.direction']='out'
+plt.rcParams['ytick.direction']='out'
+plt.rcParams['legend.fontsize'] = 10
 
 '''
 means(z) = [m1(z),m2(z)]                        --> shape = nz x ncomp x nvar
