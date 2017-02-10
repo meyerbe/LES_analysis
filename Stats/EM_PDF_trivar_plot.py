@@ -48,16 +48,10 @@ def main():
     N = len(files)
     print('Found the following directories', files, N)
     # ______________________
-    global time
-    time = np.zeros(len(files))
-    i = 0
+    global time_
+    time = np.zeros((1))
     for d in files:
-        time[i] = np.int(d[0:-3])
-        i+=1
-    time = np.sort(time)
-    # print('time', time)
-    print('')
-    # ______________________
+        time = np.sort(np.append(time, np.int(d[0:-3])))
     # ______________________
     '''
     zrange:     z-values for which the PDF is fitted
@@ -91,8 +85,8 @@ def main():
 
     '''(1) read in nc-files - trivar EM2 PDF'''
     for var in var_corr_list:
-        if var == 'wthetliqt':
-            var_list[2] = 'thetali'
+        if var == 'wthetaliqt':
+            var_list[1] = 'thetali'
         count_t = 0
         print('')
         print('read in ' + var)
@@ -113,7 +107,7 @@ def main():
 
         '''(2) sort PDF components according to weights'''
         print('Sorting A')
-        for n in range(time.size):
+        for n in range(time_.size):
             for k in range(z_max):
                 if weights_time[n, k, 0] < weights_time[n, k, 1]:
                     aux = weights_time[n, k, 1]
@@ -136,7 +130,7 @@ def main():
 
         '''(3) sort PDF components according to their mean'''
         print('Sorting B')
-        for n in range(time.size):
+        for n in range(time_.size):
             for k in range(z_max):
                 if means_time[n, k, 0, 0] < means_time[n, k, 1, 0]:
                     aux = weights_time[n, k, 1]
@@ -160,7 +154,7 @@ def main():
 
         '''(4) sort PDF components according to Var[w]'''
         print('Sorting C')
-        for n in range(time.size):
+        for n in range(time_.size):
             for k in range(z_max):
                 if covariance_time[n, k, 0, 0, 0] < covariance_time[n, k, 1, 0, 0]:
                     aux = weights_time[n, k, 1]
@@ -184,7 +178,7 @@ def main():
 
         '''(5) sort PDF components according to E[qt] or Var[qt]'''
         print('Sorting D')
-        for n in range(time.size):
+        for n in range(time_.size):
             for k in range(z_max):
                 if means_time[n, k, 0, 2] < means_time[n, k, 1, 2]:
                     aux = weights_time[n, k, 1]
@@ -226,9 +220,9 @@ def covariance_estimate_from_multicomp_pdf(means, covars, weights):
 
     return mean_tot, covar_tot
 #----------------------------------------------------------------------
-def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_, time_, sort_type):
+def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_, time, sort_type):
     print('plotting means')
-    global time, ncomp, zrange, nvar, var_list
+    global ncomp, zrange, nvar, var_list
     nt = time.size
     colors = ['b', 'g']
 
@@ -298,10 +292,9 @@ def trivar_plot_means(var_name, means_, covars_, weights_, mean_tot_, covar_tot_
 
     return
 #----------------------------------------------------------------------
-def trivar_plot_covars(var_name, means_, covars_, weights_, mean_tot_, covars_tot_, time_, sort_type):
+def trivar_plot_covars(var_name, means_, covars_, weights_, mean_tot_, covars_tot_, time, sort_type):
     print('plotting covars', covars_.shape)
-    global nvar, time
-    global time, ncomp, zrange
+    global nvar, ncomp, zrange
     nt = time.size
     colors = ['b', 'g']
 
@@ -375,9 +368,9 @@ def trivar_plot_covars(var_name, means_, covars_, weights_, mean_tot_, covars_to
         plt.close()
     return
 #----------------------------------------------------------------------
-def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_tot_, time_, sort_type):
+def trivar_plot_weights(var_name, means_, covars_, weights_, mean_tot_, covar_tot_, time, sort_type):
     print('plotting weights: ' + os.path.join(fullpath_out, 'figures_EM2_trivar'))
-    global time, ncomp, zrange
+    global ncomp, zrange
     nt = time.size
     colors = ['b', 'g']
 

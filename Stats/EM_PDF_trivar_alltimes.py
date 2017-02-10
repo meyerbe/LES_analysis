@@ -98,7 +98,7 @@ def main():
     var_list:   list of variables that are included in (multi-variate) PDF
     '''
     global zrange
-    zrange = np.arange(10, 11, 5)
+    zrange = np.arange(5, 91, 5)
     # zrange = np.asarray([5,10,20,30,50,70,80,90])
     print('zrange', zrange*dz)
     print('_______________________')
@@ -115,8 +115,6 @@ def main():
     ncomp = 2
     nvar = 3
     thetali_flag = True
-    data = np.ndarray(shape=((nx * ny), nvar))
-    data_all = np.ndarray(shape=(0, nvar))
     means_t_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
     covariance_t_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
     weights_t_ = np.zeros(shape=(len(zrange), 2))
@@ -146,7 +144,9 @@ def main():
 
     for i in range(len(zrange)):
         iz = zrange[i]
-        print('i = ' + np.str(iz) + ': ' + np.str(data_all.shape))
+        data = np.ndarray(shape=((nx * ny), nvar))
+        data_all = np.ndarray(shape=(0, nvar))
+        print('i = ' + np.str(iz*dz) + ': ' + np.str(data_all.shape))
         for d in files:
             fullpath_in = os.path.join(args.path, 'fields', d)
             print(fullpath_in)
