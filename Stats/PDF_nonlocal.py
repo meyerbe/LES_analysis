@@ -5,6 +5,8 @@ import pylab as plt
 import numpy as np
 from sklearn import mixture
 
+from matplotlib.colors import LogNorm
+
 from read_in_files import read_in_nml
 from read_in_files import read_in_netcdf_fields
 
@@ -61,9 +63,13 @@ def main():
         var_list = ['u', 'w', 's']
     else:
         var_list = ['w', 's', 'qt']
-        var_list = ['w']
+        # var_list = ['w']
+
 
     '''UNIVAR'''
+    global nvar
+    nvar = len(zrange)
+    zmax = len(zrange)
     for d in files:
         t = np.int(d[0:-3])
         fullpath_in = os.path.join(args.path, 'fields', d)
@@ -71,28 +77,30 @@ def main():
         # nc_file_name = 'EM_nonlocal_' + str(d)
         # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
 
-        var = var_list[0]
-        nvar = len(zrange)
-        data_ = read_in_netcdf_fields(var, fullpath_in).reshape((nx[0] * nx[1], nx[2]))
-        data = np.ndarray(shape=(nx[0] * nx[1], nvar))
-        for k in range(nvar):
-            data[:, k] = data_[:, zrange[k]]
+        for var in var_list:
+        # var = var_list[0]
+            data_ = read_in_netcdf_fields(var, fullpath_in).reshape((nx[0] * nx[1], nx[2]))
+            data = np.ndarray(shape=(nx[0] * nx[1], zmax))
+            for k in range(zmax):
+                data[:, k] = data_[:, zrange[k]]
 
-        # (a) Gaussian Mixture Model: ncomp = 2 (univar)
-        print('Gaussian Mixture Model: ncomp = 2')
-        ncomp = 2
+            # (a) Gaussian Mixture Model: ncomp = 2 (univar)
+            print('Gaussian Mixture Model: ncomp = 2')
+            ncomp = 2
+            means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
+            print('shapes: ', means.shape, covariance.shape, weights.shape, len(zrange))
+            correlation = compute_correlation(covariance, ncomp)
+            print('')
 
-        means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
-
-        # # (b) Gaussian Mixture Model: ncomp = 3 (univar)
-        print('Gaussian Mixture Model: ncomp = 3')
-        ncomp = 3
-        means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
+            # (b) Gaussian Mixture Model: ncomp = 3 (univar)
+            print('Gaussian Mixture Model: ncomp = 3')
+            ncomp = 3
+            means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
 
         # (c) Gaussian Mixture Model with flexible #components
         print('Gaussian Mixture Model: BIC')
         # nvar = len(var_list)*len(zrange)
-        nvar = 2
+        zmax = 2
         # Gaussian_mixture_ncompselection(data[:,0:nvar],var, t)
 
         # (d) Bayesian Gaussian Mixture Model
@@ -111,16 +119,30 @@ def main():
     return
 
 
-
-
 #----------------------------------------------------------------------
-def plot_covar_matrix(data, x_, y_):
+def compute_correlation(covariance, ncomp):
+    global nvar
+    sigma = np.ndarray(shape=(ncomp,nvar))
+    correlation = np.array(covariance, copy=True)
+    print('nvar, covariance:', nvar, covariance.shape, sigma.shape, correlation.shape)
+
+    for i in range(nvar):
+        sigma[:,i] = np.sqrt(covariance[:,i,i])
+
+    for i in range(nvar):
+        for j in range(nvar):
+            correlation[:,i,j] = covariance[:,i,j] / (sigma[:,i]*sigma[:,j])
+
+    return correlation
+#----------------------------------------------------------------------
+def plot_covar_matrix(data, x_, y_, var_name, ncomp, t, z):
     from matplotlib import cm
-    fig = plt.figure()
+    fig = plt.figure(figsize=(10,5))
     fig, ax = plt.subplots()
     X, Y = np.meshgrid(x_, y_)
-    plt.imshow(data, cmap=cm.coolwarm, interpolation='nearest')
-    plt.colorbar()
+    plt.subplot(1,2,1)
+    plt.imshow(data, cmap=cm.coolwarm, interpolation='nearest', norm=LogNorm())
+    plt.colorbar(shrink=0.5)
     labels = [item.get_text() for item in ax.get_xticklabels()]
     # print('....labels', len(labels), zrange)
     if len(labels) == zrange.shape[0]+2:
@@ -133,8 +155,36 @@ def plot_covar_matrix(data, x_, y_):
         ax.set_xticklabels(labels)
         labels[1:9:2] = y_
         ax.set_yticklabels(labels)
-
     plt.grid()
+    plt.xlabel('level [m]')
+    plt.ylabel('level [m]')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(data, cmap=cm.coolwarm, interpolation='nearest')
+    plt.colorbar(shrink=0.5)
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    # print('....labels', len(labels), zrange)
+    if len(labels) == zrange.shape[0] + 2:
+        labels[1:-1] = x_
+        ax.set_xticklabels(labels)
+        labels[1:-1] = y_
+        ax.set_yticklabels(labels)
+    elif zrange.shape[0] == 4:
+        labels[1:len(labels):2] = x_
+        ax.set_xticklabels(labels)
+        labels[1:9:2] = y_
+        ax.set_yticklabels(labels)
+    plt.grid()
+    plt.xlabel('level [m]')
+    plt.ylabel('level [m]')
+    #  plt.xlabel('delta z')
+    # plt.ylabel('delta z')
+
+    plt.suptitle('Total Covariance Matrix: ' + np.str(data.shape))
+    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
+                + var_name + '_' + str(t) + '.png')
+
+    plt.close()
 
     return
 #----------------------------------------------------------------------
@@ -193,20 +243,14 @@ def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
     plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp)+'_PDF_univar_'
                 + var_name + '_' + str(t) + '_z' + np.str(zrange[0]) + 'm_' + np.str(zrange[1]) + 'm.png')
 
+
+
     mean_tot, covar_tot = covariance_estimate_from_multicomp_pdf(clf)
+    plot_covar_matrix(covar_tot, zrange_m, zrange_m, var_name, ncomp, t, z)
 
 
 
-    plt.figure()
-    plot_covar_matrix(covar_tot, zrange_m, zrange_m )
-    plt.title('Total Covariance Matrix: '+ np.str(covar_tot.shape))
-    #  plt.xlabel('delta z')
-    # plt.ylabel('delta z')
-    plt.xlabel('level [m]')
-    plt.ylabel('level [m]')
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
-                + var_name + '_' + str(t) + '.png')
-    plt.close()
+
 
     # if var_name1 == 'qt' or var_name2 == 'qt':
     #     # data_aux = np.ndarray(shape=((nx * ny), nvar))
