@@ -13,7 +13,7 @@ from parameters import *
 '''Pressure '''
 # partial vapour pressure
 def pv_c(p0,qt,qv):
-    return p0 * eps_vi * qv / (1.0-qt+eps_vi*qv)
+    return p0 * eps_vi * qv / (1.0 - qt + eps_vi * qv)
 
 # ---------------------------------------------------------------------------
 ''' Entropy '''
@@ -29,10 +29,10 @@ def pv_c(p0,qt,qv):
 #     return -L/T;
 # }
 def s_dry(pd, T):
-    return sd_tilde
+    return sd_tilde + cpd*log(T/T_tilde) - Rd*log(pd/p_tilde)
 
 def s_vap(pv, T):
-    return sv_tilde
+    return sv_tilde + cpv*log(T/T_tilde) - Rv * log(pv/p_tilde)
 
 def s_cond(L, T):
     return -L/T
@@ -41,6 +41,8 @@ def s_cond(L, T):
 # T(pd,pv,s,qt)
 def temperature_no_ql(pd,pv,s,qt):
     cp = ((1.0 - qt) * cpd + qt * cpv)
+    # temp = T_tilde * exp(
+    #     (s - (1.0 - qt) * (sd_tilde - Rd * log(pd / p_tilde)) - qt * (sv_tilde - Rv * log(pv / p_tilde))) / cp)
     if pv > 0:
         temp = T_tilde * exp( ( s - (1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)) - qt*(sv_tilde-Rv*log(pv/p_tilde)) ) / cp )
     elif pv == 0:
@@ -60,8 +62,9 @@ def latent_heat(T):
     TC = T - 273.15
     return (2500.8 - 2.36 * TC + 0.0016 * TC *
             TC - 0.00006 * TC * TC * TC) * 1000.0
+    # return latent_heat_constant(T)
 
-def latent_heat_constant(T, Lambda):
+def latent_heat_constant(T):
     return 2.501e6
 
 def cpm_c(qt):
@@ -74,12 +77,12 @@ def cpm_c(qt):
 #    return pv_star
 
 def CC_Magnus(T):
-    T = T - 273.15
-    pv_star = 6.1094 * np.exp((17.625*T)/(T+243.04))*100
+    TC = T - 273.15
+    pv_star = 6.1094 * np.exp((17.625*TC)/(TC+243.04))*100
     return pv_star
 
 def qv_star_c(p0,qt,pv):
-    pd = p0-pv
+    pd = (p0-pv)
         #if pd < 0:
         #print('in qv_star_c pd<0 (pv='+str(pv)+')')
     return eps_v * (1.0 - qt) * pv / pd
