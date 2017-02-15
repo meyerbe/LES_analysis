@@ -4,6 +4,7 @@ import json as  simplejson
 import os
 
 def read_in_nml(path, case_name):
+    global nx, dx
     nml = simplejson.loads(open(os.path.join(path,case_name + '.in')).read())
     dx = [nml['grid']['dx'], nml['grid']['dy'], nml['grid']['dz']]
     nx = [nml['grid']['nx'], nml['grid']['ny'], nml['grid']['nz']]
@@ -21,19 +22,8 @@ def read_in_nml(path, case_name):
 
 
 # ----------------------------------------------------------------------
-def read_in_netcdf_fields(variable_name, fullpath_in):
-    rootgrp = nc.Dataset(fullpath_in, 'r')
-    var = rootgrp.groups['fields'].variables[variable_name]
-
-    # print('shape:',var.shape)
-    data = np.ndarray(shape=var.shape)
-    data = var[:]
-    rootgrp.close()
-    return data
-
-# ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
-    print('io_read_in_files: read in netcdf', variable_name, group_name)
+    print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     grp = rootgrp.groups[group_name]
     var = grp.variables[variable_name]

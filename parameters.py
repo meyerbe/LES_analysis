@@ -1,12 +1,13 @@
 # //Generated code! Absolutely DO NOT modify this file, parameters should be modified in generate_parameters.py
 def pi(): 3.14159265359
-# define g 9.80665
+global g
+g = 9.80665
 global Rd, Rv
 Rd = 287.1
 Rv = 461.5
 global eps_v, eps_vi
-eps_v = 0.62210184182
-eps_vi = 1.60745384883
+eps_v = 0.6221018418201517
+eps_vi = 1.6074538488331591
 global cpd, cpv, cl, ci
 cpd = 1004.0
 cpv = 1859.0
