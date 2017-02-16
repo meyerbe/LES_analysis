@@ -137,6 +137,7 @@ def main():
 
                     theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
                     T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
+
                     if np.isnan(T_comp_thl[i,j,k]):
                         print('T_comp_thl is nan')
                         sys.exit()
@@ -186,6 +187,7 @@ def main():
 
         plot_snapshots(ql_, ql_comp, alpha_, alpha, 'ql')
         plot_snapshots(T_, T_comp, alpha_, alpha, 'T')
+        plot_snapshots(theta_l, theta_l, alpha_, alpha, 'thetali')
 
 
     return

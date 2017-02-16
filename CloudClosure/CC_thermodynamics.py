@@ -203,10 +203,10 @@ def sat_adj_fromthetali(p, thl, qt):
     pd_1 = p - pv_1
     # !!!!!!!
     T_1 = temperature_no_ql_from_thetali(pd_1, pv_1, thl, qt)
+    print('T1: ', T_1)
     # !!!!!!!
     pv_star_1 = CC_Magnus(T_1)                  # eos_c: pv_star_1 = lookup(LT, T_1) # ???
     qv_star_1 = qv_star_c(p, qt, pv_star_1)    # eos_c: same
-    print('T1: ', T_1)
 
     ''' (2) Check if saturated or not '''
     if (qt <= qv_star_1):
@@ -230,10 +230,9 @@ def sat_adj_fromthetali(p, thl, qt):
         delta_T = np.abs(T_2 - T_1)
 
         count = 0
-        # pv_star_2 = CC_Magnus(T_2)  # pv_star_2 = lookup(LT, T_2)
-        # qv_star_2 = qv_star_c(p, qt, pv_star_2)
-        # ql_2 = qt - qv_star_2
-        ql_2 = np.double(0.0)
+        pv_star_2 = CC_Magnus(T_2)  # pv_star_2 = lookup(LT, T_2)
+        qv_star_2 = qv_star_c(p, qt, pv_star_2)
+        ql_2 = qt - qv_star_2
         while(delta_T >= 1.0e-3 or ql_2 < 0.0):
             print('do loop: T2=' + str(T_2)+ ', ql2='+str(ql_2) + ', deltaT='+str(delta_T))
             pv_star_2 = CC_Magnus(T_2)      # pv_star_2 = lookup(LT, T_2)

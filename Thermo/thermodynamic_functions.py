@@ -51,17 +51,23 @@ def temperature_no_ql_from_entropy(pd,pv,s,qt):
         print('pv < 0: not physical!!')
     return temp
 
-def temperature_no_ql_from_thetali(thl, pd, pv, qt):
+def temperature_no_ql_from_thetali(pd, pv, thl, qt):
     p0 = pd + pv
+    # cp = ((1.0 - qt) * cpd + qt * cpv)
+    # return thl * exner_c_moist(p0, Rd/cp)
     return thl * exner_c(p0)
 
+
 # Exner Function
-def exner(p0):
+def exner_c(p0):
     return np.power((p0/p_tilde),kappa)
+
+def exner_c_moist(p0, kap):
+    return np.power((p0/p_tilde),kap)
 
 # Dry potential temperature
 def theta_c(p, T):
-    return T / exner(p)
+    return T / exner_c(p)
 
 # Entropy Potential Temperature
 def thetas_c(s, qt):
