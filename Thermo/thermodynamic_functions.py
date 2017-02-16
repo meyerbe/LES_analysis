@@ -39,7 +39,7 @@ def s_cond(L, T):
 # ---------------------------------------------------------------------------
 ''' Temperature '''
 # T(pd,pv,s,qt)
-def temperature_no_ql(pd,pv,s,qt):
+def temperature_no_ql_from_entropy(pd,pv,s,qt):
     cp = ((1.0 - qt) * cpd + qt * cpv)
     # temp = T_tilde * exp(
     #     (s - (1.0 - qt) * (sd_tilde - Rd * log(pd / p_tilde)) - qt * (sv_tilde - Rv * log(pv / p_tilde))) / cp)
@@ -51,9 +51,27 @@ def temperature_no_ql(pd,pv,s,qt):
         print('pv < 0: not physical!!')
     return temp
 
+def temperature_no_ql_from_thetali(thl, pd, pv, qt):
+    p0 = pd + pv
+    return thl * exner_c(p0)
+
+# Exner Function
+def exner(p0):
+    return np.power((p0/p_tilde),kappa)
+
+# Dry potential temperature
+def theta_c(p, T):
+    return T / exner(p)
+
 # Entropy Potential Temperature
 def thetas_c(s, qt):
     return T_tilde*np.exp((s-(1.0-qt)*sd_tilde - qt*sv_tilde)/cpm_c(qt))
+
+# Liquid ice potential temperature consistent with Triopoli and Cotton (1981)
+# def thetali(p, T, qt, ql, qi, L):
+def theta_li(p, T, qt, ql, qi):
+    L = latent_heat(T)
+    return theta_c(p, T) * np.exp(-latent_heat(T)*(ql/(1.0 - qt) + qi/(1.0 -qt))/(T*cpd))
 
 # ---------------------------------------------------------------------------
 ''' Latent Heat '''
