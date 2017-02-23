@@ -29,26 +29,40 @@ def pv_c(p0,qt,qv):
 #     return -L/T;
 # }
 def s_dry(pd, T):
-    return sd_tilde + cpd*log(T/T_tilde) - Rd*log(pd/p_tilde)
+    # print('s dry: ', type(sd_tilde), type(cpd), type(T), type(T_tilde), type(Rd), type(pd), type(p_tilde))
+    temp = sd_tilde + cpd*log(T/T_tilde) - Rd*log(pd/p_tilde)
+    # print(type(temp))
+    return temp
+    # return sd_tilde + cpd*log(T/T_tilde) - Rd*log(pd/p_tilde)
 
 def s_vap(pv, T):
-    return sv_tilde + cpv*log(T/T_tilde) - Rv * log(pv/p_tilde)
+    temp = sv_tilde + cpv*log(T/T_tilde) - Rv * log(pv/p_tilde)
+    # print('s vap: ', type(sv_tilde), type(cpv), type(T), type(T_tilde), type(Rv), type(pv), type(p_tilde))
+    # print(type(temp))
+    return temp
+    # return sv_tilde + cpv*log(T/T_tilde) - Rv * log(pv/p_tilde)
 
 def s_cond(L, T):
+    # print('s cond: ', type(L), type(T), type(L/T))
     return -L/T
 # ---------------------------------------------------------------------------
 ''' Temperature '''
 # T(pd,pv,s,qt)
 def temperature_no_ql_from_entropy(pd,pv,s,qt):
-    cp = ((1.0 - qt) * cpd + qt * cpv)
-    # temp = T_tilde * exp(
+    cp = ((1.0 - qt) * np.double(cpd) + qt * cpv)
+    # temp = T_tilde * np.exp(
     #     (s - (1.0 - qt) * (sd_tilde - Rd * log(pd / p_tilde)) - qt * (sv_tilde - Rv * log(pv / p_tilde))) / cp)
     if pv > 0:
-        temp = T_tilde * exp( ( s - (1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)) - qt*(sv_tilde-Rv*log(pv/p_tilde)) ) / cp )
+        temp = T_tilde * np.exp( ( s - (1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)) - qt*(sv_tilde-Rv*log(pv/p_tilde)) ) / cp )
     elif pv == 0:
-        temp = T_tilde * exp( (s-(1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)))/cp ) * exp( -qt*sv_tilde/cp ) * (pv/cp)**(pv/p_tilde)
+        temp = T_tilde * np.exp( (s-(1.0-qt)*(sd_tilde-Rd*log(pd/p_tilde)))/cp ) * np.exp( -qt*sv_tilde/cp ) * (pv/cp)**(pv/p_tilde)
     else:
         print('pv < 0: not physical!!')
+        temp = 1
+    # print('types temp no ql from entropy:', type(cp), type(qt), type(cpd), type(cpv))
+    # print(type(T_tilde), type(s), type(pd), type(pv), type(p_tilde))
+    # print(type(sd_tilde), type(sv_tilde), type(Rd), type(Rv))
+    # print(type(temp))
     return temp
 
 def temperature_no_ql_from_thetali(pd, pv, thl, qt):
@@ -84,8 +98,12 @@ def theta_li(p, T, qt, ql, qi):
 # from Microphysics.pxd - L_fp(T,lambda)
 def latent_heat(T):
     TC = T - 273.15
-    return (2500.8 - 2.36 * TC + 0.0016 * TC *
+    temp = (2500.8 - 2.36 * TC + 0.0016 * TC *
             TC - 0.00006 * TC * TC * TC) * 1000.0
+    # print('latent heat: ', type(T), type(TC), type(temp))       # ok
+    return temp
+    # return (2500.8 - 2.36 * TC + 0.0016 * TC *
+    #         TC - 0.00006 * TC * TC * TC) * 1000.0
     # return latent_heat_constant(T)
 
 def latent_heat_constant(T):
@@ -103,13 +121,17 @@ def cpm_c(qt):
 def CC_Magnus(T):
     TC = T - 273.15
     pv_star = 6.1094 * np.exp((17.625*TC)/(TC+243.04))*100
+    # print('CC Magnus: ', type(TC), type(pv_star))       # ok
     return pv_star
 
 def qv_star_c(p0,qt,pv):
     pd = (p0-pv)
         #if pd < 0:
         #print('in qv_star_c pd<0 (pv='+str(pv)+')')
-    return eps_v * (1.0 - qt) * pv / pd
+    temp = eps_v * (1.0 - qt) * pv / pd
+    # print('qv star: ', type(eps_v), type(qt), type(pv), type(pd), type(temp))   # ok
+    return temp
+    # return eps_v * (1.0 - qt) * pv / pd
 
 
 # inversion of qv_star_c()

@@ -16,7 +16,7 @@ from sklearn import mixture, preprocessing
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf
 
-from CC_thermodynamics import sat_adj_fromentropy#, sat_adj_theta
+from CC_thermodynamics import sat_adj_fromentropy, sat_adj_fromthetali
 from thermodynamic_functions import theta_li
 # from thermodynamics import reference_state
 
@@ -198,7 +198,7 @@ def main():
 
             clf_thl = Gaussian_bivariate(data_thl, 'theta_l', 'qt', np.int(d[0:-3]), iz * dz)
             clf_thl_norm = Gaussian_bivariate(data_thl_norm, 'theta_l', 'qt', np.int(d[0:-3]), iz * dz)
-            plot_PDF_samples_qt(data_thl, data_thl_norm, 'theta_l', 'qt', clf_thl, clf_thl_norm, np.int(d[0:-3]), iz * dz)
+            # plot_PDF_samples_qt(data_thl, data_thl_norm, 'theta_l', 'qt', clf_thl, clf_thl_norm, np.int(d[0:-3]), iz * dz)
             # plot_PDF_samples(data_th_norm, data_th_norm, 'theta_l', 'qt', clf_th_norm, clf_th_norm, np.int(d[0:-3]), iz * dz)
 
             # clf_s = Gaussian_bivariate(data_s, 's', 'qt', np.int(d[0:-3]), iz * dz)
@@ -217,21 +217,27 @@ def main():
             nn = np.int(1e5)
             S, y = clf.sample(n_samples=nn)
             print('clf samples: ', S.shape, y.shape)
+            Th, y = clf_thl.sample(n_samples=nn)
+            # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
+            print('clf thl samples: ', Th.shape, y.shape)
             print('index ref', index_ref)
             print('iz', iz)
             print('zrange', zrange)
-
             # S, y = clf_s.sample(n_samples=nn)
             # S_norm, y = clf_s_norm.sample(n_samples=nn)
-            Th, y = clf_thl.sample(n_samples=nn)
-            Th_norm, y = clf_thl_norm.sample(n_samples=nn)
+
 
             alpha = np.zeros(shape=nn)
             T_comp = np.zeros(shape=nn)
             ql_comp = np.zeros(shape=nn)
+            alpha_thl = np.zeros(shape=nn)
+            T_comp_thl = np.zeros(shape=nn)
+            ql_comp_thl = np.zeros(shape=nn)
             for i in range(nn):
                 T_comp[i], ql_comp[i], alpha[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-            plot_sat_adj(T_comp, ql_comp, S, data_ql, 's', 'qt', nn, t, iz*dz)
+                T_comp_thl[i], ql_comp_thl[i], alpha_thl[i] = sat_adj_fromthetali(p_ref[iz - 1], Th[i, 0], Th[i, 1])
+            plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
+            plot_sat_adj(T_comp_thl, ql_comp_thl, Th, data_thl, data_ql, 'thl', 'qt', nn, t, iz * dz)
 
         # '''(4) Save Gaussian Mixture PDFs '''
         # # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
@@ -249,163 +255,7 @@ def main():
 
 
 #----------------------------------------------------------------------
-# ________________________________________________________________________________________
-# def sat_adj_fromentropy(p,s,qt):
-#     # !!! error for unsaturated conditions: T_comp - T_ <= 0.05
-#     sys.path.append("../Thermo/")
-#     from thermodynamic_functions import pv_c, temperature_no_ql_from_entropy, CC_Magnus, qv_star_c, latent_heat
-#     from thermodynamic_functions import s_dry, s_vap, s_cond
-#     from parameters import cpd, cpv
-#     qv = qt.astype(np.double)
-#     ql = np.double(0.0)
-#
-#     '''first guess'''
-#     pv_1 = pv_c(p,qt,qt)
-#     pd_1 = p - pv_1
-#     # ???
-#     T_1 = temperature_no_q_from_entropyl(pd_1, pv_1, s, qt)
-#     # ???
-#     pv_star_1 = CC_Magnus(T_1)
-#     qv_star_1 = qv_star_c(p, qt, pv_star_1)
-#
-#     # print('type ql', type(ql), type(qv), type(pv_star_1), type(qv_star_1), type(T_1), type(pv_1), type(pd_1))
-#
-#     if (qt <= qv_star_1):
-#         T = T_1
-#         ql = 0.0
-#         # print('not saturated: (s,qt)=',str(round(s,2)), round(qt,4), round(T,1))
-#         alpha = 0
-#     else:
-#         print('is saturated: (s,qt)=',str(round(s,2)), round(qt,4))
-#         alpha = 1
-#
-#         ql_1 = qt - qv_star_1
-#         L_1 = latent_heat(T_1)
-#         s_1 = s_dry(pd_1, T_1)*(1.0-qt) + s_vap(pv_1, T_1)*qt + s_cond(L_1,T_1)*ql_1
-#         f_1 = s - s_1
-#         T_2 = T_1 + ql_1*L_1 / ((1.0-qt)*cpd + qv_star_1*cpv)
-#         delta_T = np.abs(T_2 - T_1)
-#
-#         T_2ndestimate = T_2
-#         count = 0
-#         pv_star_2 = CC_Magnus(T_2)
-#         qv_star_2 = qv_star_c(p, qt, pv_star_2)
-#         ql_2 = qt - qv_star_2
-#         while(delta_T >= 1.0e-3 or ql_2 < 0.0):
-#             pv_star_2 = CC_Magnus(T_2)
-#             qv_star_2 = qv_star_c(p,qt,pv_star_2)
-#             pv_2 = pv_c(p, qt, qv_star_2)
-#             ql_2 = qt - qv_star_2
-#
-#             pd_2 = p - pv_2
-#             L_2 = latent_heat(T_2)
-#             s_2 = s_dry(pd_2,T_2)*(1.0-qt) + s_vap(pv_2,T_2)*qt + s_cond(L_2,T_2)*ql_2
-#             f_2 = s - s_2
-#
-#             T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
-#
-#             T_1 = T_2
-#             T_2 = T_n
-#             f_1 = f_2
-#
-#             delta_T = np.abs(T_2 - T_1)
-#             # delta_T = 0.0
-#             count += 1
-#         print('count = ', count)
-#         T = T_2
-#         qv = qv_star_2
-#         ql = ql_2
-#
-#         # (1) no iteration:
-#         # T = T_1: diff T_comp - T >= -1.5K
-#         # T = T_2: diff T_comp - T <= 3.6K
-#         # (2) one iteration:
-#         # T = T_2: diff T_comp - T <= .05K
-#         # (3) all iterations:
-#         # ('max T sat: ', 0.096238341651940118)
-#         # ('max T unsat: ', 0.049928637009259091)
-#         # ('max ql:', 4.354652372777143e-05)
-#         # ('min ql:', -6.6884278893755006e-05)
-#
-#     return T, ql, alpha
 
-# def sat_adj_fromenthetali(p,thl,qt):
-#     sys.path.append("../Thermo/")
-#     from thermodynamic_functions import pv_c, temperature_no_ql_from_thetali, CC_Magnus, qv_star_c, latent_heat
-#     from thermodynamic_functions import s_dry, s_vap, s_cond
-#     from parameters import cpd, cpv
-#     qv = qt.astype(np.double)
-#     ql = np.double(0.0)
-#
-#     '''first guess'''
-#     pv_1 = pv_c(p,qt,qt)
-#     pd_1 = p - pv_1
-#     # ???
-#     T_1 = temperature_no_ql_from_thetali(pd_1, pv_1, s, qt)
-#     # ???
-#     pv_star_1 = CC_Magnus(T_1)
-#     qv_star_1 = qv_star_c(p, qt, pv_star_1)
-#
-#     # print('type ql', type(ql), type(qv), type(pv_star_1), type(qv_star_1), type(T_1), type(pv_1), type(pd_1))
-#
-#     if (qt <= qv_star_1):
-#         T = T_1
-#         ql = 0.0
-#         # print('not saturated: (s,qt)=',str(round(s,2)), round(qt,4), round(T,1))
-#         alpha = 0
-#     else:
-#         print('is saturated: (s,qt)=',str(round(s,2)), round(qt,4))
-#         alpha = 1
-#
-#         ql_1 = qt - qv_star_1
-#         L_1 = latent_heat(T_1)
-#         s_1 = s_dry(pd_1, T_1)*(1.0-qt) + s_vap(pv_1, T_1)*qt + s_cond(L_1,T_1)*ql_1
-#         f_1 = s - s_1
-#         T_2 = T_1 + ql_1*L_1 / ((1.0-qt)*cpd + qv_star_1*cpv)
-#         delta_T = np.abs(T_2 - T_1)
-#
-#         T_2ndestimate = T_2
-#         count = 0
-#         pv_star_2 = CC_Magnus(T_2)
-#         qv_star_2 = qv_star_c(p, qt, pv_star_2)
-#         ql_2 = qt - qv_star_2
-#         while(delta_T >= 1.0e-3 or ql_2 < 0.0):
-#             pv_star_2 = CC_Magnus(T_2)
-#             qv_star_2 = qv_star_c(p,qt,pv_star_2)
-#             pv_2 = pv_c(p, qt, qv_star_2)
-#             ql_2 = qt - qv_star_2
-#
-#             pd_2 = p - pv_2
-#             L_2 = latent_heat(T_2)
-#             s_2 = s_dry(pd_2,T_2)*(1.0-qt) + s_vap(pv_2,T_2)*qt + s_cond(L_2,T_2)*ql_2
-#             f_2 = s - s_2
-#
-#             T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
-#
-#             T_1 = T_2
-#             T_2 = T_n
-#             f_1 = f_2
-#
-#             delta_T = np.abs(T_2 - T_1)
-#             # delta_T = 0.0
-#             count += 1
-#         print('count = ', count)
-#         T = T_2
-#         qv = qv_star_2
-#         ql = ql_2
-#
-#         # (1) no iteration:
-#         # T = T_1: diff T_comp - T >= -1.5K
-#         # T = T_2: diff T_comp - T <= 3.6K
-#         # (2) one iteration:
-#         # T = T_2: diff T_comp - T <= .05K
-#         # (3) all iterations:
-#         # ('max T sat: ', 0.096238341651940118)
-#         # ('max T unsat: ', 0.049928637009259091)
-#         # ('max ql:', 4.354652372777143e-05)
-#         # ('min ql:', -6.6884278893755006e-05)
-#
-#     return T, ql, alpha
 
 
 #----------------------------------------------------------------------
@@ -945,61 +795,54 @@ def labeling(var_name1, var_name2, amp):
 
     return
 #--------------------------
-def plot_sat_adj(T_comp_, ql_comp_, data12, data_ql, var1, var2, nn, t, z):
+def plot_sat_adj(T_comp_, ql_comp_, data_clf, data, data_ql, var1, var2, nn, t, z):
     global ncomp
-    # amp = 1e2
-    # print('')
-    # print('plot PDF samples qt, factor='+np.str(amp))
-
     import matplotlib as mplt
     import matplotlib.cm as cm
-    s_ = np.expand_dims(data12[:,0], axis=0)
-    qt_ = np.expand_dims(data12[:,1], axis=0)
+
+    s_ = np.expand_dims(data_clf[:, 0], axis=0)
+    qt_ = np.expand_dims(data_clf[:, 1], axis=0)
     s = np.append(s_, s_, axis=0)
     qt = np.append(qt_, qt_, axis=0)
+
+    a = np.amin(data[:,0])
+    b = np.amin(data_clf[:, 0])
+    x_min = np.minimum(a, b)
+    x_max = np.maximum(np.amax(data[:, 0]), np.amax(data_clf[:, 0]))
+    y_min = np.minimum(np.amin(data[:, 1]), np.amin(data_clf[:, 1]))
+    y_max = np.maximum(np.amax(data[:, 1]), np.amax(data_clf[:, 1]))
 
     aux = np.expand_dims(ql_comp_, axis=0)
     ql_comp = np.append(aux, aux, axis=0)
     aux = np.expand_dims(T_comp_, axis=0)
     T_comp  = np.append(aux, aux, axis=0)
 
-    print('')
-    print('')
-    print('')
-    print('s: ', data12.shape, s_.shape, s.shape)
-    print('ql: ', ql_comp_.shape, aux.shape, ql_comp.shape)
-
-    # ql_comp = np.nd
-    # for a in range(nn):
-
     ql_mean_comp = np.average(ql_comp_)
     ql_mean = np.average(data_ql)
 
-
     fig = plt.figure(figsize=(10,10))
     plt.subplot(1,2,1)
-    plt.scatter(data12[:,0], data12[:,1], s=5, alpha=0.2)
+    plt.scatter(data_clf[:, 0], data_clf[:, 1], s=5, alpha=0.2)
     labeling(var1, var2, 1)
-    plt.title('(n='+str(nn)+')')
+    plt.title('PDF sampling (n='+str(nn)+')')
+    plt.xlim(x_min,x_max)
+    plt.ylim(y_min, y_max)
     plt.subplot(1, 2, 2)
-    # plt.scatter(data[:, 0], data[:, 1])
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    labeling(var1, var2, 1)
     # plt.title('<ql> (data): '+str(np.round(ql_mean,6)) + ' <ql> (comp): '+str(np.round(ql_mean_comp,6)))
     labeling(var1, var2, 1)
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.title('Training Data')
     mplt.text.Text(x=0, y=0, text='hoihoi')
     mplt.text.Annotation('hoihoi', xy = (0,0))
-    # plt.contourf(data[:,0], data[:,1], [ql_comp, ql_comp])
-    # labeling(var1, var2, 1)
-    # plt.title('ql')
-    # plt.subplot(1, 2, 1)
-    # plt.contourf(data[:, 0], data[:, 1], [T_comp, T_comp])
-    # plt.title('T')
-    # labeling(var1, var2, 1)
 
-    fig.suptitle('<ql> (data): '+str(np.round(ql_mean,9)) + ', <ql> (comp): '+str(np.round(ql_mean_comp,9)))
-    # fig.suptitle('Cloud Closure: Computed ql (t=' + str(t) + ', z=' + str(z)+')', fontsize=20)
+    fig.suptitle('<ql> (data): '+str(np.round(ql_mean,9)) + ', <ql> (comp): '+str(np.round(ql_mean_comp,9))
+                 +' (z='+str(z)+', t='+str(t)+')')
     plt.savefig(
         os.path.join(
-            out_path,'CloudClosure_figures_norm/CC_sat_adj' + '_' + str(t) + '_z'
+            out_path,'CloudClosure_figures_norm/CC_sat_adj_' + var1 + var2 + '_' + str(t) + '_z'
                          + str(np.int(z)) + 'm_bivariate.png')
     )
 

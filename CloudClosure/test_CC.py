@@ -36,9 +36,18 @@ plt.rcParams['legend.framealpha'] = 0.8      # legend patch transparency
 #legend.borderaxespad : 0.5      # the border between the axes and legend edge
 #legend.columnspacing : 2.0      # column separation
 
+
+'''
+Test Types:
+input data (p_ref, s_[i,j,k], qt_[i,j,k] are float64
+s_dry, s_vap, s_cond: all float64
+
+'''
+
+
 sys.path.append("..")
 from io_read_in_files import read_in_nml, read_in_netcdf
-from CC_thermodynamics import sat_adj_fromentropy, sat_adj_fromthetali
+from CC_thermodynamics import sat_adj_fromentropy, sat_adj_fromthetali ,sat_adj_fromentropy_double
 from thermodynamic_functions import theta_li
 
 def main():
@@ -68,7 +77,7 @@ def main():
     # ______________________
     ''' read in reference state '''
     if case_name == 'ZGILS6':
-        fullpath_in_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub_D15.nc')
+        fullpath_in_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
     else:
         fullpath_in_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
     print(fullpath_in_ref)
@@ -80,8 +89,8 @@ def main():
     z_half_ref = read_in_netcdf('z_half', 'reference', fullpath_in_ref)
     print('')
     print('nz, dz: ', nx[2], dx[2])
-    print('height: ', z_ref, z_ref.shape)
-    print(z_half_ref)
+    # print('height: ', z_ref, z_ref.shape)
+    # print(z_half_ref)
     # plot_profiles(fullpath_in_ref, z_ref)
 
     # ______________________
@@ -93,7 +102,8 @@ def main():
 
     # ______________________
 
-    files_ = [files[0]]
+    # files_ = [files[1]]
+    files_ = files
     for d in files_:
         print('')
         print(files, d, files_)
@@ -129,12 +139,18 @@ def main():
         max_ql_thl = 0.0
         min_ql_thl = 0.0
         # for k in range(nx[2]):
+        print('')
+        print('types: ', type(p_ref[0]), type(s_[0,0,0]), type(qt_[0,0,0]))     #
+        print('')
         for k in zrange:
             for i in range(nx[0]):
                 for j in range(nx[1]):
+            # for i in range(10):
+            #     for j in range(10):
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
-                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
-
+                    # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
+                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
+                                                                                            qt_[i, j, k])
                     theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
                     T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
@@ -157,7 +173,7 @@ def main():
 
                     if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
                         max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < max_ql_thl:
+                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
                         min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
 
                     if ql_[i,j,k] > 0.0 and alpha[i,j,k] > 0:
@@ -178,10 +194,10 @@ def main():
         print('min ql:', min_ql)                    # min_ql = -6.7e-5
         print('')
         print('From Thetali:')
-        print('max T sat: ', max_T_sat_thl)         # max_T_sat = 77
-        print('max T unsat: ', max_T_unsat_thl)     # max_T_unsat = 0.05
-        print('max ql:', max_ql_thl)                # max_ql = 0.56 --> ql_comp >> ql_data
-        print('min ql:', min_ql_thl)                # min_ql = -5e-6
+        print('max T sat: ', max_T_sat_thl)         # max_T_sat = 0.12
+        print('max T unsat: ', max_T_unsat_thl)     # max_T_unsat = 0.013
+        print('max ql:', max_ql_thl)                # max_ql = 3.31e-5
+        print('min ql:', min_ql_thl)                # min_ql = 0.0
         print('')
 
 
@@ -213,7 +229,8 @@ def plot_profiles(fullpath_in_ref, z_ref):
     s_min = read_in_netcdf('s_min', 'profiles', fullpath_in_ref)
     time_prof = read_in_netcdf('t', 'timeseries', fullpath_in_ref)
     dt_prof = time_prof[2] - time_prof[1]
-    n_prof = np.int(time[1] / dt_prof)
+    # n_prof = np.int(time[1] / dt_prof)
+    # n_prof = np.int(time_prof[1] / dt_prof)
     print('time prof: ', n_prof, time_prof[n_prof], time[1])
 
     fig = plt.figure(figsize=(15,5))
@@ -243,81 +260,82 @@ def plot_profiles(fullpath_in_ref, z_ref):
 
 def plot_snapshots(field_data_, field_comp, alpha_, alpha, var_name):
     global path
+    n_max = 60
     plt.figure(figsize=(12,15))
     plt.subplot(6, 3, 1)
-    plt.imshow(field_data_[0:30, 0:30, 15],interpolation="nearest")
+    plt.imshow(field_data_[0:n_max, 0:n_max, 15],interpolation="nearest")
     plt.title(var_name+' (data), nz =' + str(dx[2] * 15))
     plt.colorbar()
     plt.subplot(6, 3, 4)
-    plt.imshow(field_comp[0:30, 0:30, 15], interpolation="nearest")
+    plt.imshow(field_comp[0:n_max, 0:n_max, 15], interpolation="nearest")
     plt.title(var_name+ ' (comp)', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 7)
-    plt.imshow(field_data_[0:30, 0:30, 15] - field_comp[0:30, 0:30, 15], interpolation="nearest")
-    plt.title(var_name+' difference', fontsize=8)
+    plt.imshow(field_data_[0:n_max, 0:n_max, 15] - field_comp[0:n_max, 0:n_max, 15], interpolation="nearest")
+    plt.title(var_name+' difference (data-comp)', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 10)
-    plt.imshow(alpha_[0:30, 0:30, 15],interpolation="nearest")
+    plt.imshow(alpha_[0:n_max, 0:n_max, 15],interpolation="nearest")
     plt.colorbar()
     plt.title('alpha (data)')
     plt.subplot(6, 3, 13)
-    plt.imshow(alpha[0:30, 0:30, 15],interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 15],interpolation="nearest")
     plt.colorbar()
     plt.title('alpha comp')
     plt.subplot(6, 3, 16)
-    plt.imshow(alpha[0:30, 0:30, 15]-alpha_[0:30, 0:30, 15],interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 15]-alpha_[0:n_max, 0:n_max, 15],interpolation="nearest")
     plt.colorbar()
     plt.title('difference alpha: data - comp',fontsize=8)
 
 
     plt.subplot(6, 3, 2)
-    plt.imshow(field_data_[0:30, 0:30, 18],interpolation="nearest")
+    plt.imshow(field_data_[0:n_max, 0:n_max, 18],interpolation="nearest")
     plt.colorbar()
     plt.title('data, nz =' + str(dx[2] * 18))
     plt.subplot(6, 3, 5)
-    plt.imshow(field_comp[0:30, 0:30, 18], interpolation="nearest")
+    plt.imshow(field_comp[0:n_max, 0:n_max, 18], interpolation="nearest")
     plt.title('comp', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 8)
-    plt.imshow(field_data_[0:30, 0:30, 18] - field_comp[0:30, 0:30, 18], interpolation="nearest")
-    plt.title(var_name + ' difference', fontsize=8)
+    plt.imshow(field_data_[0:n_max, 0:n_max, 18] - field_comp[0:n_max, 0:n_max, 18], interpolation="nearest")
+    plt.title(var_name + ' difference (data-comp)', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 11)
-    plt.imshow(alpha_[0:30, 0:30, 18],interpolation="nearest")
+    plt.imshow(alpha_[0:n_max, 0:n_max, 18],interpolation="nearest")
     plt.colorbar()
     plt.title('alpha (data)')
     plt.subplot(6, 3, 14)
-    plt.imshow(alpha[0:30, 0:30, 18],interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 18],interpolation="nearest")
     plt.colorbar()
     plt.title('alpha_comp')
     plt.subplot(6, 3, 17)
-    plt.imshow(alpha[0:30, 0:30, 18] - alpha_[0:30, 0:30, 18], interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 18] - alpha_[0:n_max, 0:n_max, 18], interpolation="nearest")
     plt.colorbar()
     plt.title('difference alpha: data - comp', fontsize=8)
 
 
     plt.subplot(6, 3, 3)
-    plt.imshow(field_data_[0:30, 0:30, 20], interpolation="nearest")
+    plt.imshow(field_data_[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.colorbar()
     plt.title('data, nz =' + str(dx[2] * 20))
     plt.subplot(6, 3, 6)
-    plt.imshow(field_comp[0:30, 0:30, 20], interpolation="nearest")
+    plt.imshow(field_comp[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.title('comp', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 9)
-    plt.imshow(field_data_[0:30, 0:30, 20] - field_comp[0:30, 0:30, 20], interpolation="nearest")
-    plt.title(var_name + ' difference', fontsize=8)
+    plt.imshow(field_data_[0:n_max, 0:n_max, 20] - field_comp[0:n_max, 0:n_max, 20], interpolation="nearest")
+    plt.title(var_name + ' difference (data-comp)', fontsize=8)
     plt.colorbar()
     plt.subplot(6, 3, 12)
-    plt.imshow(alpha_[0:30, 0:30, 20], interpolation="nearest")
+    plt.imshow(alpha_[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.colorbar()
     plt.title('alpha (data)')
     plt.subplot(6, 3, 15)
-    plt.imshow(alpha[0:30, 0:30, 20], interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.colorbar()
     plt.title('alpha comp')
     plt.subplot(6, 3, 18)
-    plt.imshow(alpha[0:30, 0:30, 20] - alpha_[0:30, 0:30, 20], interpolation="nearest")
+    plt.imshow(alpha[0:n_max, 0:n_max, 20] - alpha_[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.colorbar()
     plt.title('difference alpha: data - comp', fontsize=8)
 
