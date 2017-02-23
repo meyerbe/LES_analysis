@@ -8,13 +8,6 @@ from scipy.integrate import odeint
 sys.path.append("..")
 include '../parameters.pxi'
 
-def aux():
-    print('hoihoi')
-    return
-
-# cdef aux_c():
-#     print('hoihoi c')
-#     return
 
 class LookupTable:
     def __init__(self):
@@ -131,7 +124,7 @@ cdef class LookupTable_h:
         return lookup(&self.LookupStructC, x)
 
 
-
+# __________________________________________________________________
 
 class ClausiusClapeyron:
     def __init__(self):
@@ -215,9 +208,6 @@ class ClausiusClapeyron:
         print('interpolated value of T: ', LT.lookup(T, 298.0))
         return
 
-
-
-
 cdef class ClausiusClapeyron_c:
     def __init__(self):
         print('CC c')
@@ -274,4 +264,69 @@ cdef class ClausiusClapeyron_c:
         print('pv: ', pv)
 
         LT_c = LookupTable_c()
+        LT_c.make_lookup_table(T,pv)
+        print('given value of T: ', LT_c.lookup_table[T[0]])        # only possible to lookup for values of T that are already calculated --> need interpolation
+        print('interpolated value of T: ', LT_c.lookup(T, 298.0))
+        return
+
+cdef class ClausiusClapeyron_pycles:
+    def __init__(self):
+        return
+
+
+    def initialize(self):
+        self.LT = LookupTable_h
+        cdef:
+            double Tmin, Tmax
+            long n_lookup
+            double [:] pv
+
+        Tmin = 100.15
+        Tmax = 380.0
+        n_lookup = 512
+
+        # Generate array of equally space temperatures
+        T = np.linspace(Tmin, Tmax, n_lookup)
+        # Find the maximum index of T where T < T_tilde
+        tp_close_index = np.max(np.where(T <= Tt))
+
+        # Check to make sure that T_tilde is not in T
+        if T[tp_close_index] == Tt:
+            print('Array of temperatures for ClasiusClapyeron lookup table contains Tt  \n')
+            print('Pick different values for ClasiusClapyeron Tmin and Tmax in lookup table \n')
+            print('Killing Simulation now!')
+            sys.exit()
+
+        # Now prepare integration
+        T_above_Tt = np.append([Tt], T[tp_close_index + 1:])
+        T_below_Tt = np.append(T[:tp_close_index + 1], [Tt])[::-1]
+
+        def rhs(self, z, T_):
+            sys.path.append('../Thermo/')
+            from thermodynamic_functions import latent_heat
+            # lam = LH.Lambda(T_)
+            # L = LH.L(T_, lam)
+            lam = 1.0
+            L = latent_heat(T_)
+            return L / (Rv * T_ * T_)
+
+        # Set the initial condition
+        pv0 = np.log(pv_star_t)
+
+        # Integrate
+        pv_above_Tt = np.exp(odeint(self.rhs, pv0, T_above_Tt, hmax=0.1)[1:])
+        pv_below_Tt = np.exp(odeint(self.rhs, pv0, T_below_Tt, hmax=0.1)[1:])[::-1]
+        pv = np.append(pv_below_Tt, pv_above_Tt)
+        # self.LT.initialize(T, pv)
+
+        LT = LookupTable_h()
+        LT.initialize(T,pv)
+        print(LT.lookup(298.0))
+        print(LT.lookup(296.0))
+        print('pv: ', pv)
+
+        LT_c = LookupTable_c()
+        LT_c.make_lookup_table(T,pv)
+        print('given value of T: ', LT_c.lookup_table[T[0]])        # only possible to lookup for values of T that are already calculated --> need interpolation
+        print('interpolated value of T: ', LT_c.lookup(T, 298.0))
         return
