@@ -46,16 +46,21 @@ else:
     print('Unknown system platform: ' + sys.platform  + 'or unknown system name: ' + platform.node())
     sys.exit()
 
-# _ext = Extension('CC_thermodynamics', ['thermodynamic_functions.pyx'], include_dirs=include_path,
-#                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
-#                  runtime_library_dirs=library_dirs)
-# extensions.append(_ext)
-
-_ext = Extension('CC_thermodynamics', ['CC_thermodynamics.pyx'], include_dirs=include_path,
+_ext = Extension('CC_thermodynamics_c', ['CC_thermodynamics_c.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
 
+# _ext = Extension('PyCLES_Thermodynamics', ['PyCLES_Thermodynamics.pyx'], include_dirs=include_path,
+#                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+#                  runtime_library_dirs=library_dirs)
+# extensions.append(_ext)
+
+
+_ext = Extension('thermodynamic_functions_c', ['thermodynamic_functions_c.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
 
 setup(
     ext_modules=cythonize(extensions, verbose=1, include_path=include_path)
