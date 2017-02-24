@@ -131,7 +131,7 @@ cdef extern from "thermodynamic_functions.h":
     inline double pv_c(double p0, double qt, double qv) nogil
 
 # cpdef eos(self, double p0, double s, double qt):
-cpdef sat_adj_fromentropy_c(double p0, double s, double qt):
+cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics):
     print('calling here')
     cdef:
         double T, qv, qc, ql, qi, lam
@@ -142,6 +142,12 @@ cpdef sat_adj_fromentropy_c(double p0, double s, double qt):
     CC.initialize()
 
     LH = LatentHeat()
+    if microphysics == 'dry':
+        LH.Lambda_fp = lambda_constant
+        LH.L_fp = latent_heat_constant
+    elif microphysics == 'sa':
+        LH.Lambda_fp = lambda_constant
+        LH.L_fp = latent_heat_variable
     L_fp = LH.L_fp
     Lambda_fp = LH.Lambda_fp
     print('ok, lets try it')
@@ -149,7 +155,10 @@ cpdef sat_adj_fromentropy_c(double p0, double s, double qt):
     eos_c(&CC.LT.LookupStructC, Lambda_fp, L_fp, p0, s, qt, &T, &qv, &ql, &qi)
     print('done')
     if ql > 0.0:
+        print('saturated')
         alpha = 1
+    else:
+        print('dry')
     # return T, ql, qi
     return T, ql, alpha
 

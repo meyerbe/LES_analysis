@@ -106,6 +106,17 @@ def main():
     # CC = CC_thermodynamics.ClausiusClapeyron_pycles()
     CC.initialize()
 
+    LH = CC_thermodynamics_c.LatentHeat()
+    # if microphysics == 'dry':
+    #     LH.Lambda_fp = lambda_constant
+    #     LH.L_fp = latent_heat_constant
+    # elif microphysics == 'sa':
+    #     LH.Lambda_fp = lambda_constant
+    #     LH.L_fp = latent_heat_variable
+    # L_fp = LH.L_fp
+    # Lambda_fp = LH.Lambda_fp$
+
+    microphysics = 'sa'
     # ______________________
     files_ = [files[1]]
     # files_ = files
@@ -145,24 +156,22 @@ def main():
         min_ql_thl = 0.0
         print('')
         print('types: ', type(p_ref[0]), type(s_[0,0,0]), type(qt_[0,0,0]))     #
+        print('shapes: ', s_.shape)
+        print('zrange: ', zrange)
         print('')
-        for k in zrange:
+        # for k in zrange:
+        for k in [15]:
             # for i in range(nx[0]):
             #     for j in range(nx[1]):
             for i in range(10):
                 for j in range(10):
-
-
-
-
-
-
+                    print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
-                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
+                    # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
                     #                                                                         qt_[i, j, k])
                     T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
-                                                                                            qt_[i, j, k])
+                                                                                            qt_[i, j, k], microphysics)
 
                     # theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
                     # T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])

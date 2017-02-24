@@ -56,3 +56,21 @@ cdef class LatentHeat:
     cpdef L(self, double T, double Lambda)
 
     cpdef Lambda(self, double T)
+
+
+cdef inline double lambda_constant(double T) nogil:
+    return 1.0
+
+cdef inline double latent_heat_constant(double T, double Lambda) nogil:
+    return 2.501e6
+
+cdef inline double latent_heat_variable(double T, double Lambda) nogil:
+    cdef:
+        double TC = T - 273.15
+    return (2500.8 - 2.36 * TC + 0.0016 * TC *
+            TC - 0.00006 * TC * TC * TC) * 1000.0
+
+
+
+# cpdef sat_adj_fromentropy_c(double [:] p0, double [:,:,:] s, double [:,:,:] qt)
+cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics)
