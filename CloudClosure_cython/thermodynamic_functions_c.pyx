@@ -1,4 +1,4 @@
-from CC_thermodynamics cimport Lookup
+from CC_thermodynamics_c cimport Lookup
 
 # cdef extern from "thermodynamics_sa.h":
 # cdef extern from "../Thermo/thermodynamics_sa.h":
@@ -11,8 +11,8 @@ from CC_thermodynamics cimport Lookup
     # void thetali_update(Grid.DimStruct *dims, double (*lam_fp)(double), double (*L_fp)(double, double), double *p0, double *T, double *qt, double *ql, double *qi, double *thetali)
     # void clip_qt(Grid.DimStruct *dims, double  *qt, double clip_value)
 
-# cdef extern from "thermodynamic_functions.h":
-cdef extern from "../Thermo/thermodynamic_functions.h":
+cdef extern from "thermodynamic_functions.h":
+# cdef extern from "../Thermo/thermodynamic_functions.h":
     # Dry air partial pressure
     inline double pd_c(double p0, double qt, double qv) nogil
     # Water vapor partial pressure

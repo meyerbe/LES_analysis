@@ -8,11 +8,13 @@ import subprocess as sp
 import os.path
 
 
+
 # Now get include paths from relevant python modules
 # include_path = [mpi4py.get_include()]
 
 include_path = [np.get_include()]
-# include_path += ['./Csrc']
+include_path += ['./Csrc']
+# include_path += ['../Thermo/']
 
 if sys.platform == 'darwin':
     #Compile flags for MacOSX
@@ -61,6 +63,7 @@ _ext = Extension('thermodynamic_functions_c', ['thermodynamic_functions_c.pyx'],
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
+
 
 setup(
     ext_modules=cythonize(extensions, verbose=1, include_path=include_path)

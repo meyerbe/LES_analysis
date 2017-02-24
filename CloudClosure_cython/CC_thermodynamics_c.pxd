@@ -1,6 +1,6 @@
 sys.path.append("..")
 from parameters import *
-sys.path.append("../Thermo/")
+# sys.path.append("../Thermo/")
 
 # cdef struct eos_struct:
 #     double T
@@ -39,5 +39,20 @@ cdef class Lookup:
         inline double fast_lookup(self, double x) nogil
 
 
-# cdef class ClausiusClapeyron_pycles:
-#     cdef LookupTable_h.LookupStruct LT
+cdef class ClausiusClapeyron_c:
+    # cdef LookupStruct LT
+    cdef Lookup LT
+    cpdef rhs(self, double z, double T)
+    cpdef initialize(self)
+
+
+
+cdef class LatentHeat:
+    cdef:
+        #In the functions pointed to by the function pointer L* must not require gil
+        double (*L_fp)(double T, double Lambda) nogil
+        double (*Lambda_fp)(double T) nogil
+
+    cpdef L(self, double T, double Lambda)
+
+    cpdef Lambda(self, double T)
