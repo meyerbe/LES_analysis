@@ -10,14 +10,35 @@ sys.path.append("..")
 include '../parameters.pxi'
 
 # __________________________________________________________________
+''' Microphysics Schemes:
+ No_Microphysics_Dry:
+        self.thermodynamics_type = 'dry'
+        LatentHeat.Lambda_fp = lambda_constant
+        LatentHeat.L_fp = latent_heat_constant
+ No_Microphysics_SA:
+        self.thermodynamics_type = 'SA'
+        LatentHeat.Lambda_fp = lambda_constant
+        LatentHeat.L_fp = latent_heat_variable
+Microphysics_SB_Liquid:
+        self.thermodynamics_type = 'SA'
+        LatentHeat.Lambda_fp = lambda_constant
+        LatentHeat.L_fp = latent_heat_variable
+
+- Bomex: namelist['microphysics']['scheme'] = 'None_SA' --> 'SA', LH=variable
+- ZGILS6: namelist['microphysics']['scheme'] = 'SB_Liquid' --> 'SA', LH=variable
+'''
+
+
+
+
+# __________________________________________________________________
 cdef class Lookup:
     def __init__(self):
-        print('initialize cpdef Lookup Table')
         return
 
     cpdef initialize(self, double[:] x, double[:] y):
         cdef long n = np.shape(y)[0]
-        print('LT_c.initialize')
+        print('initialize cpdef Lookup Table')
         init_table( &self.LookupStructC, n, &x[0], &y[0])
         return
 
@@ -36,7 +57,7 @@ cdef class Lookup:
 # __________________________________________________________________
 cdef class ClausiusClapeyron_c:
     def __init__(self):
-        print('CC c')
+        print('Initialize CC')
         return
 
     cpdef rhs(self, double z, double T_):
@@ -85,8 +106,8 @@ cdef class ClausiusClapeyron_c:
 
         self.LT = Lookup()
         self.LT.initialize(T,pv)
-        print(self.LT.lookup(298.0))
-        print(self.LT.lookup(296.0))
+        # print(self.LT.lookup(298.0))
+        # print(self.LT.lookup(296.0))
         # print('pv: ', pv)
 
         # LT_c = LookupTable_c()
@@ -132,7 +153,6 @@ cdef extern from "thermodynamic_functions.h":
 
 # cpdef eos(self, double p0, double s, double qt):
 cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics):
-    print('calling here')
     cdef:
         double T, qv, qc, ql, qi, lam
         int alpha = 0
@@ -150,15 +170,14 @@ cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics):
         LH.L_fp = latent_heat_variable
     L_fp = LH.L_fp
     Lambda_fp = LH.Lambda_fp
-    print('ok, lets try it')
     # eos_c(&self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
     eos_c(&CC.LT.LookupStructC, Lambda_fp, L_fp, p0, s, qt, &T, &qv, &ql, &qi)
-    print('done')
     if ql > 0.0:
-        print('saturated')
+        # print('saturated')
         alpha = 1
     else:
-        print('dry')
+        # print('dry')
+        pass
     # return T, ql, qi
     return T, ql, alpha
 

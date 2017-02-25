@@ -118,7 +118,7 @@ def main():
 
     microphysics = 'sa'
     # ______________________
-    files_ = [files[1]]
+    files_ = [files[8]]
     # files_ = files
     for d in files_:
         print('')
@@ -159,13 +159,13 @@ def main():
         print('shapes: ', s_.shape)
         print('zrange: ', zrange)
         print('')
-        # for k in zrange:
-        for k in [15]:
-            # for i in range(nx[0]):
-            #     for j in range(nx[1]):
-            for i in range(10):
-                for j in range(10):
-                    print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
+        for k in zrange:
+        # for k in [15]:
+            for i in range(nx[0]):
+                for j in range(nx[1]):
+            # for i in range(10):
+            #     for j in range(10):
+            #         print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
@@ -173,12 +173,8 @@ def main():
                     T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
                                                                                             qt_[i, j, k], microphysics)
 
-                    # theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
-                    # T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
-
-
-
-
+                    theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
+                    T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
 
         #             if np.isnan(T_comp_thl[i,j,k]):
@@ -196,21 +192,21 @@ def main():
                     elif alpha[i,j,k] == 0.0:
                         if np.abs(T_comp[i,j,k] - T_[i, j, k]) > max_T_unsat:
                             max_T_unsat = np.abs(T_comp[i,j,k] - T_[i, j, k])
-                            print('unsat max T: ', max_T_unsat)
+                            # print('unsat max T: ', max_T_unsat)
 
-    #                 if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
-    #                     max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-    #                 elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
-    #                     min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-    #
-    #                 if ql_[i,j,k] > 0.0 and alpha[i,j,k] > 0:
-    #                     print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
-    #                     if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
-    #                         max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
-    #                 elif alpha[i,j,k] == 0:
-    #                     print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
-    #                     if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
-    #                         max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
+                    if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
+                        max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
+                        min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+
+                    if ql_[i,j,k] > 0.0 and alpha[i,j,k] > 0:
+                        print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
+                        if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
+                            max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
+                    elif alpha[i,j,k] == 0:
+                        # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
+                        if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
+                            max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
 
 
         print('')
@@ -220,14 +216,14 @@ def main():
         print('max ql:', max_ql)                    # max_ql = 4.4e-5
         print('min ql:', min_ql)                    # min_ql = -6.7e-5
         print('')
-    #     print('From Thetali:')
-    #     print('max T sat: ', max_T_sat_thl)         # max_T_sat = 0.12
-    #     print('max T unsat: ', max_T_unsat_thl)     # max_T_unsat = 0.013
-    #     print('max ql:', max_ql_thl)                # max_ql = 3.31e-5
-    #     print('min ql:', min_ql_thl)                # min_ql = 0.0
-    #     print('')
-    #
-    #
+        print('From Thetali:')
+        print('max T sat: ', max_T_sat_thl)         # max_T_sat = 0.12
+        print('max T unsat: ', max_T_unsat_thl)     # max_T_unsat = 0.013
+        print('max ql:', max_ql_thl)                # max_ql = 3.31e-5
+        print('min ql:', min_ql_thl)                # min_ql = 0.0
+        print('')
+
+
     # #     plot_snapshots(ql_, ql_comp, alpha_, alpha, 'ql')
     # #     plot_snapshots(T_, T_comp, alpha_, alpha, 'T')
     # #     plot_snapshots(theta_l, theta_l, alpha_, alpha, 'thetali')
