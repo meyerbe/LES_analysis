@@ -65,12 +65,12 @@ cdef class ClausiusClapeyron_c:
         # lam = LH.Lambda(T_)
         # L = LH.L(T_, lam)
         # v1:
-        from thermodynamic_functions import latent_heat
-        lam = 1.0
-        L = latent_heat(T_)
+        # from thermodynamic_functions import latent_heat
+        # lam = 1.0
+        # L = latent_heat(T_)
         # v2:
-        # lam = self.Lambda_fp(T_)
-        # L = self.L_fp(T_,lam)
+        lam = self.Lambda_fp(T_)
+        L = self.L_fp(T_,lam)
         return L / (Rv * T_ * T_)
 
     cpdef initialize(self, LatentHeat LH):

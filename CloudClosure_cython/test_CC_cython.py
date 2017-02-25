@@ -100,6 +100,7 @@ def main():
     ''' zrange '''
     global zrange
     zrange = [15,18,20]
+    zrange =[10,30,50]
     # ______________________
     # ______________________
     print('initializing Clausius Clapeyron')
@@ -113,7 +114,7 @@ def main():
     CC.initialize(LH)
 
     # ______________________
-    files_ = [files[5]]
+    files_ = [files[0]]
     # files_ = files
     for d in files_:
         print('')
@@ -150,13 +151,13 @@ def main():
         max_ql_thl = 0.0
         min_ql_thl = 0.0
         for k in zrange:
+        # for k in range(nx[2]):
             for i in range(nx[0]):
                 for j in range(nx[1]):
-        #
         # for k in [15]:
         #     for i in range(2):
         #         for j in range(2):
-            #         print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
+        #             print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
@@ -166,13 +167,13 @@ def main():
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c__(p_ref[k], s_[i, j, k],
                     #                                                                         qt_[i, j, k], microphysics, LH, nml)
 
-                    # theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
-                    # T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
+                    theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
+                    T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
-        #             if np.isnan(T_comp_thl[i,j,k]):
-        #                 print('T_comp_thl is nan')
-        #                 sys.exit()
-        #
+                    # if np.isnan(T_comp_thl[i,j,k]):
+                    #     print('T_comp_thl is nan')
+                    #     sys.exit()
+
                     if (ql_comp[i,j,k] - ql_[i, j, k]) > max_ql:
                         max_ql = (ql_comp[i,j,k]- ql_[i, j, k])
                     elif (ql_comp[i, j, k] - ql_[i, j, k]) < min_ql:
@@ -186,19 +187,19 @@ def main():
                             max_T_unsat = np.abs(T_comp[i,j,k] - T_[i, j, k])
                             # print('unsat max T: ', max_T_unsat)
 
-                    # if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
-                    #     max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-                    # elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
-                    #     min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
+                        max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
+                        min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
 
-                    # if ql_comp_thl[i,j,k] > 0.0 and alpha_thl[i,j,k] > 0:
-                    #     print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
-                    #     if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
-                    #         max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
-                    # elif alpha_thl[i,j,k] == 0:
-                    #     # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
-                    #     if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
-                    #         max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
+                    if ql_comp_thl[i,j,k] > 0.0 and alpha_thl[i,j,k] > 0:
+                        print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
+                        if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
+                            max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
+                    elif alpha_thl[i,j,k] == 0:
+                        # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
+                        if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
+                            max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
 
 
         print('')
