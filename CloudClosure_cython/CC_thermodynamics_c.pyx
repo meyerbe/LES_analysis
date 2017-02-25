@@ -62,14 +62,18 @@ cdef class ClausiusClapeyron_c:
 
     cpdef rhs(self, double z, double T_):
         # sys.path.append('../Thermo/')
-        from thermodynamic_functions import latent_heat
         # lam = LH.Lambda(T_)
         # L = LH.L(T_, lam)
+        # v1:
+        from thermodynamic_functions import latent_heat
         lam = 1.0
         L = latent_heat(T_)
+        # v2:
+        # lam = self.Lambda_fp(T_)
+        # L = self.L_fp(T_,lam)
         return L / (Rv * T_ * T_)
 
-    cpdef initialize(self):
+    cpdef initialize(self, LatentHeat LH):
         cdef:
             double Tmin, Tmax
             long n_lookup
@@ -99,16 +103,17 @@ cdef class ClausiusClapeyron_c:
         pv0 = np.log(pv_star_t)
 
         # Integrate
+        # self.LH = LH
+        self.L_fp = LH.L_fp
+        self.Lambda_fp = LH.Lambda_fp
         pv_above_Tt = np.exp(odeint(self.rhs, pv0, T_above_Tt, hmax=0.1)[1:])
         pv_below_Tt = np.exp(odeint(self.rhs, pv0, T_below_Tt, hmax=0.1)[1:])[::-1]
         pv = np.append(pv_below_Tt, pv_above_Tt)
-        # self.LT.initialize(T, pv)
 
         self.LT = Lookup()
         self.LT.initialize(T,pv)
-        # print(self.LT.lookup(298.0))
-        # print(self.LT.lookup(296.0))
-        # print('pv: ', pv)
+        print(self.LT.lookup(298.0))
+        print(self.LT.lookup(296.0))
 
         # LT_c = LookupTable_c()
         # LT_c.make_lookup_table(T,pv)
@@ -117,8 +122,15 @@ cdef class ClausiusClapeyron_c:
         return
 # __________________________________________________________________
 cdef class LatentHeat:
-    # def __init__(self,namelist):
-    def __init__(self):
+    def __init__(self,namelist):
+        if(namelist['microphysics']['scheme'] == 'None_Dry'):
+            print(namelist['microphysics']['scheme'])
+            self.Lambda_fp = lambda_constant
+            self.L_fp = latent_heat_constant
+        elif(namelist['microphysics']['scheme'] == 'None_SA') or (namelist['microphysics']['scheme'] == 'SB_Liquid'):
+            print(namelist['microphysics']['scheme'])
+            self.Lambda_fp = lambda_constant
+            self.L_fp = latent_heat_variable
         return
 
     cpdef L(self,double T, double Lambda):
@@ -134,7 +146,7 @@ cdef class LatentHeat:
 # __________________________________________________________________
 cdef extern from "thermodynamics_sa.h":
 # cdef extern from "../Thermo/thermodynamics_sa.h":
-    inline double alpha_c(double p0, double T, double qt, double qv) nogil
+#     inline double alpha_c(double p0, double T, double qt, double qv) nogil
     # void eos_c(Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), double p0, double s, double qt, double *T, double *qv, double *ql, double *qi) nogil
     void eos_c(LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), double p0, double s, double qt, double *T, double *qv, double *ql, double *qi) nogil
 #     void eos_update(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), double *p0, double *s, double *qt, double *T,
@@ -151,21 +163,40 @@ cdef extern from "thermodynamic_functions.h":
     # Water vapor partial pressure
     inline double pv_c(double p0, double qt, double qv) nogil
 
+
+cpdef sat_adj_fromentropy_c(double p0, double s, double qt, ClausiusClapeyron_c CC, LatentHeat LH):
+    cdef:
+        double T, qv, qc, ql, qi, lam
+        int alpha = 0
+    # eos_c(&self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
+    eos_c(&CC.LT.LookupStructC, LH.Lambda_fp, LH.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
+    if ql > 0.0:
+        # print('saturated')
+        alpha = 1
+    else:
+        # print('dry')
+        pass
+    return T, ql, alpha
+
+
+
 # cpdef eos(self, double p0, double s, double qt):
-cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics):
+cpdef sat_adj_fromentropy_c__(double p0, double s, double qt, microphysics, LatentHeat LH, nml):
     cdef:
         double T, qv, qc, ql, qi, lam
         int alpha = 0
 
     CC = ClausiusClapeyron_c()
     # CC.initialize(namelist, LH, Par)
-    CC.initialize()
+    CC.initialize(LH)
 
-    LH = LatentHeat()
-    if microphysics == 'dry':
+    LH = LatentHeat(nml)
+    if(nml['microphysics']['scheme'] == 'None_Dry'):
+        print(nml['microphysics']['scheme'])
         LH.Lambda_fp = lambda_constant
         LH.L_fp = latent_heat_constant
-    elif microphysics == 'sa':
+    elif(nml['microphysics']['scheme'] == 'None_SA') or (nml['microphysics']['scheme'] == 'SB_Liquid'):
+        print(nml['microphysics']['scheme'])
         LH.Lambda_fp = lambda_constant
         LH.L_fp = latent_heat_variable
     L_fp = LH.L_fp
@@ -179,6 +210,8 @@ cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics):
         # print('dry')
         pass
     # return T, ql, qi
+
+    del LH, CC
     return T, ql, alpha
 
 

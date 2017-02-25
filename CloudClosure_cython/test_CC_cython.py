@@ -1,6 +1,7 @@
 # author: Bettina Meyer
 import argparse
 import sys, os
+import json as  simplejson
 
 import numpy as np
 import pylab as plt
@@ -51,7 +52,7 @@ import CC_thermodynamics
 import CC_thermodynamics_c
 from io_read_in_files import read_in_nml, read_in_netcdf
 from CC_thermodynamics import sat_adj_fromentropy, sat_adj_fromthetali
-from CC_thermodynamics_c import sat_adj_fromentropy_c
+from CC_thermodynamics_c import sat_adj_fromentropy_c, sat_adj_fromentropy_c__
 from thermodynamic_functions import theta_li
 
 def main():
@@ -64,6 +65,7 @@ def main():
     global nx, dx
     case_name = args.casename
     dx, nx, dt = read_in_nml(args.path, case_name)
+    nml = simplejson.loads(open(os.path.join(args.path, case_name + '.in')).read())
     global path
     path = args.path
     print('path:', path)
@@ -100,25 +102,18 @@ def main():
     zrange = [15,18,20]
     # ______________________
     # ______________________
+    print('initializing Clausius Clapeyron')
+    # microphysics = 'sa'
+    # microphysics = nml['microphysics']['scheme']
+    LH = CC_thermodynamics_c.LatentHeat(nml)
     # Initialize Lookup Table for Clausius Clapeyron
     # CC = CC_thermodynamics.ClausiusClapeyron()
-    CC = CC_thermodynamics_c.ClausiusClapeyron_c()
     # CC = CC_thermodynamics.ClausiusClapeyron_pycles()
-    CC.initialize()
+    CC = CC_thermodynamics_c.ClausiusClapeyron_c()
+    CC.initialize(LH)
 
-    LH = CC_thermodynamics_c.LatentHeat()
-    # if microphysics == 'dry':
-    #     LH.Lambda_fp = lambda_constant
-    #     LH.L_fp = latent_heat_constant
-    # elif microphysics == 'sa':
-    #     LH.Lambda_fp = lambda_constant
-    #     LH.L_fp = latent_heat_variable
-    # L_fp = LH.L_fp
-    # Lambda_fp = LH.Lambda_fp$
-
-    microphysics = 'sa'
     # ______________________
-    files_ = [files[8]]
+    files_ = [files[5]]
     # files_ = files
     for d in files_:
         print('')
@@ -154,28 +149,25 @@ def main():
         max_T_unsat_thl = 0.0
         max_ql_thl = 0.0
         min_ql_thl = 0.0
-        print('')
-        print('types: ', type(p_ref[0]), type(s_[0,0,0]), type(qt_[0,0,0]))     #
-        print('shapes: ', s_.shape)
-        print('zrange: ', zrange)
-        print('')
         for k in zrange:
-        # for k in [15]:
             for i in range(nx[0]):
                 for j in range(nx[1]):
-            # for i in range(10):
-            #     for j in range(10):
+        #
+        # for k in [15]:
+        #     for i in range(2):
+        #         for j in range(2):
             #         print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
                     #                                                                         qt_[i, j, k])
                     T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
-                                                                                            qt_[i, j, k], microphysics)
+                                                                                   qt_[i, j, k], CC, LH)
+                    # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c__(p_ref[k], s_[i, j, k],
+                    #                                                                         qt_[i, j, k], microphysics, LH, nml)
 
-                    theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
-                    T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
-
+                    # theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
+                    # T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
         #             if np.isnan(T_comp_thl[i,j,k]):
         #                 print('T_comp_thl is nan')
@@ -194,19 +186,19 @@ def main():
                             max_T_unsat = np.abs(T_comp[i,j,k] - T_[i, j, k])
                             # print('unsat max T: ', max_T_unsat)
 
-                    if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
-                        max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
-                        min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    # if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
+                    #     max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    # elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
+                    #     min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
 
-                    if ql_[i,j,k] > 0.0 and alpha[i,j,k] > 0:
-                        print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
-                        if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
-                            max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
-                    elif alpha[i,j,k] == 0:
-                        # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
-                        if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
-                            max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
+                    # if ql_comp_thl[i,j,k] > 0.0 and alpha_thl[i,j,k] > 0:
+                    #     print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
+                    #     if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
+                    #         max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
+                    # elif alpha_thl[i,j,k] == 0:
+                    #     # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
+                    #     if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
+                    #         max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
 
 
         print('')

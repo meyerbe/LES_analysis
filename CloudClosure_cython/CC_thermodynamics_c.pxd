@@ -40,10 +40,14 @@ cdef class Lookup:
 
 
 cdef class ClausiusClapeyron_c:
+    # cdef LatentHeat LH
     # cdef LookupStruct LT
+    cdef:
+        double (*L_fp)(double T, double Lambda) nogil
+        double (*Lambda_fp)(double T) nogil
     cdef Lookup LT
     cpdef rhs(self, double z, double T)
-    cpdef initialize(self)
+    cpdef initialize(self, LatentHeat LH)
 
 
 
@@ -52,9 +56,7 @@ cdef class LatentHeat:
         #In the functions pointed to by the function pointer L* must not require gil
         double (*L_fp)(double T, double Lambda) nogil
         double (*Lambda_fp)(double T) nogil
-
     cpdef L(self, double T, double Lambda)
-
     cpdef Lambda(self, double T)
 
 
@@ -73,4 +75,6 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
 
 
 # cpdef sat_adj_fromentropy_c(double [:] p0, double [:,:,:] s, double [:,:,:] qt)
-cpdef sat_adj_fromentropy_c(double p0, double s, double qt, microphysics)
+cpdef sat_adj_fromentropy_c__(double p0, double s, double qt, microphysics, LatentHeat LH, nml)
+
+cpdef sat_adj_fromentropy_c(double p0, double s, double qt, ClausiusClapeyron_c CC, LatentHeat LH)
