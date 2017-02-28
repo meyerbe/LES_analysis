@@ -17,6 +17,9 @@ python EM_PDF path-to-fields-repository
 `EM_PDF_bivar.py`: fit BIVARIATE Gaussian mixed model (GMM) independently at every level and save parameters (means, covariances, weights) in nc-files
     using scikit package: sklearn.mixture.GaussianMixture
 
+`EM_PDF_nonlocal.py`: Computes an n-component Gaussian mixture model, being multivariate in the sense of X=(x(z1), x(z2), ..., x(zn)), where x
+is the same variable (e.g. w)
+
 **(1b) Plotting PDF parameters:**
 
 `EM_PDF_plot.py`: plot how PDF means evolve over vertical levels and time
