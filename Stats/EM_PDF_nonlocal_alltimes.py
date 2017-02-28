@@ -22,13 +22,8 @@ plt.rcParams['legend.fontsize'] = 10
 =======================================
 NOTES:
 =======================================
-- Bayesian Gaussian Mixture Model instable: does not always produce the same output (i.e. the same PDF) for same data
-    --> because of problem in sqrt(covariance)??
-
-- ??? Is vertical correlation really Gaussian? Look at EM_PDF_bivar:
-    means show more of an exponential / gamma distribution shape;
-    no real pattern in covariances
-- ??? EM Univar: flat tail of histograms --> might be better represented by a combination of Gaussian and GAMMA DISTRIBUTION
+Computes an n-component Gaussian mixture model, being multivariate in the sense of X=(x(z1), x(z2), ..., x(zn)), where x
+is the same variable (e.g. w)
 """
 
 #----------------------------------------------------------------------
@@ -71,7 +66,7 @@ def main():
         # var_list = ['w']
 
 
-    '''UNIVAR'''
+    '''UNIVAR: only for one variable'''
     global nvar
     nvar = len(zrange)
     zmax = len(zrange)
@@ -226,7 +221,7 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp, z):
     plt.title('total correlation', fontsize=12)
 
     plt.suptitle('Total Covariance & Correlation Matrices: ' + np.str(covar.shape))
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
+    plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
                 + var_name + '.png')
 
     plt.close()
@@ -262,7 +257,7 @@ def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
         sxy = sigma[i, 1, 0] ** 2
         Z = mlab.bivariate_normal(X, Y, sigmax=sigma[i, 0, 0], sigmay=sigma[i, 1, 1], mux=means[i, 0], muy=means[i, 1],
                                   sigmaxy=sxy)
-        ax = plt.contour(X, Y, Z, colors = colors[i])
+        # ax = plt.contour(X, Y, Z, colors = colors[i])
     plt.xlabel(var_name + ' at level z=' + np.str(zrange[0]) + 'm')
     plt.ylabel(var_name + ' at level z=' + np.str(zrange[1]) + 'm')
     return
@@ -285,7 +280,7 @@ def Gaussian_mixture_univar(data, ncomp, var_name, t, z):
 
     plot_contour_12(data, clf, ncomp, color_iter, var_name, zrange)
     plt.title('Gaussian Mixture Model: ncomp = ' + np.str(ncomp) + ' (time: ' + np.str(t) + ')')
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM' + np.str(ncomp)+'_PDF_univar_'
+    plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM' + np.str(ncomp)+'_PDF_univar_'
                 + var_name + '_' + str(t) + '_z' + np.str(zrange[0]) + 'm_' + np.str(zrange[1]) + 'm.png')
 
     # mean_tot, covar_tot = covariance_estimate_from_multicomp_pdf(clf)
@@ -378,7 +373,7 @@ def Gaussian_mixture_ncompselection(data,var_name, t):
     plt.yticks(())
     plt.title('Selected GMM: '+ np.str(n_opt) + ' components')
     plt.subplots_adjust(hspace=.35, bottom=.02)
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_univariate_gmm_' + var_name + '_' + str(t) + '.png')
+    plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM_PDF_univariate_gmm_' + var_name + '_' + str(t) + '.png')
     plt.close()
     return
 #----------------------------------------------------------------------
@@ -409,7 +404,7 @@ def Bayesian_Gaussian_Mixture(data,var_name, t, zrange):
 
     plot_contour_12(data, dpgmm, ncomp, color_iter, var_name, zrange)
     plt.title('Bayesian Gaussian Mixture Model: ncomp = '+np.str(ncomp) + ' (time: '+np.str(t)+')')
-    plt.savefig(fullpath_out + 'figures_PDF_nonlocal/EM_PDF_uniariate_dpgmm_'
+    plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM_PDF_uniariate_dpgmm_'
                 + var_name + '_' + str(t) + '_z'+np.str(zrange[0])+'m_'+np.str(zrange[1])+'m.png')
     plt.close()
 
