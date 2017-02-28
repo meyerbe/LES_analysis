@@ -97,6 +97,7 @@ def main():
     ''' zrange '''
     global zrange
     zrange = [15,18,20]
+    zrange = [10, 30, 50]
     # ______________________
     # ______________________
 
@@ -338,8 +339,6 @@ def plot_snapshots(field_data_, field_comp, alpha_, alpha, var_name):
     plt.imshow(alpha[0:n_max, 0:n_max, 20] - alpha_[0:n_max, 0:n_max, 20], interpolation="nearest")
     plt.colorbar()
     plt.title('difference alpha: data - comp', fontsize=8)
-
-
 
     plt.savefig(os.path.join(path,'snapshot_'+var_name+'.png'))
 

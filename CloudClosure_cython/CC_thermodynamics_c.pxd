@@ -47,7 +47,12 @@ cdef class ClausiusClapeyron_c:
         double (*Lambda_fp)(double T) nogil
     cdef Lookup LT
     cpdef rhs(self, double z, double T)
-    cpdef initialize(self, LatentHeat LH)
+    cpdef initialize(self, namelist, LatentHeat LH)
+
+cdef class ClausiusClapeyron:
+    cdef Lookup LT
+    #def initialize(self,namelist,LatentHeat LH, ParallelMPI.ParallelMPI Par)
+    cpdef finalize(self)
 
 
 
@@ -74,7 +79,8 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
 
 
 
-# cpdef sat_adj_fromentropy_c(double [:] p0, double [:,:,:] s, double [:,:,:] qt)
-cpdef sat_adj_fromentropy_c__(double p0, double s, double qt, microphysics, LatentHeat LH, nml)
-
 cpdef sat_adj_fromentropy_c(double p0, double s, double qt, ClausiusClapeyron_c CC, LatentHeat LH)
+
+# cpdef sat_adj_fromentropy_c(double [:] p0, double [:,:,:] s, double [:,:,:] qt)
+cpdef sat_adj_fromentropy_c_(double p0, double s, double qt, microphysics, LatentHeat LH, nml)
+
