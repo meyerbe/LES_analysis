@@ -4,6 +4,7 @@ import os
 import pylab as plt
 import numpy as np
 from sklearn import mixture
+import itertools
 
 from matplotlib.colors import LogNorm
 
@@ -74,7 +75,6 @@ def main():
                     - data: trainingsdata
                     - ncomp: number of components of GMM
                     - t: time
-
     '''
     global krange, zrange
     # zrange = np.arange(5, 21, 5)
@@ -177,7 +177,7 @@ def Gaussian_mixture(data, ncomp, var_name, t):
     plt.title('Gaussian Mixture Model: ncomp = ' + np.str(ncomp) + ' (time: ' + np.str(t) + ')')
     # plt.show()
     plt.savefig(fullpath_out + 'PDF_nonlocal_figures/EM' + np.str(ncomp)+'_PDF_univar_'
-                + var_name + '_' + str(t) + '_z' + np.str(zrange[0]) + 'm_' + np.str(zrange[1]) + 'm.png')
+                + var_name + '_' + str(t) + '_z' + np.str(np.int(zrange[0])) + 'm_' + np.str(np.int(zrange[1])) + 'm.png')
     plt.close()
 
 
@@ -341,7 +341,7 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp, t):
     X, Y = np.meshgrid(x_, y_)
     plt.subplot(2,2,1)
     plt.imshow(covar, cmap=cm.coolwarm, interpolation='nearest', norm=LogNorm())
-    plt.colorbar(shrink=0.5)
+    plt.colorbar(shrink=0.75)
     labels = [item.get_text() for item in ax.get_xticklabels()]
     # print('....labels', len(labels), zrange)
     if len(labels) == zrange.shape[0]+2:
@@ -361,7 +361,7 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp, t):
 
     plt.subplot(2, 2, 2)
     plt.imshow(covar, cmap=cm.coolwarm, interpolation='nearest')
-    plt.colorbar(shrink=0.5)
+    plt.colorbar(shrink=0.75)
     labels = [item.get_text() for item in ax.get_xticklabels()]
     # print('....labels', len(labels), zrange)
     if len(labels) == zrange.shape[0] + 2:
@@ -406,26 +406,25 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp, t):
 def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
     # Description: plot contourplot of computed EM PDF by computing the bivariate PDF from the clf.sigma and clf.means
     colors = ['navy', 'c', 'cornflowerblue', 'gold','darkorange']
-    import itertools
     import matplotlib.mlab as mlab
     global nvar     # joint PDF computed for nvar variables
     nvar_ = 2       # only consider two variables here
 
     # (1) make samples
     n_sample = 300
-    x_ = np.linspace(np.amin(data[:,0]), np.amax(data[:,0]), n_sample)
-    y_ = np.linspace(np.amin(data[:,1]), np.amax(data[:,1]), n_sample)
-    XX_ = np.ndarray(shape=(n_sample**nvar_, nvar_))
+    x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    XX_ = np.ndarray(shape=(n_sample ** nvar_, nvar_))
     X_ = np.ndarray(shape=(n_sample, n_sample))
     Y_ = np.ndarray(shape=(n_sample, n_sample))
     delta_i = n_sample
     for i in range(n_sample):
         for j in range(n_sample):
-            shift = i*delta_i + j
+            shift = i * delta_i + j
             XX_[shift, 0] = x_[i]
             XX_[shift, 1] = y_[j]
-            X_[i,j] = x_[j]
-            Y_[i,j] = y_[i]
+            X_[i, j] = x_[j]
+            Y_[i, j] = y_[i]
     print('')
 
     # (2) compute PDF from means and covariance and plot
@@ -435,12 +434,15 @@ def plot_contour_12(data, clf, ncomp, colors, var_name, zrange):
         for i in range(ncomp):
             sxy = sigma[i, 1, 0] ** 2
             Z_pred = mlab.bivariate_normal(X_, Y_, sigmax=sigma[i, 0, 0], sigmay=sigma[i, 1, 1], mux=means[i, 0],
-                                               muy=means[i, 1], sigmaxy=sxy)
+                                           muy=means[i, 1], sigmaxy=sxy)
             # Z_pred = mlab.bivariate_normal(X, Y, sigmax=sigma[i, 0, 0], sigmay=sigma[i, 1, 1], mux=means[i, 0],
             #                                muy=means[i, 1],sigmaxy=sxy)
             ax = plt.contour(x_, y_, Z_pred, colors=colors[i], label='new ' + str(i))
     except:
         print('negative value in covariance')
+
+    plt.xlabel(var_name + ' at level z=' + np.str(zrange[0]) + 'm')
+    plt.ylabel(var_name + ' at level z=' + np.str(zrange[1]) + 'm')
 
     # # (3) compute scoring
     # # clf is a multivariate model for nvar=len(zrange) variables --> make matrix of input right dimension
