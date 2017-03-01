@@ -11,13 +11,15 @@ from matplotlib.colors import LogNorm
 from read_in_files import read_in_nml
 from read_in_files import read_in_netcdf_fields
 
-label_size = 8
-plt.rcParams['xtick.labelsize'] = label_size
-plt.rcParams['ytick.labelsize'] = label_size
-plt.rcParams['axes.labelsize'] = 10
+label_size = 12
 # plt.rcParams['xtick.direction']='out'
 # plt.rcParams['ytick.direction']='out'
-plt.rcParams['legend.fontsize'] = 10
+plt.rcParams['xtick.labelsize'] = label_size
+plt.rcParams['ytick.labelsize'] = label_size
+plt.rcParams['axes.labelsize'] = label_size
+plt.rcParams['legend.fontsize'] = label_size
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['lines.linewidth'] = 2
 
 """
 =======================================
@@ -75,8 +77,11 @@ def main():
     print('zrange: ', krange, zrange)
     if case_name == 'DCBLSoares':
         var_list = ['u', 'w', 's']
+    elif case_name == 'Bomex':
+        var_list = ['w', 's', 'qt']
     else:
         var_list = ['w', 's', 'qt', 'thetali', 'temperature']
+        # var_list = ['w']
 
 
     '''UNIVAR: only for one variable'''
@@ -108,23 +113,23 @@ def main():
             data_all = np.append(data_all, data, axis=0)
             # print('.....', t, data.shape, data_all.shape, nx[0]*nx[1], nvar)
 
-            if np.isnan(data).any():
-                print('huiuiui')
-                sys.exit()
-
-            for i in range(nx[0]*nx[1]):
-                for k in range(nvar):
-                    if data[i,k] < -1000.0 or data[i,k] > 100000:
-                        print('ohoh')
-                        sys.exit()
-        for l in range(len(files_)*nx[0]*nx[1]):
-            for k in range(nvar):
-                if data_all[l,k] > 100000:
-                    print('OHOH', l, l/(nx[0]*nx[1]), k)
-                    sys.exit()
-            if np.isnan(data_all).any():
-                print('HUIUII')
-                sys.exit()
+        #     if np.isnan(data).any():
+        #         print('huiuiui')
+        #         sys.exit()
+        #
+        #     for i in range(nx[0]*nx[1]):
+        #         for k in range(nvar):
+        #             if data[i,k] < -1000.0 or data[i,k] > 100000:
+        #                 print('ohoh')
+        #                 sys.exit()
+        # for l in range(len(files_)*nx[0]*nx[1]):
+        #     for k in range(nvar):
+        #         if data_all[l,k] > 100000:
+        #             print('OHOH', l, l/(nx[0]*nx[1]), k)
+        #             sys.exit()
+        #     if np.isnan(data_all).any():
+        #         print('HUIUII')
+        #         sys.exit()
 
 
         # (a) Gaussian Mixture Model: ncomp = 2 (univar)
@@ -194,7 +199,7 @@ def Gaussian_mixture(data, ncomp, var_name):
     plot_contour_12(data, clf, ncomp, color_iter, var_name, zrange)
     plt.title('Gaussian Mixture Model: ncomp = ' + np.str(ncomp))
     plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM' + np.str(ncomp)+'_PDF_univar_'
-                + var_name + '_' + '_z' + np.str(np.int(zrange[0])) + 'm_' + np.str(np.int(zrange[1])) + 'm.png')
+                + var_name + '_z' + np.str(np.int(zrange[0])) + 'm_' + np.str(np.int(zrange[1])) + 'm.png')
     plt.close()
 
 
@@ -350,16 +355,17 @@ def compute_correlation(covar, covar_tot, ncomp):
     return correlation, corr_tot
 #----------------------------------------------------------------------
 def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp):
-    print('calling plot covar: '+var_name)
+    print('Calling plot covar: '+var_name)
     # plot the correlation and covariance matrix
     global zrange
     from matplotlib import cm
-    plt.figure(figsize=(15,15))
-    fig, ax = plt.subplots()
-    X, Y = np.meshgrid(x_, y_)
+
+    plt.figure(1,figsize=(18,20))
+    # X, Y = np.meshgrid(x_, y_)
     plt.subplot(2,2,1)
-    plt.imshow(covar, cmap=cm.coolwarm, interpolation='nearest', norm=LogNorm())
+    plt.imshow(covar.T, cmap=cm.coolwarm, interpolation='nearest', norm=LogNorm())
     plt.colorbar(shrink=0.75)
+    ax = plt.gca()
     labels = [item.get_text() for item in ax.get_xticklabels()]
     if len(labels) == zrange.shape[0]+2:
         labels[1:-1] = x_
@@ -374,16 +380,14 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp):
     plt.grid()
     plt.xlabel('level [m]')
     plt.ylabel('level [m]')
-    plt.title('total covariance', fontsize=12)
-    ax = plt.gca()
-    ax.set_xticklabels(zrange.tolist())
-    ax.set_yticklabels(zrange.tolist())
+    plt.title('total covariance')
 
     plt.subplot(2, 2, 2)
     plt.imshow(covar, cmap=cm.coolwarm, interpolation='nearest')
     plt.colorbar(shrink=0.75)
-    labels = [item.get_text() for item in ax.get_xticklabels()]
+    # labels = [item.get_text() for item in ax.get_xticklabels()]
     # print('....labels', len(labels), zrange)
+    ax = plt.gca()
     if len(labels) == zrange.shape[0] + 2:
         labels[1:-1] = x_
         ax.set_xticklabels(labels)
@@ -397,37 +401,56 @@ def plot_covar_matrix(covar, corr, x_, y_, var_name, ncomp):
     plt.grid()
     plt.xlabel('level [m]')
     plt.ylabel('level [m]')
-    ax = plt.gca()
-    ax.set_xticklabels(zrange.tolist())
-    ax.set_yticklabels(zrange.tolist())
-    #  plt.xlabel('delta z')
-    # plt.ylabel('delta z')
-    plt.title('total covariance', fontsize=12)
+    # ax = plt.gca()
+    # ax.set_xticklabels(zrange.tolist())
+    # ax.set_yticklabels(zrange.tolist())
+    plt.title('total covariance')
 
     plt.subplot(2, 2, 3)
     plt.imshow(corr, cmap=cm.coolwarm, interpolation='nearest', norm=LogNorm())
     plt.colorbar(shrink=0.75)
-    labels = [item.get_text() for item in ax.get_xticklabels()]
+    # labels = [item.get_text() for item in ax.get_xticklabels()]
+    # plt.xlabel('level [m]')
+    # plt.ylabel('level [m]')
+    plt.title('total correlation')
+    ax = plt.gca()
+    if len(labels) == zrange.shape[0] + 2:
+        labels[1:-1] = x_
+        ax.set_xticklabels(labels)
+        labels[1:-1] = y_
+        ax.set_yticklabels(labels)
+    elif zrange.shape[0] == 4:
+        labels[1:len(labels):2] = x_
+        ax.set_xticklabels(labels)
+        labels[1:9:2] = y_
+        ax.set_yticklabels(labels)
+    plt.grid()
     plt.xlabel('level [m]')
     plt.ylabel('level [m]')
-    plt.title('total correlation', fontsize=12)
-    ax = plt.gca()
-    ax.set_xticklabels(zrange.tolist())
-    ax.set_yticklabels(zrange.tolist())
     plt.subplot(2, 2, 4)
     plt.imshow(corr, cmap=cm.coolwarm, interpolation='nearest')
     plt.colorbar(shrink=0.75)
-    labels = [item.get_text() for item in ax.get_xticklabels()]
+    # labels = [item.get_text() for item in ax.get_xticklabels()]
     ax = plt.gca()
-    ax.set_xticklabels(zrange.tolist())
-    ax.set_yticklabels(zrange.tolist())
+    if len(labels) == zrange.shape[0] + 2:
+        labels[1:-1] = x_
+        ax.set_xticklabels(labels)
+        labels[1:-1] = y_
+        ax.set_yticklabels(labels)
+    elif zrange.shape[0] == 4:
+        labels[1:len(labels):2] = x_
+        ax.set_xticklabels(labels)
+        labels[1:9:2] = y_
+        ax.set_yticklabels(labels)
+    plt.grid()
     plt.xlabel('level [m]')
     plt.ylabel('level [m]')
-    plt.title('total correlation', fontsize=12)
+    plt.title('total correlation')
 
-    plt.suptitle('Total Covariance & Correlation Matrices: ' + var_name + r'  (z$\in$'+ np.str(zrange) + ')')
-    plt.savefig(fullpath_out + 'PDF_nonlocal_alltimes_figures/EM' + np.str(ncomp) + '_PDF_univar_covariance_'
-                + var_name + '.png')
+    # plt.suptitle('Total Covariance & Correlation Matrices: ' + var_name + r'  (z$\in$'+ np.str(zrange) + ')', fontsize=30)
+    plt.suptitle('Total Covariance & Correlation Matrices: ' + var_name, fontsize=30)
+    plt.savefig(os.path.join(fullpath_out, 'PDF_nonlocal_alltimes_figures', 'EM' + np.str(ncomp) + '_PDF_univar_covariance_'
+                + var_name + '.png'))
 
     plt.close()
 
