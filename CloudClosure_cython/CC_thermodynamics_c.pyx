@@ -423,32 +423,32 @@ cpdef sat_adj_fromentropy_c_(double p0, double s, double qt, microphysics, Laten
 
 
 def sat_adj_fromthetali_c(p, thl, qt):
-#     print ('')
-#     print('saturation adjustment from thetali')
-#     '''
-#     Use saturation adjustment scheme to compute temperature and ql given s and qt.
-#     :param p0: pressure [Pa]
-#     :param s: entropy  [K]
-#     :param qt:  total water specific humidity
-#     :return: T, ql, qi
-#
-#     Functions from Microphyiscs.pxd:
-#         liquid fraction:
-#             lam_fp(T) = 1.0 (lambda_constant)
-#         Latent Heat:
-#             L_fp(T, lambda(T)) = (2500.8 - 2.36 * TC + 0.0016 * TC**2 - 0.00006 * TC**3) * 1000.0
-#                 with: TC = T - 273.15
-#
-#     Definitions (c.f. Pressel et al., 2016):
-#         saturation vapor pressure: pv_star(T)
-#             --> in LES from Clausius Clapeyron (Lookup table for integration), here use Magnus formula
-#         saturation specific humidity: qv_star(p,qt,pv_star)
-#             --> ideal gas law
-#         saturation excess: sigma = qt - qv_star
-#         partial entropies: sd_c(pd,T), sv_c(pv,T), sc_c(L,T)
-#             --> defined in Csrc/entropies.h
-#     '''
-#
+    print ('')
+    print('saturation adjustment from thetali')
+    '''
+    Use saturation adjustment scheme to compute temperature and ql given s and qt.
+    :param p0: pressure [Pa]
+    :param s: entropy  [K]
+    :param qt:  total water specific humidity
+    :return: T, ql, qi
+
+    Functions from Microphyiscs.pxd:
+        liquid fraction:
+            lam_fp(T) = 1.0 (lambda_constant)
+        Latent Heat:
+            L_fp(T, lambda(T)) = (2500.8 - 2.36 * TC + 0.0016 * TC**2 - 0.00006 * TC**3) * 1000.0
+                with: TC = T - 273.15
+
+    Definitions (c.f. Pressel et al., 2016):
+        saturation vapor pressure: pv_star(T)
+            --> in LES from Clausius Clapeyron (Lookup table for integration), here use Magnus formula
+        saturation specific humidity: qv_star(p,qt,pv_star)
+            --> ideal gas law
+        saturation excess: sigma = qt - qv_star
+        partial entropies: sd_c(pd,T), sv_c(pv,T), sc_c(L,T)
+            --> defined in Csrc/entropies.h
+    '''
+
 #     sys.path.append("../Thermo/")
 #     from thermodynamic_functions import pv_c, temperature_no_ql_from_thetali, CC_Magnus, qv_star_c, latent_heat
 #     # from thermodynamic_functions import s_dry, s_vap, s_cond
@@ -519,5 +519,7 @@ def sat_adj_fromthetali_c(p, thl, qt):
 #         qv = qv_star_2
 #         ql = ql_2
 #         print('count = ', count)
-#
+    T = 0.0
+    ql = 0.0
+    alpha = 0.0
     return T, ql, alpha

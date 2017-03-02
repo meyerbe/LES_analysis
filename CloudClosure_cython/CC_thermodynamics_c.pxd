@@ -1,5 +1,5 @@
-sys.path.append("..")
-from parameters import *
+# sys.path.append("..")
+# from parameters import *
 # sys.path.append("../Thermo/")
 
 # cdef struct eos_struct:
