@@ -5,6 +5,8 @@ import json as  simplejson
 
 import numpy as np
 import pylab as plt
+
+# import matplotlib as plt
 from math import fabs
 
 label_size = 6
@@ -51,8 +53,10 @@ sys.path.append("../CloudClosure/")
 import CC_thermodynamics
 import CC_thermodynamics_c
 from io_read_in_files import read_in_nml, read_in_netcdf
-from CC_thermodynamics import sat_adj_fromentropy, sat_adj_fromthetali
-from CC_thermodynamics_c import sat_adj_fromentropy_c, sat_adj_fromentropy_c__
+# from CC_thermodynamics import sat_adj_fromentropy
+from CC_thermodynamics import sat_adj_fromthetali
+from CC_thermodynamics_c import sat_adj_fromentropy
+from CC_thermodynamics_c import sat_adj_fromentropy_c, sat_adj_fromentropy_c_
 from thermodynamic_functions import theta_li
 
 def main():
@@ -87,20 +91,20 @@ def main():
         fullpath_in_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
     else:
         fullpath_in_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
-    print(fullpath_in_ref)
+    print('Reference State: ', fullpath_in_ref)
     try:
         p_ref = read_in_netcdf('p0_half', 'reference', fullpath_in_ref)
     except:
+        print('no p0_half profile')
         p_ref = read_in_netcdf('p0', 'reference', fullpath_in_ref)
     z_ref = read_in_netcdf('z', 'reference', fullpath_in_ref)
     z_half_ref = read_in_netcdf('z_half', 'reference', fullpath_in_ref)
     print('')
-    print('nz, dz: ', nx[2], dx[2])
     # ______________________
     ''' zrange '''
     global zrange
     zrange = [15,18,20]
-    zrange =[10,30,50]
+    zrange =[10,20,30]
     # ______________________
     # ______________________
     print('initializing Clausius Clapeyron')
@@ -108,10 +112,12 @@ def main():
     # microphysics = nml['microphysics']['scheme']
     LH = CC_thermodynamics_c.LatentHeat(nml)
     # Initialize Lookup Table for Clausius Clapeyron
-    # CC = CC_thermodynamics.ClausiusClapeyron()
-    # CC = CC_thermodynamics.ClausiusClapeyron_pycles()
-    CC = CC_thermodynamics_c.ClausiusClapeyron_c()
-    CC.initialize(LH)
+    # # CC = CC_thermodynamics.ClausiusClapeyron()
+    # # CC = CC_thermodynamics.ClausiusClapeyron_pycles()
+    CC_c = CC_thermodynamics_c.ClausiusClapeyron_c()
+    CC_c.initialize(nml, LH)
+    CC = CC_thermodynamics_c.ClausiusClapeyron()
+    CC.initialize(nml, LH)
 
     # ______________________
     files_ = [files[0]]
@@ -141,38 +147,42 @@ def main():
                     if ql_[i,j,k] != 0.0:
                         alpha_[i,j,k] = 1
 
-        max_T_sat = 0.0
-        max_T_unsat = 0.0
-        max_ql = 0.0
-        min_ql = 0.0
+        max_T_sat = -9999.9
+        max_T_unsat = -9999.9
+        max_ql = -9999.9
+        min_ql = 9999.9
 
-        max_T_sat_thl = 0.0
-        max_T_unsat_thl = 0.0
-        max_ql_thl = 0.0
-        min_ql_thl = 0.0
-        for k in zrange:
-        # for k in range(nx[2]):
-            for i in range(nx[0]):
-                for j in range(nx[1]):
-        # for k in [15]:
-        #     for i in range(2):
-        #         for j in range(2):
-        #             print('ijk', i, j, k, p_ref[k], s_[i,j,k], qt_[i,j,k])
+        max_T_sat_thl = -9999.9
+        max_T_unsat_thl = -9999.9
+        max_ql_thl = -9999.9
+        min_ql_thl = 9999.9
+
+        n_alpha = 0
+
+        T = compute_t_no_ql(s_, qt_, ql_, T_, p_ref)
+
+        for i in range(nx[0]):
+            for j in range(nx[1]):
+                # for k in zrange:
+                for k in range(nx[2]):
+                    if qt_[i,j,k] < 1e-11:
+                        print('clipping necessary')
                     # T_comp, ql_comp = sat_adj(p, s[i,j], qt[i,j])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
                     #                                                                         qt_[i, j, k])
-                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
+                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
                                                                                    qt_[i, j, k], CC, LH)
-                    # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c__(p_ref[k], s_[i, j, k],
-                    #                                                                         qt_[i, j, k], microphysics, LH, nml)
+                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
+                                                                                  qt_[i, j, k], CC_c, LH)
+
 
                     theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
                     T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
-                    # if np.isnan(T_comp_thl[i,j,k]):
-                    #     print('T_comp_thl is nan')
-                    #     sys.exit()
+                    # if (alpha[i,j,k] - alpha_[i,j,k]) > 0:
+                    if alpha_[i,j,k] > 0:
+                        n_alpha += 1
 
                     if (ql_comp[i,j,k] - ql_[i, j, k]) > max_ql:
                         max_ql = (ql_comp[i,j,k]- ql_[i, j, k])
@@ -197,17 +207,19 @@ def main():
                         if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
                             max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
                     elif alpha_thl[i,j,k] == 0:
+                        print('alpha_thl = 0', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]))
                         # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
                         if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
                             max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
 
 
         print('')
-        print('From Entropy:')
+        print('From Entropy (CC_c):')
         print('max T sat: ', max_T_sat)             # max_T_sat = 0.096
         print('max T unsat: ', max_T_unsat)         # max_T_unsat = 0.05
         print('max ql:', max_ql)                    # max_ql = 4.4e-5
         print('min ql:', min_ql)                    # min_ql = -6.7e-5
+        print('n_alpha: ', n_alpha)
         print('')
         print('From Thetali:')
         print('max T sat: ', max_T_sat_thl)         # max_T_sat = 0.12
@@ -216,13 +228,245 @@ def main():
         print('min ql:', min_ql_thl)                # min_ql = 0.0
         print('')
 
-
-    # #     plot_snapshots(ql_, ql_comp, alpha_, alpha, 'ql')
-    # #     plot_snapshots(T_, T_comp, alpha_, alpha, 'T')
-    # #     plot_snapshots(theta_l, theta_l, alpha_, alpha, 'thetali')
+    #     # for k in zrange:
+    #     #     for i in range(nx[0]):
+    #     #         for j in range(nx[1]):
+    #     #             T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
+    #     #                             qt_[i, j, k], CC, LH)
+    #     #
+    #     #             if (ql_comp[i, j, k] - ql_[i, j, k]) > max_ql:
+    #     #                 max_ql = (ql_comp[i, j, k] - ql_[i, j, k])
+    #     #             elif (ql_comp[i, j, k] - ql_[i, j, k]) < min_ql:
+    #     #                 min_ql = (ql_comp[i, j, k] - ql_[i, j, k])
+    #     #
+    #     #             if ql_[i, j, k] > 0.0 and alpha[i, j, k] > 0.0:
+    #     #                 if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_sat:
+    #     #                     max_T_sat = np.abs(T_comp[i, j, k] - T_[i, j, k])
+    #     #             elif alpha[i, j, k] == 0.0:
+    #     #                 if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_unsat:
+    #     #                     max_T_unsat = np.abs(T_comp[i, j, k] - T_[i, j, k])
+    #     #                     # print('unsat max T: ', max_T_unsat)
+    #     #
+    #     #
+    #     # print('')
+    #     # print('From Entropy (CC):')
+    #     # print('max T sat: ', max_T_sat)  # max_T_sat = 0.096
+    #     # print('max T unsat: ', max_T_unsat)  # max_T_unsat = 0.05
+    #     # print('max ql:', max_ql)  # max_ql = 4.4e-5
+    #     # print('min ql:', min_ql)  # min_ql = -6.7e-5
+    #     # print('')
+        #
+        #
+        # # plot_snapshots(ql_, ql_comp, alpha_, alpha, 'ql', zrange)
+        # # plot_snapshots(T_, T_comp, alpha_, alpha, 'T', zrange)
+        # # plot_snapshots(theta_l, theta_l, alpha_, alpha, 'thetali', zrange)
+        #
+    #     # shifted_data(T_, alpha_)
 
 
     return
+
+def compute_t_no_ql(s_, qt_, ql_, T_, p_ref):
+    from math import exp, log
+    T_tilde = np.double(298.15)
+    sd_tilde = np.double(6864.8)
+    sv_tilde = np.double(10513.6)
+    eps_vi = np.double(1.6074538488331591)
+    Rd = np.double(287.1)
+    Rv = np.double(461.5)
+    cpd = np.double(1004.0)
+    cpv = np.double(1859.0)
+    p_tilde = np.double(100000.0)
+    i = 1
+    j = 1
+    k = 10
+    qv = qt_[i,j,k]
+
+    pref = p_ref[k]
+    # pref = 0.5*(p_ref[k] + p_ref[k-1])
+    pv = pref * eps_vi * qv / (1.0 - qt_[i,j,k] + eps_vi * qv)
+    pd = pref - pv
+
+    # print('types', type(s_[i,j,k]), type(qt_[i,j,k]))
+    # print(type(Rd), type(Rv), type(cpd), type(cpv), type(eps_vi))
+    # print(type(sd_tilde), type(sv_tilde), type(T_tilde), type(p_tilde))
+    # print(type(qv), type(pv), type(pd))
+    # Thermodynamics SA
+    temp_calc = T_tilde * np.exp((s_[i, j, k] -
+                                  (1.0 - qt_[i, j, k]) * (sd_tilde - Rd * np.log(pd/p_tilde))
+                                  - qt_[i,j,k] * (sv_tilde - Rv * np.log(pv/p_tilde)) )
+                                 / ((1.0 - qt_[i,j,k])*cpd + qt_[i,j,k]*cpv) )
+    temp_sa_math = T_tilde * exp((s_[i, j, k] -
+                                  (1.0 - qt_[i, j, k]) * (sd_tilde - Rd * log(pd / p_tilde))
+                                  - qt_[i, j, k] * (sv_tilde - Rv * log(pv / p_tilde)))
+                                 / ((1.0 - qt_[i, j, k]) * cpd + qt_[i, j, k] * cpv))
+
+    # T_tilde * exp((s -
+    #                (1.0 - qt) * (sd_tilde - Rd * log(pd / p_tilde))
+    #                - qt * (sv_tilde - Rv * log(pv / p_tilde)))
+    #               / ((1.0 - qt) * cpd + qt * cpv))
+
+    # Thermodynamics Dry
+    temp_dry = T_tilde * (np.exp((s_[i,j,k] - sd_tilde + Rd * np.log(pd / p_tilde)) / cpd))
+
+    print('')
+    print('test temperature no ql:')
+    print('ql: ', ql_[i,j,k])
+    print('difference SA, np: ', T_[i,j,k] - temp_calc)
+    print('difference SA, math: ', T_[i, j, k] - temp_sa_math)
+    # print(T_[i-1,j,k]-temp_calc)
+    # print(T_[i + 1, j, k] - temp_calc)
+    print('difference dry: ', T_[i,j,k] - temp_dry)
+    return temp_calc
+
+def shifted_data(T_, alpha_):
+    global zrange
+    T_shifted = np.zeros(shape=T_.shape)
+    ql_shifted = np.zeros(shape=T_.shape)
+    alpha_shifted = np.zeros(shape=T_.shape)
+    ishift = 0
+    jshift = 1
+    kshift = 0
+    for i in range(0, nx[0] - np.abs(ishift)):
+        for j in range(0, nx[1] - np.abs(jshift)):
+            for k in range(0, nx[2] - np.abs(kshift)):
+                T_shifted[i, j, k] = T_[i + ishift, j + jshift, k + kshift]
+                alpha_shifted[i, j, k] = alpha_[i + ishift, j + jshift, k + kshift]
+
+    plot_snapshots(T_, T_shifted, alpha_, alpha_shifted, 'T_shifted', zrange)
+    return
+
+# ________________________________________________________________________________________
+# ________________________________________________________________________________________
+# ________________________________________________________________________________________
+''' plot mean profiles for visual reference'''
+def plot_profiles(fullpath_in_ref, z_ref):
+    global path
+    ''' profiles '''
+    qt_prof = read_in_netcdf('qt_mean', 'profiles', fullpath_in_ref)
+    qt_max = read_in_netcdf('qt_max', 'profiles', fullpath_in_ref)
+    qt_min = read_in_netcdf('qt_min', 'profiles', fullpath_in_ref)
+    ql_prof = read_in_netcdf('ql_mean', 'profiles', fullpath_in_ref)
+    ql_max = read_in_netcdf('ql_max', 'profiles', fullpath_in_ref)
+    ql_min = read_in_netcdf('ql_min', 'profiles', fullpath_in_ref)
+    s_prof = read_in_netcdf('s_mean', 'profiles', fullpath_in_ref)
+    s_max = read_in_netcdf('s_max', 'profiles', fullpath_in_ref)
+    s_min = read_in_netcdf('s_min', 'profiles', fullpath_in_ref)
+    time_prof = read_in_netcdf('t', 'timeseries', fullpath_in_ref)
+    dt_prof = time_prof[2] - time_prof[1]
+    # n_prof = np.int(time[1] / dt_prof)
+    # n_prof = np.int(time_prof[1] / dt_prof)
+    print('time prof: ', n_prof, time_prof[n_prof], time[1])
+
+    fig = plt.figure(figsize=(15,5))
+    plt.subplot(1,3,1)
+    plt.plot(1e2*ql_prof[n_prof,:], z_ref, label='<ql>*100')
+    plt.plot(ql_max[n_prof, :], z_ref, 'k--', linewidth=1)
+    plt.plot(ql_min[n_prof, :], z_ref, 'k--', linewidth=1)
+    plt.plot([0,0],[0,z_ref[-1]])
+    plt.legend()
+    plt.xlabel('ql')
+    plt.subplot(1, 3, 2)
+    plt.plot(qt_prof[n_prof, :], z_ref, label='<qt>')
+    plt.plot(qt_max[n_prof, :], z_ref, 'k--', linewidth=1, label='max: '+str(np.amax(qt_max[n_prof])))
+    plt.plot(qt_min[n_prof, :], z_ref, 'k--', linewidth=1, label='min: '+str(np.amin(qt_min[n_prof])))
+    plt.plot([0, 0], [0, z_ref[-1]])
+    plt.legend()
+    plt.xlabel('qt')
+    plt.subplot(1, 3, 3)
+    plt.plot(s_prof[n_prof, :], z_ref)
+    plt.plot(s_max[n_prof,:], z_ref, 'k--', linewidth=1)
+    plt.plot(s_min[n_prof, :], z_ref, 'k--', linewidth=1)
+    plt.plot([0, 0], [0, z_ref[-1]])
+    plt.xlabel('s')
+    plt.xlim([np.amin(s_prof[n_prof,:]),np.amax(s_max[n_prof,:])])
+    plt.savefig(os.path.join(path,'mean_profiles.png'))
+    return
+
+def plot_snapshots(field_data_, field_comp, alpha_, alpha, var_name, zrange):
+    global path
+    n_max = 60
+    k = zrange[0]
+    plt.figure(figsize=(12,15))
+    plt.subplot(6, 3, 1)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.title(var_name+' (data), nz =' + str(dx[2] * k))
+    plt.colorbar()
+    plt.subplot(6, 3, 4)
+    plt.imshow(field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title(var_name+ ' (comp)', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 7)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k] - field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title(var_name+' difference (data-comp)', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 10)
+    plt.imshow(alpha_[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha (data)')
+    plt.subplot(6, 3, 13)
+    plt.imshow(alpha[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha comp')
+    plt.subplot(6, 3, 16)
+    plt.imshow(alpha[0:n_max, 0:n_max, k]-alpha_[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('difference alpha: data - comp',fontsize=8)
+
+    k = zrange[1]
+    plt.subplot(6, 3, 2)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('data, nz =' + str(dx[2] * k))
+    plt.subplot(6, 3, 5)
+    plt.imshow(field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title('comp', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 8)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k] - field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title(var_name + ' difference (data-comp)', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 11)
+    plt.imshow(alpha_[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha (data)')
+    plt.subplot(6, 3, 14)
+    plt.imshow(alpha[0:n_max, 0:n_max, k],interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha_comp')
+    plt.subplot(6, 3, 17)
+    plt.imshow(alpha[0:n_max, 0:n_max, k] - alpha_[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.colorbar()
+    plt.title('difference alpha: data - comp', fontsize=8)
+
+    k = zrange[2]
+    plt.subplot(6, 3, 3)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.colorbar()
+    plt.title('data, nz =' + str(dx[2] * k))
+    plt.subplot(6, 3, 6)
+    plt.imshow(field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title('comp', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 9)
+    plt.imshow(field_data_[0:n_max, 0:n_max, k] - field_comp[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.title(var_name + ' difference (data-comp)', fontsize=8)
+    plt.colorbar()
+    plt.subplot(6, 3, 12)
+    plt.imshow(alpha_[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha (data)')
+    plt.subplot(6, 3, 15)
+    plt.imshow(alpha[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.colorbar()
+    plt.title('alpha comp')
+    plt.subplot(6, 3, 18)
+    plt.imshow(alpha[0:n_max, 0:n_max, k] - alpha_[0:n_max, 0:n_max, k], interpolation="nearest")
+    plt.colorbar()
+    plt.title('difference alpha: data - comp', fontsize=8)
+
+    plt.savefig(os.path.join(path,'snapshot_'+var_name+'_cython.png'))
+
 
 
 if __name__ == "__main__":

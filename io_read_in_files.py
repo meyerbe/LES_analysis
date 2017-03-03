@@ -26,16 +26,29 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     grp = rootgrp.groups[group_name]
-    var = grp.variables[variable_name]
-    # var = rootgrp.groups[group_name].variables[variable_name]
+    if group_name == 'profiles' or group_name == 'reference':
+        var = rootgrp.groups[group_name].variables[variable_name][:]
+        rootgrp.close()
+    elif group_name == 'fields':
+        var = rootgrp.groups[group_name].variables[variable_name][:,:,:]
+        rootgrp.close()
+    return var
+    # var = grp.variables[variable_name]
+    # # var = rootgrp.groups[group_name].variables[variable_name]
+    # data = np.ndarray(shape=var.shape)
+    # data = var[:]
+    # rootgrp.close()
+    # return data
 
-    shape = var.shape
-    # print('shape:',var.shape)
-    data = np.ndarray(shape=var.shape)
-    data = var[:]
+
+def read_in_netcdf_fields(variable_name, fullpath_in):
+    print('io_read_in_files: read in netcdf fields', variable_name, fullpath_in)
+    rootgrp = nc.Dataset(fullpath_in, 'r')
+    # data = np.ndarray(shape = var.shape)
+    # data[:,:,:] = var[:,:,:]
+    var = rootgrp.groups['fields'].variables[variable_name][:,:,:]
     rootgrp.close()
-    return data
-
+    return var
 
 
 # def test():
