@@ -72,17 +72,21 @@ def main():
     '''
     global krange, zrange
     # zrange = np.arange(5, 21, 5)
-    krange = np.arange(5, 31, 5)
-    zrange = krange * dx[2]
-    print('zrange: ', krange, zrange)
     if case_name == 'DCBLSoares':
         var_list = ['u', 'w', 's']
+        krange = np.arange(5, 31, 5)
     elif case_name == 'Bomex':
-        var_list = ['w', 's', 'qt']
+        var_list = ['w', 's', 'qt', 'thetali', 'temperature']
+        krange = np.arange(5, 31, 5)
+    elif case_name == 'ZGILS6':
+        var_list = krange = np.arange(5, 31, 5)
+        krange = np.arange(5, 31, 5)
     else:
         var_list = ['w', 's', 'qt', 'thetali', 'temperature']
+        krange = np.arange(5, 31, 5)
         # var_list = ['w']
-
+    zrange = krange * dx[2]
+    print('zrange: ', krange, zrange)
 
     '''UNIVAR: only for one variable'''
     global nvar
@@ -92,82 +96,89 @@ def main():
     files_ = files
     print(files_)
     for var in var_list:
-        data_all = np.ndarray(shape=(0, nvar))
-        # data_all = 999999.9*np.ones(shape=(0, nvar))
-        for d in files_:
-            t = np.int(d[0:-3])
-            fullpath_in = os.path.join(args.path, 'fields', d)
-            print(fullpath_in)
-            # nc_file_name = 'EM_nonlocal_' + str(d)
-            # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
-            try:
-                data_ = read_in_netcdf_fields(var, fullpath_in).reshape((nx[0] * nx[1], nx[2]))
-                print(var + ' in list')
-            except:
-                print(var + ' NOT in list')
-                continue
-            data = np.ndarray(shape=(nx[0] * nx[1], nvar))
-            # data = -9999.9 * np.ones(shape=(nx[0] * nx[1], nvar))
-            for k in range(nvar):
-                data[:, k] = data_[:, krange[k]]
-            data_all = np.append(data_all, data, axis=0)
-            # print('.....', t, data.shape, data_all.shape, nx[0]*nx[1], nvar)
+        def inner_loop():
+            data_all = np.ndarray(shape=(0, nvar))
+            # data_all = 999999.9*np.ones(shape=(0, nvar))
+            for d in files_:
+                t = np.int(d[0:-3])
+                fullpath_in = os.path.join(args.path, 'fields', d)
+                print(fullpath_in)
+                # nc_file_name = 'EM_nonlocal_' + str(d)
+                # create_statistics_file(fullpath_out, nc_file_name, ncomp, nvar, len(zrange))
+                try:
+                    data_ = read_in_netcdf_fields(var, fullpath_in).reshape((nx[0] * nx[1], nx[2]))
+                    print(var + ' in list')
+                except:
+                    print(var + ' NOT in list')
+                    print('')
+                    # continue
+                    return
+                data = np.ndarray(shape=(nx[0] * nx[1], nvar))
+                # data = -9999.9 * np.ones(shape=(nx[0] * nx[1], nvar))
+                for k in range(nvar):
+                    data[:, k] = data_[:, krange[k]]
+                data_all = np.append(data_all, data, axis=0)
+                # print('.....', t, data.shape, data_all.shape, nx[0]*nx[1], nvar)
 
-        #     if np.isnan(data).any():
-        #         print('huiuiui')
-        #         sys.exit()
-        #
-        #     for i in range(nx[0]*nx[1]):
-        #         for k in range(nvar):
-        #             if data[i,k] < -1000.0 or data[i,k] > 100000:
-        #                 print('ohoh')
-        #                 sys.exit()
-        # for l in range(len(files_)*nx[0]*nx[1]):
-        #     for k in range(nvar):
-        #         if data_all[l,k] > 100000:
-        #             print('OHOH', l, l/(nx[0]*nx[1]), k)
-        #             sys.exit()
-        #     if np.isnan(data_all).any():
-        #         print('HUIUII')
-        #         sys.exit()
+            #     if np.isnan(data).any():
+            #         print('huiuiui')
+            #         sys.exit()
+            #
+            #     for i in range(nx[0]*nx[1]):
+            #         for k in range(nvar):
+            #             if data[i,k] < -1000.0 or data[i,k] > 100000:
+            #                 print('ohoh')
+            #                 sys.exit()
+            # for l in range(len(files_)*nx[0]*nx[1]):
+            #     for k in range(nvar):
+            #         if data_all[l,k] > 100000:
+            #             print('OHOH', l, l/(nx[0]*nx[1]), k)
+            #             sys.exit()
+            #     if np.isnan(data_all).any():
+            #         print('HUIUII')
+            #         sys.exit()
 
 
-        # (a) Gaussian Mixture Model: ncomp = 2 (univar)
-        print('Gaussian Mixture Model: ncomp = 2, var = '+var)
-        ncomp = 2
-        # means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
-        clf = Gaussian_mixture(data_all, ncomp, var)
-        # print('shapes: ', clf.means_.shape, clf.covariances_.shape, clf.weights_.shape, len(zrange))
-        mean_tot, covar_tot = covariance_estimate_from_multicomp_pdf(clf)
-        corr, corr_tot = compute_correlation(clf.covariances_, covar_tot, ncomp)
-        plot_covar_matrix(covar_tot, corr_tot, zrange, zrange, var, ncomp)
+            # (a) Gaussian Mixture Model: ncomp = 2 (univar)
+            print('Gaussian Mixture Model: ncomp = 2, var = '+var)
+            ncomp = 2
+            # means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
+            clf = Gaussian_mixture(data_all, ncomp, var)
+            # print('shapes: ', clf.means_.shape, clf.covariances_.shape, clf.weights_.shape, len(zrange))
+            mean_tot, covar_tot = covariance_estimate_from_multicomp_pdf(clf)
+            corr, corr_tot = compute_correlation(clf.covariances_, covar_tot, ncomp)
+            plot_covar_matrix(covar_tot, corr_tot, zrange, zrange, var, ncomp)
 
-        print('')
+            print('')
 
-        # (b) Gaussian Mixture Model: ncomp = 3 (univar)
-        print('Gaussian Mixture Model: ncomp = 3')
-        ncomp = 3
-        # means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
-        clf = Gaussian_mixture(data_all, ncomp, var)
+            # (b) Gaussian Mixture Model: ncomp = 3 (univar)
+            print('Gaussian Mixture Model: ncomp = 3')
+            ncomp = 3
+            # means, covariance, weights = Gaussian_mixture_univar(data, ncomp, var, np.int(d[0:-3]), zrange[0] * dx[2])
+            clf = Gaussian_mixture(data_all, ncomp, var)
 
-        # (c) Gaussian Mixture Model with flexible #components
-        print('Gaussian Mixture Model: BIC')
-        # nvar = len(var_list)*len(zrange)
-        # zmax = 2
-        # Gaussian_mixture_ncompselection(data_all[:,0:nvar],var, t)
+            # (c) Gaussian Mixture Model with flexible #components
+            print('Gaussian Mixture Model: BIC')
+            # nvar = len(var_list)*len(zrange)
+            # zmax = 2
+            # Gaussian_mixture_ncompselection(data_all[:,0:nvar],var, t)
 
-        # (d) Bayesian Gaussian Mixture Model
-        print('Bayesian Gaussian Mixture Model: dirichlet process')
-        # Bayesian_Gaussian_Mixture(data_all, var, np.int(d[0:-3]), zrange)
+            # (d) Bayesian Gaussian Mixture Model
+            print('Bayesian Gaussian Mixture Model: dirichlet process')
+            # Bayesian_Gaussian_Mixture(data_all, var, np.int(d[0:-3]), zrange)
 
-        # (e) Covariance Estimator (empirical; maximum likelihood)
-        # Covariance_empirical(data_all)
+            # (e) Covariance Estimator (empirical; maximum likelihood)
+            # Covariance_empirical(data_all)
 
-        # (f) Minimum Determinant Covariance
+            # (f) Minimum Determinant Covariance
 
-        # (g) Sparse Inverse Covariance
+            # (g) Sparse Inverse Covariance
 
-        # (h) Generalized Moment Method (statsmodel)
+            # (h) Generalized Moment Method (statsmodel)
+
+            return
+
+        inner_loop()
 
     '''BIVAR'''
     zmax = len(krange)
@@ -339,7 +350,7 @@ def compute_correlation(covar, covar_tot, ncomp):
     sigma_tot = np.ndarray(nvar)
     corr_tot = np.array(covar_tot, copy=True)
 
-    print('')
+    # print('')
     print('covar: ', covar.shape, covar_tot.shape, ncomp, nvar)
     print('sigma: ', sigma.shape, correlation.shape)
     print(sigma_tot.shape, corr_tot.shape)
