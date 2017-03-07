@@ -15,7 +15,7 @@ def main():
     # path_ref = os.path.join(path, 'Stats.Bomex.nc')
     # do_everything(path, path_ref)
 
-    path = '../test_bomex/'
+    path = '../test_bomex_n1024/'
     path_ref = os.path.join(path, 'Stats.Bomex.nc')
     # do_everything(path, path_ref)
     do_everything_with_pycles(path, path_ref)

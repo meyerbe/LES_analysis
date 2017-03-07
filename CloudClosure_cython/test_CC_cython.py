@@ -5,6 +5,7 @@ import json as  simplejson
 
 import numpy as np
 import pylab as plt
+import time
 
 # import matplotlib as plt
 from math import fabs
@@ -161,6 +162,7 @@ def main():
 
         T = compute_t_no_ql(s_, qt_, ql_, T_, p_ref)
 
+        time1 = time.clock()
         for i in range(nx[0]):
             for j in range(nx[1]):
                 # for k in zrange:
@@ -171,14 +173,13 @@ def main():
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],qt_[i, j, k])
                     # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_double(p_ref[k], s_[i, j, k],
                     #                                                                         qt_[i, j, k])
-                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
-                                                                                   qt_[i, j, k], CC, LH)
+                    # T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
+                    #                                                                qt_[i, j, k], CC, LH)
                     T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy_c(p_ref[k], s_[i, j, k],
                                                                                   qt_[i, j, k], CC_c, LH)
 
-
-                    theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
-                    T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
+                    # theta_l[i, j, k] = theta_li(p_ref[k], T_[i, j, k], qt_[i, j, k], ql_[i, j, k], 0)
+                    # T_comp_thl[i, j, k], ql_comp_thl[i, j, k], alpha_thl[i, j, k] = sat_adj_fromthetali(p_ref[k], theta_l[i, j, k],qt_[i, j, k])
 
                     # if (alpha[i,j,k] - alpha_[i,j,k]) > 0:
                     if alpha_[i,j,k] > 0:
@@ -197,21 +198,21 @@ def main():
                             max_T_unsat = np.abs(T_comp[i,j,k] - T_[i, j, k])
                             # print('unsat max T: ', max_T_unsat)
 
-                    if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
-                        max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-                    elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
-                        min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
-
-                    if ql_comp_thl[i,j,k] > 0.0 and alpha_thl[i,j,k] > 0:
-                        print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
-                        if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
-                            max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
-                    elif alpha_thl[i,j,k] == 0:
-                        print('alpha_thl = 0', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]))
-                        # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
-                        if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
-                            max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
-
+                    # if (ql_comp_thl[i,j,k] - ql_[i,j,k]) > max_ql_thl:
+                    #     max_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    # elif (ql_comp_thl[i,j,k] - ql_[i,j,k]) < min_ql_thl:
+                    #     min_ql_thl = ql_comp_thl[i,j,k] - ql_[i,j,k]
+                    #
+                    # if ql_comp_thl[i,j,k] > 0.0 and alpha_thl[i,j,k] > 0:
+                    #     print('sat: ', np.abs(T_comp_thl[i,j,k] - T_[i,j,k]))
+                    #     if np.abs(T_comp_thl[i,j,k] - T_[i,j,k]) > max_T_sat_thl:
+                    #         max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T_[i,j,k])
+                    # elif alpha_thl[i,j,k] == 0:
+                    #     print('alpha_thl = 0', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]))
+                    #     # print('unsat', np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) )
+                    #     if np.abs(T_comp_thl[i,j,k]-T_[i,j,k]) > max_T_unsat_thl:
+                    #         max_T_unsat_thl = np.abs(T_comp_thl[i,j,k]-T_[i,j,k])
+        time2 = time.clock()
 
         print('')
         print('From Entropy (CC_c):')
@@ -227,36 +228,37 @@ def main():
         print('max ql:', max_ql_thl)                # max_ql = 3.31e-5
         print('min ql:', min_ql_thl)                # min_ql = 0.0
         print('')
+        print('time: ', time2-time1)
+        print('')
+        for k in zrange:
+            for i in range(nx[0]):
+                for j in range(nx[1]):
+                    T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
+                                    qt_[i, j, k], CC, LH)
 
-    #     # for k in zrange:
-    #     #     for i in range(nx[0]):
-    #     #         for j in range(nx[1]):
-    #     #             T_comp[i, j, k], ql_comp[i, j, k], alpha[i, j, k] = sat_adj_fromentropy(p_ref[k], s_[i, j, k],
-    #     #                             qt_[i, j, k], CC, LH)
-    #     #
-    #     #             if (ql_comp[i, j, k] - ql_[i, j, k]) > max_ql:
-    #     #                 max_ql = (ql_comp[i, j, k] - ql_[i, j, k])
-    #     #             elif (ql_comp[i, j, k] - ql_[i, j, k]) < min_ql:
-    #     #                 min_ql = (ql_comp[i, j, k] - ql_[i, j, k])
-    #     #
-    #     #             if ql_[i, j, k] > 0.0 and alpha[i, j, k] > 0.0:
-    #     #                 if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_sat:
-    #     #                     max_T_sat = np.abs(T_comp[i, j, k] - T_[i, j, k])
-    #     #             elif alpha[i, j, k] == 0.0:
-    #     #                 if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_unsat:
-    #     #                     max_T_unsat = np.abs(T_comp[i, j, k] - T_[i, j, k])
-    #     #                     # print('unsat max T: ', max_T_unsat)
-    #     #
-    #     #
-    #     # print('')
-    #     # print('From Entropy (CC):')
-    #     # print('max T sat: ', max_T_sat)  # max_T_sat = 0.096
-    #     # print('max T unsat: ', max_T_unsat)  # max_T_unsat = 0.05
-    #     # print('max ql:', max_ql)  # max_ql = 4.4e-5
-    #     # print('min ql:', min_ql)  # min_ql = -6.7e-5
-    #     # print('')
-        #
-        #
+                    if (ql_comp[i, j, k] - ql_[i, j, k]) > max_ql:
+                        max_ql = (ql_comp[i, j, k] - ql_[i, j, k])
+                    elif (ql_comp[i, j, k] - ql_[i, j, k]) < min_ql:
+                        min_ql = (ql_comp[i, j, k] - ql_[i, j, k])
+
+                    if ql_[i, j, k] > 0.0 and alpha[i, j, k] > 0.0:
+                        if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_sat:
+                            max_T_sat = np.abs(T_comp[i, j, k] - T_[i, j, k])
+                    elif alpha[i, j, k] == 0.0:
+                        if np.abs(T_comp[i, j, k] - T_[i, j, k]) > max_T_unsat:
+                            max_T_unsat = np.abs(T_comp[i, j, k] - T_[i, j, k])
+                            # print('unsat max T: ', max_T_unsat)
+
+
+        print('')
+        print('From Entropy (CC):')
+        print('max T sat: ', max_T_sat)  # max_T_sat = 0.096
+        print('max T unsat: ', max_T_unsat)  # max_T_unsat = 0.05
+        print('max ql:', max_ql)  # max_ql = 4.4e-5
+        print('min ql:', min_ql)  # min_ql = -6.7e-5
+        print('')
+
+
         # # plot_snapshots(ql_, ql_comp, alpha_, alpha, 'ql', zrange)
         # # plot_snapshots(T_, T_comp, alpha_, alpha, 'T', zrange)
         # # plot_snapshots(theta_l, theta_l, alpha_, alpha, 'thetali', zrange)

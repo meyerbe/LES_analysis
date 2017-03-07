@@ -75,6 +75,8 @@ cpdef do_everything_with_pycles(path, path_ref):
 
     # (0) Namelist File
     nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
+    nx = nml['grid']['nx']
+    ny = nml['grid']['ny']
     nz = nml['grid']['nz']
     gw = nml['grid']['gw']
 
@@ -110,27 +112,36 @@ cpdef do_everything_with_pycles(path, path_ref):
         double s, qt, T, ql, qv
         double pv, pd
         double T_unsat
+        double T_max = -9999.9
     i = 10
     j = 10
-    for k in [10,20,30]:
-        s = s_[i,j,k]
-        qt = qt_[i,j,k]
-        ql = ql_[i,j,k]
-        T = T_[i,j,k]
-        pref = p_ref[k]
-        qv = qt
 
-        pv = pv_c(pref, qt, qv)
-        pd = pd_c(pref, qt, qv)
-        # pd = pref - pv
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+    # for k in [10,20,30]:
+                s = s_[i,j,k]
+                qt = qt_[i,j,k]
+                ql = ql_[i,j,k]
+                T = T_[i,j,k]
+                pref = p_ref[k]
+                qv = qt
 
-        T_unsat = temperature_no_ql(pd, pv, s, qt)
+                pv = pv_c(pref, qt, qv)
+                pd = pd_c(pref, qt, qv)
+                # pd = pref - pv
 
-        print('difference: ', T - T_unsat)
-        print('ql=', ql)
-        print('T', T, s)
-        print('')
-        print('')
+                T_unsat = temperature_no_ql(pd, pv, s, qt)
+                if ql == 0.0:
+                    if np.abs(T_unsat - T) > T_max:
+                        T_max = np.abs(T_unsat - T)
+
+    print('difference: ', T_max)
+    # print('difference: ', T - T_unsat)
+    # print('ql=', ql)
+    # print('T', T, s)
+    print('')
+    print('')
 
 
 
@@ -198,7 +209,6 @@ cpdef do_everything_with_pycles(path, path_ref):
     # print('')
 
     ########### output at ijk=imin*istride+jmin*istride+(kmin+1) #################
-
     s = 6963.49595557
     qt = 0.0167766796152
     qv = qt
