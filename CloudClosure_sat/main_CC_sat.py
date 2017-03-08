@@ -35,14 +35,13 @@ def main():
 
     ClCl = CloudClosure.CloudClosure()
     ClCl.initialize(path, path_ref)
-    ClCl.verification_CC(path, path_ref)
+    # ClCl.verification_CC(path, path_ref)
 
-    print('--- PDF Prediction ---')
     print('')
     ncomp = 2
-    zrange = np.arange(6, 20, 8)
-    print('zrange', zrange*dz)
-    ClCl.predict_pdf(path, path_ref, ncomp)
+    krange = np.arange(6, 20, 8)
+    print('zrange', krange*dz)
+    ClCl.predict_pdf(path, path_ref, ncomp, krange, nml)
 
     return
 

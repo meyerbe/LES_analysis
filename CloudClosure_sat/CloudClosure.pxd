@@ -19,6 +19,6 @@ cdef class CloudClosure:
 
     cpdef initialize(self, path, path_ref)
     cpdef verification_CC(self, path, path_ref)
-    cpdef predict_pdf(self, path, path_ref, ncomp)
+    cpdef predict_pdf(self, path, path_ref, ncomp_, krange_, nml)
 
 # cpdef do_everything(path)
