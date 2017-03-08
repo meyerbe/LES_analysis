@@ -69,4 +69,6 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
 
 cpdef sat_adj_fromentropy(double p0, double s, double qt, ClausiusClapeyron CC, LatentHeat LH)
 
+cpdef sat_adj_fromthetali_c(p, thl, qt)
+
 

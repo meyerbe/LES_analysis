@@ -16,7 +16,7 @@ from sklearn import mixture
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
-from CC_thermodynamics_c import sat_adj_fromentropy
+from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali_c
 
 
 cdef class CloudClosure:
@@ -397,19 +397,18 @@ cdef class CloudClosure:
         '''(2) Read in Fields'''
         cdef:
             double [:,:,:] s_
-            double [:,:,:] qt_
             double [:,:,:] T_
+            double [:,:,:] qt_
+            double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
             # double [:,:,:] qi_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double qi_ = 0.0
             # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            int alpha_comp
+            # double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             int ishift = ny
-            int ij
+            int i, j, ij
             double Lv
         var_list = ['s', 'qt', 'temperature', 'ql']
         data_all = np.ndarray(shape=(0, nvar))
@@ -418,6 +417,7 @@ cdef class CloudClosure:
         covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
         for k in range(nk):
             iz = krange[k]
+            time_a = time.clock()
             for d in files:
                 nc_file_name = d
                 path_fields = os.path.join(path, 'fields', nc_file_name)
@@ -445,12 +445,17 @@ cdef class CloudClosure:
                 data[:, 0] = theta_l[:, k]
                 data[:, 1] = qt[:, k]
                 data_all = np.append(data_all, data, axis=0)
-            clf = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
-            means_[k, :, :] = clf.means_[:, :]
-            covariance_[k,:,:,:] = clf.covariances_[:,:,:]
+            time_b = time.clock()
+            print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
+            time_a = time.clock()
+            clf_thl = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            means_[k, :, :] = clf_thl.means_[:, :]
+            covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
+            time_b = time.clock()
+            print('time for GMM for z='+str(iz*dz)+': '+str(time_b-time_a))
 
             '''(5) Compute Kernel-Estimate PDF '''
-            kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
 
         #     relative_entropy(data, clf, kde)
 
@@ -464,20 +469,52 @@ cdef class CloudClosure:
 
 
         '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
-        #       1. sample from PDF (Monte Carlo ???
-        #       2. compute for samples the ql
+        #       1. sample (th_l, qt) from PDF (Monte Carlo ???
+        #       2. compute ql for samples
         #       3. consider ensemble average <ql> = domain mean representation???
+        time_a = time.clock()
+        cdef:
+            int n_sample = np.int(1e2)
+            # double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
+        alpha_comp = np.zeros(n_sample)
+        alpha_comp_thl = np.zeros(n_sample)
 
+        # S, y = clf.sample(n_samples=n_sample)
+        # print('clf samples: ', S.shape, y.shape)
+        Th_l, y = clf_thl.sample(n_samples=n_sample)
+        print('clf thl samples: ', Th_l.shape, y.shape)
+        # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
+        # print('index ref', index_ref)
+        # print('iz', iz)
+        # print('zrange', zrange)
+        # S, y = clf_s.sample(n_samples=nn)
+        # S_norm, y = clf_s_norm.sample(n_samples=nn)
+        time_b = time.clock()
+        print('time clf.sample: ', time_b-time_a)
 
-        for i in range(nx):
-            for j in range(ny):
-                for k in range(len(krange)):
-                    iz = krange[k]
-                    # (4) ql from data (s, qt) sampled fromPDF
-                    T_comp[i,j,k], ql_comp[i,j,k], alpha_comp = sat_adj_fromentropy(p_ref[iz], s_[i,j,iz], qt_[i,j,iz], CC, LH)
+        for i in range(n_sample):
+            pass
+            # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
+            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali_c(p_ref[iz - 1], Th_l[i, 0], Th_l[i, 1])
+        #     plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
+        #     plot_sat_adj(T_comp_thl, ql_comp_thl, Th, data_thl, data_ql, 'thl', 'qt', nn, t, iz * dz)
+
+        # for i in range(nx):
+        #     for j in range(ny):
+        #         for k in range(len(krange)):
+        #             iz = krange[k]
+        #             # (4) ql from data (s, qt) sampled fromPDF
+        #             T_comp[i,j,k], ql_comp[i,j,k], alpha_comp = sat_adj_fromentropy(p_ref[iz], s_[i,j,iz], qt_[i,j,iz], CC, LH)
 
         time2 = time.clock()
-        print('time: ', time2-time1)
+        print('total time: ', time2-time1)
 
         return
 
@@ -528,7 +565,7 @@ cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z):
     return clf
 
 #----------------------------------------------------------------------
-def Kernel_density_estimate(data, var_name1, var_name2, time, z):
+cdef Kernel_density_estimate(data, var_name1, var_name2, time_, z, fullpath_out):
     from sklearn.neighbors.kde import KernelDensity
     ''' Kerne Density Estimation:
     from sklearn.neighbors import KernelDensity
@@ -546,113 +583,128 @@ def Kernel_density_estimate(data, var_name1, var_name2, time, z):
     'metric_params': None
     'algorithm': 'auto'
     '''
-    amp = 100
-    # data_aux = np.ndarray(shape=((nx * ny), nvar))
-    # data_aux[:, 0] = data[:, 0]
-    # data_aux[:, 1] = data[:, 1] * amp
 
-#     # construct a kernel density estimate of the distribution
-#     print(" - computing KDE in spherical coordinates")
-#     # kde = KernelDensity(bandwidth=0.04, metric='haversine',
-#     #                     kernel='gaussian', algorithm='ball_tree')
-#     # kde.fit(Xtrain[ytrain == i])
-#
-#     # Plotting
-#     n_sample = 100
-#     x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
-#     y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
-#     X, Y = np.meshgrid(x_, y_)
-#     XX = np.array([X.ravel(), Y.ravel()]).T
-#
-#     x_aux = np.linspace(np.amin(data_aux[:, 0]), np.amax(data_aux[:, 0]), n_sample)
-#     y_aux = np.linspace(np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1]), n_sample)
-#     X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
-#     XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
-#
-#
-#
-#     fig = plt.figure(figsize=(12, 16))
-#     plt.subplot(3, 2, 1)
-#     bw = 5e-2
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    print('kde: ', data.shape)
+    cdef:
+        double [:,:] data_aux = data
+        int amp = 100
+        int ij
+        int ij_max = data.shape[0]
+        double bw
+    # data_aux = np.ndarray(shape=(data.shape))
+    # data_aux[:, 0] = data[:, 0]
+    print('start loop')
+    for ij in range(ij_max):
+        data_aux[ij, 1] = data[ij, 1] * amp
+
+    print('end loop')
+    # construct a kernel density estimate of the distribution
+    # kde = KernelDensity(bandwidth=0.04, metric='haversine',
+    #                     kernel='gaussian', algorithm='ball_tree')
+    # kde.fit(Xtrain[ytrain == i])
+    bw = 5e-2
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    print('after kde')
+    # kde.score_samples(data)
+    # print('after kde score')
+
+    # Plotting
+    n_sample = 100
+    x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    X, Y = np.meshgrid(x_, y_)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    x_aux = np.linspace(np.amin(data_aux[:, 0]), np.amax(data_aux[:, 0]), n_sample)
+    y_aux = np.linspace(np.amin(data_aux[:, 1]), np.amax(data_aux[:, 1]), n_sample)
+    X_aux, Y_aux = np.meshgrid(x_aux, y_aux)
+    XX_aux = np.array([X_aux.ravel(), Y_aux.ravel()]).T
+
+    print('start figure')
+    fig = plt.figure(figsize=(12, 16))
+    plt.subplot(3, 2, 1)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    time3 = time.clock()
+    print('before score')
+    Z_log = kde.score_samples(XX_aux).reshape(X.shape)
+    time4 = time.clock()
+    # print('after score, time = ', time4-time3)
+
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    # ax1 = plt.contour(X_aux, Y_aux, Z_log)
+    # plt.colorbar(ax1, shrink=0.8)
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = '+str(bw))
+
+    plt.subplot(3, 2, 2)
+    bw = 3e-2
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    # kde.score_samples(data)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    # Z_log = kde.score_samples(XX_aux).reshape(X.shape)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    # ax1 = plt.contour(X_aux, Y_aux, Z_log)
+    # plt.colorbar(ax1, shrink=0.8)
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = ' + str(bw))
+
+    plt.subplot(3, 2, 3)
+    bw = 1e-2
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    # kde.score_samples(data)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
 #     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
 #     ax1 = plt.contour(X_aux, Y_aux, Z_log)
 #     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = '+str(bw))
-#
-#     plt.subplot(3, 2, 2)
-#     bw = 3e-2
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = ' + str(bw))
+
+    plt.subplot(3, 2, 4)
+    bw = 8e-3
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    # kde.score_samples(data)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
 #     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
 #     ax1 = plt.contour(X_aux, Y_aux, Z_log)
 #     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = ' + str(bw))
-#
-#     plt.subplot(3, 2, 3)
-#     bw = 1e-2
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = ' + str(bw))
+
+    plt.subplot(3, 2, 5)
+    bw = 5e-3
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    # kde.score_samples(data)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
 #     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
 #     ax1 = plt.contour(X_aux, Y_aux, Z_log)
 #     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = ' + str(bw))
-#
-#     plt.subplot(3, 2, 4)
-#     bw = 8e-3
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = ' + str(bw))
+
+    plt.subplot(3, 2, 6)
+    bw = 2e-3
+    kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
+    # kde.score_samples(data)
+    # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
 #     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
+    plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
 #     ax1 = plt.contour(X_aux, Y_aux, Z_log)
 #     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = ' + str(bw))
-#
-#     plt.subplot(3, 2, 5)
-#     bw = 5e-3
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
-#     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
-#     ax1 = plt.contour(X_aux, Y_aux, Z_log)
-#     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = ' + str(bw))
-#
-#     plt.subplot(3, 2, 6)
-#     bw = 2e-3
-#     kde = KernelDensity(kernel='gaussian', bandwidth=bw).fit(data_aux)
-#     # kde.score_samples(data)
-#     # Z = np.exp(kde.score_samples(XX_aux)).reshape(X.shape)
-#     Z_log = kde.score_samples(XX_aux).reshape(X.shape)
-#     plt.scatter(data_aux[:, 0], data_aux[:, 1], s=5, alpha=0.2)
-#     ax1 = plt.contour(X_aux, Y_aux, Z_log)
-#     plt.colorbar(ax1, shrink=0.8)
-#     labeling(var_name1, var_name2, amp)
-#     plt.title('bw = ' + str(bw))
-#
-#     fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
-#     plt.savefig(os.path.join(fullpath_out,'CloudClosure_alltimes_figures','CC_' + var_name1 + '_' + var_name2 + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
-#     plt.close()
-#
-#     print('KDE shapes: ', kde.score_samples(XX).shape, X.shape)
-#     print(kde.get_params())
-#
-#     return kde, kde
-#
+    labeling(var_name1, var_name2, amp)
+    plt.title('bw = ' + str(bw))
+
+    fig.suptitle('Cloud Closure: Kernel Density Estimate (gaussian)', fontsize=20)
+    plt.savefig(os.path.join(fullpath_out,'CloudClosure_alltimes_figures','CC_' + var_name1 + '_' + var_name2 + '_z' + str(np.int(z)) + 'm_KDE_alltime.png'))
+    plt.close()
+#     plt.show()
+
+    print('KDE shapes: ', kde.score_samples(XX).shape, X.shape)
+    print(kde.get_params())
+
+    return kde, kde
+
 #----------------------------------------------------------------------
 def labeling(var_name1, var_name2, amp):
     plt.xlabel(var_name1)

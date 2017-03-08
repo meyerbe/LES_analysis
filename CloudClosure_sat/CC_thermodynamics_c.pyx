@@ -297,7 +297,7 @@ cpdef sat_adj_fromentropy(double p0, double s, double qt, ClausiusClapeyron CC, 
 #     return T, ql, alpha
 
 
-def sat_adj_fromthetali_c(p, thl, qt):
+cpdef sat_adj_fromthetali_c(p, thl, qt):
     print ('')
     print('saturation adjustment from thetali')
     '''
@@ -324,77 +324,77 @@ def sat_adj_fromthetali_c(p, thl, qt):
             --> defined in Csrc/entropies.h
     '''
 
-#     sys.path.append("../Thermo/")
-#     from thermodynamic_functions import pv_c, temperature_no_ql_from_thetali, CC_Magnus, qv_star_c, latent_heat
-#     # from thermodynamic_functions import s_dry, s_vap, s_cond
-#     from thermodynamic_functions import theta_li
-#     from parameters import cpd, cpv
-#
-#     qv = qt.astype(np.double)
-#     ql = np.double(0.0)
-#
-#     ''' (1) starting point (first guess): pv, pd, T (assumption: no liquid, i.e. qv=qt) '''
-#     pv_1 = pv_c(p,qt,qt)
-#     pd_1 = p - pv_1
-#     # !!!!!!!
-#     T_1 = temperature_no_ql_from_thetali(pd_1, pv_1, thl, qt)
-#     # !!!!!!!
-#     pv_star_1 = CC_Magnus(T_1)                  # eos_c: pv_star_1 = lookup(LT, T_1) # ???
-#     qv_star_1 = qv_star_c(p, qt, pv_star_1)    # eos_c: same
-#
-#     ''' (2) Check if saturated or not '''
-#     if (qt <= qv_star_1):
-#         T = T_1
-#         ql = 0.0
-#         # print("not saturated: (thl,qt)=", round(thl,2), round(qt,4), round(T,1))
-#         alpha = 0
-#     else:
-#         ''' (3) if saturated: calculate second starting point T_2 '''
-#         # print("air saturated: (thl,qt)=", round(thl,2), round(qt,4))
-#         alpha = 1
-#         ql_1 = qt - qv_star_1               # eos_c: same; thermo.py = ql_1
-#         # !!!!
-#         L_1 = latent_heat(T_1)  # eos_c: L_1 = L_fp(T_1, lam_1)
-#         thl_1 = theta_li(p,T_1,qt,ql_1,0)
-#         f_1 = thl - thl_1
-#         # s_1 = s_dry(pd_1, T_1) * (1.0 - qt) + s_vap(pv_1, T_1) * qt + s_cond(L_1, T_1) * ql_1
-#         # f_1 = s - s_1
-#         # !!!!
-#         T_2 = T_1 + ql_1 * L_1 / ((1.0 - qt) * cpd + qv_star_1 * cpv)
-#         delta_T = np.abs(T_2 - T_1)
-#
-#         count = 0
-#         pv_star_2 = CC_Magnus(T_2)  # pv_star_2 = lookup(LT, T_2)
-#         qv_star_2 = qv_star_c(p, qt, pv_star_2)
-#         ql_2 = qt - qv_star_2
-#         while(delta_T >= 1.0e-3 or ql_2 < 0.0):
-#             # print('do loop: T2=' + str(T_2)+ ', ql2='+str(ql_2) + ', deltaT='+str(delta_T))
-#             pv_star_2 = CC_Magnus(T_2)      # pv_star_2 = lookup(LT, T_2)
-#             qv_star_2 = qv_star_c(p, qt, pv_star_2)
-#             pv_2 = pv_c(p, qt, qv_star_2)
-#             pd_2 = p - pv_2
-#             ql_2 = qt - qv_star_2
-#             if ql_2 < 0:
-#                 print('ql_2 negative in satadj_thl (count='+str(count)+')!', ql_2, 'delta T:', delta_T)
-#
-#             # !!!!!
-#             L_2 = latent_heat(T_2)      # eos_c: L_2 = L_fp(T_2,lam_2)
-#             thl_2 = theta_li(p, T_2, qt, ql_2, 0)
-#             f_2 = thl - thl_2
-#             # s_2 = s_dry(pd_2,T_2)*(1.0-qt) + s_vap(pv_2,T_2)*qt + s_cond(L_2,T_2)*ql_2
-#             # f_2 = s - s_2
-#             # !!!!!
-#             T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
-#             T_1 = T_2
-#             T_2 = T_n
-#             f_1 = f_2
-#             delta_T = np.abs(T_2 - T_1)
-#             count += 1
-#         T = T_2
-#         qv = qv_star_2
-#         ql = ql_2
-#         print('count = ', count)
-    T = 0.0
-    ql = 0.0
-    alpha = 0.0
+    sys.path.append("../Thermo/")
+    from thermodynamic_functions import pv_c, temperature_no_ql_from_thetali, CC_Magnus, qv_star_c, latent_heat
+    # from thermodynamic_functions import s_dry, s_vap, s_cond
+    from thermodynamic_functions import theta_li
+    from parameters import cpd, cpv
+
+    qv = qt.astype(np.double)
+    ql = np.double(0.0)
+
+    ''' (1) starting point (first guess): pv, pd, T (assumption: no liquid, i.e. qv=qt) '''
+    pv_1 = pv_c(p,qt,qt)
+    pd_1 = p - pv_1
+    # !!!!!!!
+    T_1 = temperature_no_ql_from_thetali(pd_1, pv_1, thl, qt)
+    # !!!!!!!
+    pv_star_1 = CC_Magnus(T_1)                  # eos_c: pv_star_1 = lookup(LT, T_1) # ???
+    qv_star_1 = qv_star_c(p, qt, pv_star_1)    # eos_c: same
+
+    ''' (2) Check if saturated or not '''
+    if (qt <= qv_star_1):
+        T = T_1
+        ql = 0.0
+        # print("not saturated: (thl,qt)=", round(thl,2), round(qt,4), round(T,1))
+        alpha = 0
+    else:
+        ''' (3) if saturated: calculate second starting point T_2 '''
+        # print("air saturated: (thl,qt)=", round(thl,2), round(qt,4))
+        alpha = 1
+        ql_1 = qt - qv_star_1               # eos_c: same; thermo.py = ql_1
+        # !!!!
+        L_1 = latent_heat(T_1)  # eos_c: L_1 = L_fp(T_1, lam_1)
+        thl_1 = theta_li(p,T_1,qt,ql_1,0)
+        f_1 = thl - thl_1
+        # s_1 = s_dry(pd_1, T_1) * (1.0 - qt) + s_vap(pv_1, T_1) * qt + s_cond(L_1, T_1) * ql_1
+        # f_1 = s - s_1
+        # !!!!
+        T_2 = T_1 + ql_1 * L_1 / ((1.0 - qt) * cpd + qv_star_1 * cpv)
+        delta_T = np.abs(T_2 - T_1)
+
+        count = 0
+        pv_star_2 = CC_Magnus(T_2)  # pv_star_2 = lookup(LT, T_2)
+        qv_star_2 = qv_star_c(p, qt, pv_star_2)
+        ql_2 = qt - qv_star_2
+        while(delta_T >= 1.0e-3 or ql_2 < 0.0):
+            # print('do loop: T2=' + str(T_2)+ ', ql2='+str(ql_2) + ', deltaT='+str(delta_T))
+            pv_star_2 = CC_Magnus(T_2)      # pv_star_2 = lookup(LT, T_2)
+            qv_star_2 = qv_star_c(p, qt, pv_star_2)
+            pv_2 = pv_c(p, qt, qv_star_2)
+            pd_2 = p - pv_2
+            ql_2 = qt - qv_star_2
+            if ql_2 < 0:
+                print('ql_2 negative in satadj_thl (count='+str(count)+')!', ql_2, 'delta T:', delta_T)
+
+            # !!!!!
+            L_2 = latent_heat(T_2)      # eos_c: L_2 = L_fp(T_2,lam_2)
+            thl_2 = theta_li(p, T_2, qt, ql_2, 0)
+            f_2 = thl - thl_2
+            # s_2 = s_dry(pd_2,T_2)*(1.0-qt) + s_vap(pv_2,T_2)*qt + s_cond(L_2,T_2)*ql_2
+            # f_2 = s - s_2
+            # !!!!!
+            T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
+            T_1 = T_2
+            T_2 = T_n
+            f_1 = f_2
+            delta_T = np.abs(T_2 - T_1)
+            count += 1
+        T = T_2
+        qv = qv_star_2
+        ql = ql_2
+        print('count = ', count)
+    # T = 0.0
+    # ql = 0.0
+    # alpha = 0.0
     return T, ql, alpha
