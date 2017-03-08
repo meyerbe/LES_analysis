@@ -15,6 +15,7 @@ from sklearn import mixture
 
 
 import CC_thermodynamics_c
+from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy_c
 
 
@@ -382,9 +383,12 @@ cdef class CloudClosure:
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
         print('initializing Clausius Clapeyron')
-        LH = CC_thermodynamics_c.LatentHeat(nml)
-        CC = CC_thermodynamics_c.ClausiusClapeyron()
+        cdef:
+            LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+            ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
+        # L_fp = LH.L_fp
+        # Lambda_fp = LH.Lambda_fp
 
 
         # ________________________________________________________________________________________
@@ -405,10 +409,15 @@ cdef class CloudClosure:
             double [:,:,:] ql_
             # double [:,:,:] qi_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double qi_ = 0.0
-            double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             int alpha_comp
+            int ishift = ny
+            int ij
+            double Lv
         var_list = ['s', 'qt', 'temperature', 'ql']
         data_all = np.ndarray(shape=(0, nvar))
         data = np.ndarray(shape=((nx * ny), nvar))
@@ -423,54 +432,57 @@ cdef class CloudClosure:
                 s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
                 for i in range(nx):
                     for j in range(ny):
+                        ij = i*ishift + j
                         '''(3) Compute liquid potential temperature from temperature and moisture'''
                         # theta_l[i,j,k] = thetali_c(p_ref[iz],T_[i,j,iz],qt_[i,j,iz],ql_[i,j,iz],qi_, LH)
                         # thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
+                        Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
+                        theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
+                        qt[ij,k] = qt_[i,j,iz]
+
 
                 '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
-        #         data1_ = theta_l.reshape((nx * ny), nz)
-        #         data2_ = qt_.reshape((nx * ny), nz)
-        #         data[:, 0] = data1_[:, iz]
-        #         data[:, 1] = data2_[:, iz]
-        #         data_all = np.append(data_all, data, axis=0)
-        #     clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+                # data1_ = theta_l.reshape((nx * ny), nz)
+                # data2_ = qt_.reshape((nx * ny), nz)
+                # data[:, 0] = data1_[:, iz]
+                # data[:, 1] = data2_[:, iz]
+                data[:, 0] = theta_l[:, k]
+                data[:, 1] = qt[:, k]
+                # data_all = np.append(data_all, data, axis=0)
+            # clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
         #     means_[k, :, :] = clf.means_[:, :]
         #     covariance_[k,:,:,:] = clf.covariances_[:,:,:]
         #
-        #     '''(5) Compute Kernel-Estimate PDF '''
+            '''(5) Compute Kernel-Estimate PDF '''
         #     kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
         #
         #     relative_entropy(data, clf, kde)
         #
-        # '''(6) Save Gaussian Mixture PDFs '''
+        '''(6) Save Gaussian Mixture PDFs '''
         # # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
         # # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
-        #
-        #
-        # print('')
-        #
-        #
-        #
-        # '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
-        # #       1. sample from PDF (Monte Carlo ???
-        # #       2. compute for samples the ql
-        # #       3. consider ensemble average <ql> = domain mean representation???
 
-        #
-        # for i in range(nx):
-        #         for j in range(ny):
-        #             for k in range(len(krange)):
-        #                 iz = krange[k]
-        #                 # (4) ql from data (s, qt) sampled fromPDF
-        #                 T_comp[i,j,k], ql_comp[i,j,k], alpha_comp = sat_adj_fromentropy(p_ref[iz], s_[i,j,iz], qt_[i,j,iz], CC, LH)
-        #
-        # #         # T, ql, qi = sat_adj(p0, 6500, 1e-3)
-        #
-        #
-        #
+
+        print('')
+
+
+
+        '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
+        #       1. sample from PDF (Monte Carlo ???
+        #       2. compute for samples the ql
+        #       3. consider ensemble average <ql> = domain mean representation???
+
+
+        for i in range(nx):
+            for j in range(ny):
+                for k in range(len(krange)):
+                    iz = krange[k]
+                    # (4) ql from data (s, qt) sampled fromPDF
+                    T_comp[i,j,k], ql_comp[i,j,k], alpha_comp = sat_adj_fromentropy(p_ref[iz], s_[i,j,iz], qt_[i,j,iz], CC, LH)
+
         time2 = time.clock()
         print('time: ', time2-time1)
 
@@ -480,73 +492,73 @@ cdef class CloudClosure:
 
 
 # #----------------------------------------------------------------------
-# def relative_entropy(data, clf, kde):
-#     print('Relative Entropy')
-#     # rel_ent_clf = D(p_clf || p_kde)
-#     # rel_ent_kde = D(p_kde || p_clf )
-#
-#     rel_ent_clf = 0
-#     rel_ent_kdf = 0
-#     n_sample = 50
-#     x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
-#     y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
-#     X, Y = np.meshgrid(x_, y_)
-#     XX = np.array([X.ravel(), Y.ravel()]).T
-#     Z_clf = np.exp(clf.score_samples(XX)).reshape(X.shape)
-#     Z_kde = np.exp(kde.score_samples(XX)).reshape(X.shape)
-#     for i in range(n_sample):
-#         for j in range(n_sample):
-#             rel_ent_clf += Z_clf[i,j] * np.log(Z_clf[i,j] / Z_kde[i,j])
-#             rel_ent_kdf += Z_kde[i, j] * np.log(Z_kde[i, j] / Z_clf[i, j])
-#
-#     print('rel entr D(clf || kdf): ', rel_ent_clf)
-#     print('rel entr D(kdf || clf): ', rel_ent_kdf)
-#     # rel_ent_clf_np = np.sum(Z_clf * np.log(Z_clf / Z_kde))
-#     # rel_ent_kdf_np = np.sum(Z_kde * np.log(Z_kde / Z_clf))
-#
-#     return
-# #----------------------------------------------------------------------
-# def Gaussian_bivariate(data, var_name1, var_name2, time, z):
-#     global ncomp
-#     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
-#     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
-#     clf.fit(data)
-#     print('')
-#
-#     if var_name1 == 'qt' or var_name2 == 'qt':
-#         plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
-#         print('!!!! qt: factor 100')
-#     else:
-#         plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-#     # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-#
-#     # return clf.means_, clf.covariances_, clf.weights_
-#     return clf
-#
-# #----------------------------------------------------------------------
-# def Kernel_density_estimate(data, var_name1, var_name2, time, z):
-#     from sklearn.neighbors.kde import KernelDensity
-#     ''' Kerne Density Estimation:
-#     from sklearn.neighbors import KernelDensity
-#
-#     Parameters:
-#     - bandwidth: The bandwidth here acts as a smoothing parameter, controlling the tradeoff between bias and variance
-#     in the result. A large bandwidth leads to a very smooth (i.e. high-bias) density distribution.
-#     A small bandwidth leads to an unsmooth (i.e. high-variance) density distribution.
-#     'metric': 'euclidean' (distance metric to use. Note that not all metrics are valid with all algorithms.)
-#     'atol': 0 (The desired absolute tolerance of the result.)
-#     'leaf_size': 40
-#     'kernel': 'gaussian'
-#     'rtol': 0 (The desired relative tolerance of the result. )
-#     'breadth_first': True
-#     'metric_params': None
-#     'algorithm': 'auto'
-#     '''
-#     amp = 100
-#     data_aux = np.ndarray(shape=((nx * ny), nvar))
-#     data_aux[:, 0] = data[:, 0]
-#     data_aux[:, 1] = data[:, 1] * amp
-#
+def relative_entropy(data, clf, kde):
+    print('Relative Entropy')
+    # rel_ent_clf = D(p_clf || p_kde)
+    # rel_ent_kde = D(p_kde || p_clf )
+
+    rel_ent_clf = 0
+    rel_ent_kdf = 0
+    n_sample = 50
+    x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
+    y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
+    X, Y = np.meshgrid(x_, y_)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z_clf = np.exp(clf.score_samples(XX)).reshape(X.shape)
+    Z_kde = np.exp(kde.score_samples(XX)).reshape(X.shape)
+    for i in range(n_sample):
+        for j in range(n_sample):
+            rel_ent_clf += Z_clf[i,j] * np.log(Z_clf[i,j] / Z_kde[i,j])
+            rel_ent_kdf += Z_kde[i, j] * np.log(Z_kde[i, j] / Z_clf[i, j])
+
+    print('rel entr D(clf || kdf): ', rel_ent_clf)
+    print('rel entr D(kdf || clf): ', rel_ent_kdf)
+    # rel_ent_clf_np = np.sum(Z_clf * np.log(Z_clf / Z_kde))
+    # rel_ent_kdf_np = np.sum(Z_kde * np.log(Z_kde / Z_clf))
+
+    return
+#----------------------------------------------------------------------
+def Gaussian_bivariate(data, var_name1, var_name2, time, z):
+    global ncomp
+    clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
+    # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
+    clf.fit(data)
+    print('')
+
+    # if var_name1 == 'qt' or var_name2 == 'qt':
+    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
+    #     print('!!!! qt: factor 100')
+    # else:
+    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    # # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    #
+    # # return clf.means_, clf.covariances_, clf.weights_
+    return clf
+
+#----------------------------------------------------------------------
+def Kernel_density_estimate(data, var_name1, var_name2, time, z):
+    from sklearn.neighbors.kde import KernelDensity
+    ''' Kerne Density Estimation:
+    from sklearn.neighbors import KernelDensity
+
+    Parameters:
+    - bandwidth: The bandwidth here acts as a smoothing parameter, controlling the tradeoff between bias and variance
+    in the result. A large bandwidth leads to a very smooth (i.e. high-bias) density distribution.
+    A small bandwidth leads to an unsmooth (i.e. high-variance) density distribution.
+    'metric': 'euclidean' (distance metric to use. Note that not all metrics are valid with all algorithms.)
+    'atol': 0 (The desired absolute tolerance of the result.)
+    'leaf_size': 40
+    'kernel': 'gaussian'
+    'rtol': 0 (The desired relative tolerance of the result. )
+    'breadth_first': True
+    'metric_params': None
+    'algorithm': 'auto'
+    '''
+    amp = 100
+    # data_aux = np.ndarray(shape=((nx * ny), nvar))
+    # data_aux[:, 0] = data[:, 0]
+    # data_aux[:, 1] = data[:, 1] * amp
+
 #     # construct a kernel density estimate of the distribution
 #     print(" - computing KDE in spherical coordinates")
 #     # kde = KernelDensity(bandwidth=0.04, metric='haversine',
@@ -649,18 +661,18 @@ cdef class CloudClosure:
 #
 #     return kde, kde
 #
-# #----------------------------------------------------------------------
-# def labeling(var_name1, var_name2, amp):
-#     plt.xlabel(var_name1)
-#     plt.ylabel(var_name2)
-#     if var_name1 == 'qt':
-#         plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
-#         plt.ylabel(var_name2)
-#     else:
-#         plt.xlabel(var_name1)
-#         plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
-#
-#     return
+#----------------------------------------------------------------------
+def labeling(var_name1, var_name2, amp):
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
+
+    return
 
 #----------------------------------------------------------------------
 def read_in_fields(group_name, var_list, path):
@@ -700,28 +712,28 @@ def read_in_netcdf(var_name, group_name, path):
 
 
 
-# #----------------------------------------------------------------------
-# def create_statistics_file(path,file_name, ncomp, nvar, nz_):
-#     # ncomp: number of Gaussian components in EM
-#     # nvar: number of variables of multi-variate Gaussian components
-#     global time, zrange
-#     print('create file:', path, file_name)
-#     rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
-#     dimgrp = rootgrp.createGroup('dims')
-#     means_grp = rootgrp.createGroup('means')
-#     means_grp.createDimension('nz', nz_)
-#     means_grp.createDimension('ncomp', ncomp)
-#     means_grp.createDimension('nvar', nvar)
-#     cov_grp = rootgrp.createGroup('covariances')
-#     cov_grp.createDimension('nz', nz_)
-#     cov_grp.createDimension('ncomp', ncomp)
-#     cov_grp.createDimension('nvar', nvar)
-#     weights_grp = rootgrp.createGroup('weights')
-#     weights_grp.createDimension('nz', nz_)
-#     weights_grp.createDimension('EM2', 2)
-#     ts_grp = rootgrp.createGroup('time')
-#     ts_grp.createDimension('nt',len(time)-1)
-#     var = ts_grp.createVariable('t','f8',('nt'))
+#----------------------------------------------------------------------
+def create_statistics_file(path,file_name, ncomp, nvar, nz_):
+    # ncomp: number of Gaussian components in EM
+    # nvar: number of variables of multi-variate Gaussian components
+    global time, zrange
+    print('create file:', path, file_name)
+    rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
+    dimgrp = rootgrp.createGroup('dims')
+    means_grp = rootgrp.createGroup('means')
+    means_grp.createDimension('nz', nz_)
+    means_grp.createDimension('ncomp', ncomp)
+    means_grp.createDimension('nvar', nvar)
+    cov_grp = rootgrp.createGroup('covariances')
+    cov_grp.createDimension('nz', nz_)
+    cov_grp.createDimension('ncomp', ncomp)
+    cov_grp.createDimension('nvar', nvar)
+    weights_grp = rootgrp.createGroup('weights')
+    weights_grp.createDimension('nz', nz_)
+    weights_grp.createDimension('EM2', 2)
+    ts_grp = rootgrp.createGroup('time')
+    ts_grp.createDimension('nt',len(time)-1)
+    var = ts_grp.createVariable('t','f8',('nt'))
 #     for i in range(len(time)-1):
 #         var[i] = time[i+1]
 #     z_grp = rootgrp.createGroup('z-profile')
@@ -731,8 +743,8 @@ def read_in_netcdf(var_name, group_name, path):
 #         var[i] = zrange[i]
 #     rootgrp.close()
 #     # print('create file end')
-#     return
-#
+    return
+
 # def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
 #     print('-------- dump variable --------', var_name, group_name, path)
 #     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
