@@ -39,21 +39,10 @@ cdef class Lookup:
         inline double fast_lookup(self, double x) nogil
 
 
-cdef class ClausiusClapeyron_c:
-    # cdef LatentHeat LH
-    # cdef LookupStruct LT
-    cdef:
-        double (*L_fp)(double T, double Lambda) nogil
-        double (*Lambda_fp)(double T) nogil
-    cdef Lookup LT
-    cpdef rhs(self, double z, double T)
-    cpdef initialize(self, namelist, LatentHeat LH)
-
 cdef class ClausiusClapeyron:
     cdef Lookup LT
     #def initialize(self,namelist,LatentHeat LH, ParallelMPI.ParallelMPI Par)
     cpdef finalize(self)
-
 
 
 cdef class LatentHeat:
@@ -79,7 +68,5 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
 
 
 cpdef sat_adj_fromentropy(double p0, double s, double qt, ClausiusClapeyron CC, LatentHeat LH)
-
-cpdef sat_adj_fromentropy_c(double p0, double s, double qt, ClausiusClapeyron_c CC, LatentHeat LH)
 
 

@@ -16,7 +16,7 @@ from sklearn import mixture
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
-from CC_thermodynamics_c import sat_adj_fromentropy_c
+from CC_thermodynamics_c import sat_adj_fromentropy
 
 
 cdef class CloudClosure:
@@ -158,7 +158,7 @@ cdef class CloudClosure:
         return
 
 
-
+    # ----------------------------------------------------------------------------------------------------
     cpdef verification_CC(self, path, path_ref):
         print('Verification')
         cdef extern from "thermodynamics_sa.h":
@@ -249,12 +249,8 @@ cdef class CloudClosure:
         # (3) saturation adjustment
         LH = CC_thermodynamics_c.LatentHeat(nml)
         print('done Lookup table')
-        CC_c = CC_thermodynamics_c.ClausiusClapeyron_c()
-        print('done CC __init__')
-        CC_c.initialize(nml, LH)
-        print('done CC')
-        # CC = CC_thermodynamics_c.ClausiusClapeyron()
-        # CC.initialize(nml, LH)
+        CC = CC_thermodynamics_c.ClausiusClapeyron()
+        CC.initialize(nml, LH)
         alpha_ = np.zeros(shape=(nx,ny,nz))
         T_comp = np.zeros(shape=(nx,ny,nz))
         ql_comp = np.zeros(shape=(nx,ny,nz))
@@ -297,8 +293,8 @@ cdef class CloudClosure:
                     qt = qt_[i,j,k]
                     ql = ql_[i,j,k]
                     T = T_[i,j,k]
-                    one, two, three = sat_adj_fromentropy_c(p_ref[k], s, qt, CC_c, LH)
-                    T_comp[i,j,k], ql_comp[i,j,k], alpha[i,j,k] = sat_adj_fromentropy_c(p_ref[k], s, qt, CC_c, LH)
+                    one, two, three = sat_adj_fromentropy(p_ref[k], s, qt, CC, LH)
+                    T_comp[i,j,k], ql_comp[i,j,k], alpha[i,j,k] = sat_adj_fromentropy(p_ref[k], s, qt, CC, LH)
                     if (ql_comp[i,j,k] - ql) > max_ql:
                         max_ql = (ql_comp[i,j,k] - ql)
                     elif (ql_comp[i,j,k] - ql) < min_ql:
@@ -323,7 +319,7 @@ cdef class CloudClosure:
         time2 = time.clock()
 
         print('')
-        print('From Entropy (CC_c):')
+        print('From Entropy (CC):')
         print('max T sat: ', max_T_sat)             # max_T_sat = 0.096
         print('max T unsat: ', max_T_unsat)         # max_T_unsat = 0.05
         print('max ql:', max_ql)                    # max_ql = 4.4e-5
@@ -342,7 +338,7 @@ cdef class CloudClosure:
 
 
 
-# ----------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------
     cpdef predict_pdf(self, path, path_ref, ncomp_, krange_, nml):
         print('')
         print('--- PDF Prediction ---')
@@ -353,7 +349,6 @@ cdef class CloudClosure:
             # inline double pv_c(const double p0, const double qt, const double qv)
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
         from CC_thermodynamics_c import sat_adj_fromentropy
-        import CC_thermodynamics_c
 
         time1 = time.clock()
 
@@ -370,6 +365,7 @@ cdef class CloudClosure:
             int nx = nml['grid']['nx']
             int ny = nml['grid']['ny']
             int nz = nml['grid']['nz']
+            int dz = nml['grid']['dz']
             double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')       # <type 'CloudClosure._memoryviewslice'>
 
         for k in range(nz):
@@ -387,12 +383,9 @@ cdef class CloudClosure:
             LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
             ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
-        # L_fp = LH.L_fp
-        # Lambda_fp = LH.Lambda_fp
 
 
         # ________________________________________________________________________________________
-
         '''(A) Compute PDF f(s,qt) from LES data'''
         #       - read in fields
         #       - compute theta_l
@@ -451,19 +444,19 @@ cdef class CloudClosure:
                 # data[:, 1] = data2_[:, iz]
                 data[:, 0] = theta_l[:, k]
                 data[:, 1] = qt[:, k]
-                # data_all = np.append(data_all, data, axis=0)
-            # clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
-        #     means_[k, :, :] = clf.means_[:, :]
-        #     covariance_[k,:,:,:] = clf.covariances_[:,:,:]
-        #
+                data_all = np.append(data_all, data, axis=0)
+            clf = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            means_[k, :, :] = clf.means_[:, :]
+            covariance_[k,:,:,:] = clf.covariances_[:,:,:]
+
             '''(5) Compute Kernel-Estimate PDF '''
-        #     kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
-        #
+            kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+
         #     relative_entropy(data, clf, kde)
-        #
+
         '''(6) Save Gaussian Mixture PDFs '''
-        # # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        # # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
 
 
         print('')
@@ -518,8 +511,8 @@ def relative_entropy(data, clf, kde):
 
     return
 #----------------------------------------------------------------------
-def Gaussian_bivariate(data, var_name1, var_name2, time, z):
-    global ncomp
+cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z):
+    cdef int ncomp = ncomp_
     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
@@ -531,8 +524,7 @@ def Gaussian_bivariate(data, var_name1, var_name2, time, z):
     # else:
     #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
     # # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    #
-    # # return clf.means_, clf.covariances_, clf.weights_
+
     return clf
 
 #----------------------------------------------------------------------
