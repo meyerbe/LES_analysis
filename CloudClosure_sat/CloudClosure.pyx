@@ -6,6 +6,11 @@ import netCDF4 as nc
 import json as simplejson
 import time
 
+from cpython cimport array
+import array
+import cython
+from cython cimport floating
+
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c import sat_adj_fromentropy_c
@@ -71,16 +76,7 @@ cdef class CloudClosure:
     #
     #     return
 
-    cpdef verification_CC(self, path, path_ref):
-        cdef extern from "thermodynamics_sa.h":
-            inline double temperature_no_ql(double pd, double pv, double s, double qt)
-        cdef extern from "thermodynamic_functions.h":
-            inline double pd_c(const double p0,const double qt, const double qv)
-            inline double pv_c(const double p0, const double qt, const double qv)
-
-        path_fields = os.path.join(path, 'fields', )
-
-        # (0) Namelist File
+    cpdef initialize(self, path, path_ref):
         nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
         cdef int nx, ny, nz, gw
         nx = nml['grid']['nx']
@@ -89,13 +85,105 @@ cdef class CloudClosure:
         gw = nml['grid']['gw']
 
         # (1) Reference State
+
+        # # p_ref_a: [75, 0, 0, 0, 0, 0, 0, 0]
+        # self.p_ref_a = np.zeros(shape = (nz),dtype=np.double,order='c')                 # <type 'CloudClosure._memoryviewslice'>
+        # # p_ref_b: [75, 0, 0, 0, 0, 0, 0, 0]
+        # cdef double [:] p_ref_b = np.zeros(shape = (nz),dtype=np.double,order='c')      # <type 'CloudClosure._memoryviewslice'>
+        # # p_ref_c: (75,)
+        # cdef np.ndarray p_ref_c = np.zeros([nz], dtype=np.double,order='c')             # <type 'numpy.ndarray'>
+        # # p_ref_d: (75,)
+        # self.p_ref_d = np.zeros(shape = np.shape(p_ref_c),dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+        # # p_ref_e: (75,)
+        # self.p_ref_e = np.zeros([nz],dtype=np.double,order='c')                         # <type 'CloudClosure._memoryviewslice'>
+        # # cdef np.ndarray self.p_ref_d = np.zeros([nz], dtype=np.double,order='c')  # does NOT work
+        # # cdef array.array p_ref
+        # # cdef np.ndarray[floating, ndim=3] p_ref = np.empty((nz))
+        #
+        # print('ref', type(self.p_ref_a), type(p_ref_b), type(p_ref_c), type(self.p_ref_d), type(self.p_ref_e))
+        #
+        # print(self.p_ref_a.shape, np.shape(self.p_ref_a))
+        # print(p_ref_b.shape, np.shape(p_ref_b))
+        # print(np.shape(p_ref_c))
+        # print(np.shape(self.p_ref_d))
+        # print(np.shape(self.p_ref_e))
+        #
+        # self.p_ref_a = read_in_netcdf('p0', 'reference', path_ref)
+        # p_ref_b = read_in_netcdf('p0', 'reference', path_ref)
+        # p_ref_c = read_in_netcdf('p0', 'reference', path_ref)
+        # self.p_ref_d = read_in_netcdf('p0', 'reference', path_ref)
+        # self.p_ref_e = read_in_netcdf('p0', 'reference', path_ref)
+        #
+        # print(self.p_ref_a.shape)
+        # print(p_ref_b.shape)
+        # print(np.shape(p_ref_c))
+        # print(np.shape(self.p_ref_d))
+        # print(np.shape(self.p_ref_e))
+        #
+        # # try:
+        # #     print('diff ab', self.p_ref_a-p_ref_b)
+        # # except:
+        # #     pass
+        # # try:
+        # #     print('diff ac', self.p_ref_a-p_ref_c)
+        # # except:
+        # #     pass
+        #
+        # print('diff bc', p_ref_b-p_ref_c)
+        # # print('diff bc', self.p_ref_d-self.p_ref_e)
+        # print('diff d e', self.p_ref_d[10] - self.p_ref_e[10])
+        #
+        # for k in range(p_ref_c.shape[0]):
+        #     self.p_ref_a[k] = p_ref_c[k]
+        #
+        # print(self.p_ref_a.shape)
+        # print(p_ref_b.shape)
+        # print(np.shape(p_ref_c))
+        # print(np.shape(self.p_ref_d))
+        # print(np.shape(self.p_ref_e))
+
+
+
+        self.p_ref = np.zeros([nz],dtype=np.double,order='c')                         # <type 'CloudClosure._memoryviewslice'>
         try:
-            p_ref = read_in_netcdf('p0_half', 'reference', path_ref)
+            self.p_ref = read_in_netcdf('p0_half', 'reference', path_ref)
         except:
             print('no p0_half profile')
-            p_ref = read_in_netcdf('p0', 'reference', path_ref)
-        # p_ref = read_in_netcdf('p0', 'reference', path_ref)
-        print('p_ref: ', p_ref.shape, nz, gw)
+            self.p_ref = read_in_netcdf('p0', 'reference', path_ref)[:]#
+        print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
+        print('')
+
+        return
+
+
+
+    cpdef verification_CC(self, path, path_ref):
+        print('Verification')
+        cdef extern from "thermodynamics_sa.h":
+            inline double temperature_no_ql(double pd, double pv, double s, double qt)
+        cdef extern from "thermodynamic_functions.h":
+            inline double pd_c(const double p0,const double qt, const double qv)
+            inline double pv_c(const double p0, const double qt, const double qv)
+
+        path_fields = os.path.join(path, 'fields', )
+        cdef:
+            int i, j, k
+
+        # (0) Namelist File
+        nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
+        # cdef int nx, ny, nz, gw
+        nx = nml['grid']['nx']
+        ny = nml['grid']['ny']
+        nz = nml['grid']['nz']
+        gw = nml['grid']['gw']
+
+        # (1) Reference State
+        cdef double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')                         # <type 'CloudClosure._memoryviewslice'>
+        for k in range(nz):
+            p_ref[k] = self.p_ref[k]
+        # p_ref = self.p_ref
+        print('p_ref: ', np.shape(self.p_ref), self.p_ref.shape, p_ref.shape, nz, gw)
+
 
         # (2) Fields
         cdef:
@@ -119,8 +207,8 @@ cdef class CloudClosure:
 
         # (3) temperature no ql
         print('--- temperature no ql ---')
+        print('')
         cdef:
-            int i, j, k
             double s, qt, T, ql, qv
             double pv, pd
             double T_unsat
@@ -251,8 +339,58 @@ cdef class CloudClosure:
 
         return
 
-    cpdef do_everything_with_pycles(self, path, path_ref):
 
+
+
+    cpdef predict_pdf(self, path, path_ref, ncomp_):
+        print('Predict PDF')
+        # global ncomp
+        # global nvar
+        cdef:
+            int ncomp = ncomp_
+            int nvar = 2
+        # create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
+
+        # for i in range(len(zrange)):
+        #     iz = zrange[i]
+        #     for d in files:
+        #         '''(1) compute liquid potential temperature from temperature and moisture'''
+        #         p0 = 1e5
+        #         # T, ql, qi = sat_adj(p0, 6500, 1e-3)
+        #
+        #         nc_file_name = str(d)
+        #         fullpath_in = os.path.join(in_path, 'fields', nc_file_name)
+        #         print('fullpath_in', fullpath_in)
+        #         T = read_in_netcdf('temperature', 'fields', fullpath_in)
+        #         qt = read_in_netcdf('qt', 'fields', fullpath_in)
+        #         ql = read_in_netcdf('ql', 'fields', fullpath_in)
+        #         qi = np.zeros(shape=T.shape)
+        #         theta_l = thetali(p0,T,qt,ql,qi)
+        #
+        #         data = np.ndarray(shape=((nx * ny), nvar))
+        #         means_ = np.ndarray(shape=(len(zrange), ncomp, nvar))
+        #         covariance_ = np.zeros(shape=(len(zrange), ncomp, nvar, nvar))
+        #
+        #         data1_ = theta_l.reshape((nx * ny), nz)
+        #         data2_ = qt.reshape((nx * ny), nz)
+        #         data[:, 0] = data1_[:, iz]
+        #         data[:, 1] = data2_[:, iz]
+        #         data_all = np.append(data_all, data, axis=0)
+        #
+        #     '''(2) Compute bivariate Gaussian PDF (theta_l, qt) '''
+        #     # means, covariance, weights = Gaussian_mixture_bivariate(data, var1, var2, np.int(d[0:-3]), iz*dz)
+        #     clf = Gaussian_bivariate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+        #     means_[i, :, :] = clf.means_[:, :]
+        #     covariance_[i,:,:,:] = clf.covariances_[:,:,:]
+        #
+        #     '''(3) Compute Kernel-Estimate PDF '''
+        #     kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+        #
+        #     relative_entropy(data, clf, kde)
+        #
+        #     '''(4) Save Gaussian Mixture PDFs '''
+        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
         return
 
 
@@ -284,9 +422,11 @@ def read_in_netcdf(var_name, group_name, path):
     grp = rootgrp.groups[group_name]
     if group_name == 'reference':
         var = grp.variables[var_name][:]
+
         rootgrp.close()
+        return var[:]
     elif group_name == 'fields':
         var = grp.variables[var_name][:,:,:]
         rootgrp.close()
-    return var
+        return var[:,:,:]
 

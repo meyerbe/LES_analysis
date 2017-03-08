@@ -80,11 +80,11 @@ def main():
     print('Found the following directories', files, N)
     print('')
     # ______________________
-    global time
-    time = np.zeros((1))
+    global times
+    times = np.zeros((1))
     for d in files:
-        time = np.sort(np.append(time, np.int(d[0:-3])))
-    print('time: ', time)
+        times = np.sort(np.append(times, np.int(d[0:-3])))
+    print('time: ', times)
     print('')
     # ______________________
     ''' read in reference state '''

@@ -1,5 +1,7 @@
 import sys, os
 import argparse
+import json as simplejson
+import numpy as np
 
 import CloudClosure
 
@@ -14,6 +16,10 @@ def main():
     path = args.path
     path_ref = os.path.join(path, 'Stats.Bomex.nc')
 
+    # (0) Namelist File
+    nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
+    nz = nml['grid']['nz']
+    dz = nml['grid']['dz']
 
     # path = '../test_ZGILS6/'
     # path_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
@@ -28,8 +34,15 @@ def main():
     # do_everything_with_pycles(path, path_ref)
 
     ClCl = CloudClosure.CloudClosure()
-    # initialize_CC()
+    ClCl.initialize(path, path_ref)
     ClCl.verification_CC(path, path_ref)
+
+    print('--- PDF Prediction ---')
+    print('')
+    ncomp = 2
+    zrange = np.arange(6, 20, 8)
+    print('zrange', zrange*dz)
+    ClCl.predict_pdf(path, path_ref, ncomp)
 
     return
 
