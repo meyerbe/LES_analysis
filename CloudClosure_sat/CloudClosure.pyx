@@ -356,8 +356,7 @@ cdef class CloudClosure:
             # inline double pd_c(const double p0,const double qt, const double qv)
             # inline double pv_c(const double p0, const double qt, const double qv)
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-        # from CC_thermodynamics_c import sat_adj_fromentropy
-
+        from plotting_functions import plot_PDF_samples_qt, plot_PDF_samples, plot_sat_adj
         time1 = time.clock()
 
 
@@ -408,6 +407,7 @@ cdef class CloudClosure:
             double [:,:,:] qt_
             double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
+            double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # double [:,:,:] qi_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double qi_ = 0.0
             # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -439,6 +439,7 @@ cdef class CloudClosure:
                         Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
                         theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
                         qt[ij,k] = qt_[i,j,iz]
+                        ql[ij,k] = ql_[i,j,iz]
 
 
                 '''(4) Compute bivariate PDF'''
@@ -490,6 +491,7 @@ cdef class CloudClosure:
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
+            double ql_mean
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
 
@@ -507,18 +509,20 @@ cdef class CloudClosure:
         print('time clf.sample: ', time_b-time_a)
 
         for i in range(n_sample):
-            pass
             # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
             T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-        #     plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
-        #     plot_sat_adj(T_comp_thl, ql_comp_thl, Th, data_thl, data_ql, 'thl', 'qt', nn, t, iz * dz)
+            # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
+            ql_mean += ql_comp_thl[i]
+        plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, 0, iz * dz, path)
 
-        # for i in range(nx):
-        #     for j in range(ny):
-        #         for k in range(len(krange)):
-        #             iz = krange[k]
-        #             # (4) ql from data (s, qt) sampled fromPDF
-        #             T_comp[i,j,k], ql_comp[i,j,k], alpha_comp = sat_adj_fromentropy(p_ref[iz], s_[i,j,iz], qt_[i,j,iz], CC, LH)
+        print('From CloudClosure Scheme: ', ql_mean)
+
+        '''(C) read in mean profile'''
+        ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
+        print(ql_profile.shape)
+        print(ql_profile[0])
+
+
 
         time2 = time.clock()
         print('total time: ', time2-time1)
@@ -574,6 +578,7 @@ cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z):
 #----------------------------------------------------------------------
 cdef Kernel_density_estimate(data, var_name1, var_name2, time_, z, fullpath_out):
     from sklearn.neighbors.kde import KernelDensity
+    from plotting_functions import labeling
     ''' Kerne Density Estimation:
     from sklearn.neighbors import KernelDensity
 
@@ -712,18 +717,6 @@ cdef Kernel_density_estimate(data, var_name1, var_name2, time_, z, fullpath_out)
 
     return kde, kde
 
-#----------------------------------------------------------------------
-def labeling(var_name1, var_name2, amp):
-    plt.xlabel(var_name1)
-    plt.ylabel(var_name2)
-    if var_name1 == 'qt':
-        plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
-        plt.ylabel(var_name2)
-    else:
-        plt.xlabel(var_name1)
-        plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
-
-    return
 
 #----------------------------------------------------------------------
 def read_in_fields(group_name, var_list, path):
@@ -749,9 +742,8 @@ def read_in_netcdf(var_name, group_name, path):
     print('read in '+ var_name + ': ' +path)
     rootgrp = nc.Dataset(path, 'r')
     grp = rootgrp.groups[group_name]
-    if group_name == 'reference':
+    if group_name == 'reference' or group_name == 'profiles':
         var = grp.variables[var_name][:]
-
         rootgrp.close()
         return var[:]
     elif group_name == 'fields':

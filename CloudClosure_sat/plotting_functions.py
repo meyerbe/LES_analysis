@@ -1,4 +1,10 @@
+import sklearn
+import os
 import pylab as plt
+import numpy as np
+import matplotlib as mplt
+import matplotlib.mlab as mlab
+import matplotlib.cm as cm
 
 #----------------------------------------------------------------------
 # def plot_PDF_samples_qt(data, data_aux, var_name1, var_name2, clf, clf_aux, time, z):
@@ -7,9 +13,6 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     amp = 1e2
     print('')
     print('plot PDF samples qt, factor='+np.str(amp))
-
-    import matplotlib.mlab as mlab
-    import matplotlib.cm as cm
 
     data_aux = np.ndarray(shape=((nx * ny), nvar))
     data_aux[:, 0] = data[:, 0]
@@ -115,8 +118,6 @@ def plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z):
     return
 #----------------------------------------------------------------------
 def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
-    import matplotlib.mlab as mlab
-    import matplotlib.cm as cm
 
     det_ = np.linalg.det(clf.covariances_[0, :, :])
     fact_ = 1. / np.sqrt((2 * np.pi) ** 2 * det_)
@@ -213,4 +214,72 @@ def plot_PDF_samples(data, var_name1, var_name2, clf, time, z):
         np.int(z)) + 'm_alltime.png')
 
     plt.close()
+    return
+
+
+
+#--------------------------
+def plot_sat_adj(T_comp_, ql_comp_, data_clf, data, data_ql, var1, var2, nn, ncomp, t, z, path):
+
+    s_ = np.expand_dims(data_clf[:, 0], axis=0)
+    qt_ = np.expand_dims(data_clf[:, 1], axis=0)
+    s = np.append(s_, s_, axis=0)
+    qt = np.append(qt_, qt_, axis=0)
+
+    a = np.amin(data[:,0])
+    b = np.amin(data_clf[:, 0])
+    x_min = np.minimum(a, b)
+    x_max = np.maximum(np.amax(data[:, 0]), np.amax(data_clf[:, 0]))
+    y_min = np.minimum(np.amin(data[:, 1]), np.amin(data_clf[:, 1]))
+    y_max = np.maximum(np.amax(data[:, 1]), np.amax(data_clf[:, 1]))
+
+    aux = np.expand_dims(ql_comp_, axis=0)
+    ql_comp = np.append(aux, aux, axis=0)
+    aux = np.expand_dims(T_comp_, axis=0)
+    T_comp  = np.append(aux, aux, axis=0)
+
+    ql_mean_comp = np.average(ql_comp_)
+    ql_mean = np.average(data_ql)
+
+    fig = plt.figure(figsize=(10,10))
+    plt.subplot(1,2,1)
+    plt.scatter(data_clf[:, 0], data_clf[:, 1], s=5, alpha=0.2)
+    labeling(var1, var2, 1)
+    plt.title('PDF sampling (n='+str(nn)+')')
+    plt.xlim(x_min,x_max)
+    plt.ylim(y_min, y_max)
+    plt.subplot(1, 2, 2)
+    plt.scatter(data[:, 0], data[:, 1], s=5, alpha=0.2)
+    labeling(var1, var2, 1)
+    # plt.title('<ql> (data): '+str(np.round(ql_mean,6)) + ' <ql> (comp): '+str(np.round(ql_mean_comp,6)))
+    labeling(var1, var2, 1)
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.title('Training Data')
+    mplt.text.Text(x=0, y=0, text='hoihoi')
+    mplt.text.Annotation('hoihoi', xy = (0,0))
+
+    fig.suptitle('<ql> (data): '+str(np.round(ql_mean,9)) + ', <ql> (comp): '+str(np.round(ql_mean_comp,9))
+                 +' (z='+str(z)+', t='+str(t)+')')
+    plt.savefig(
+        os.path.join(
+            path,'CloudClosure_figures_norm/CC_sat_adj_' + var1 + var2 + '_' + str(t) + '_z'
+                         + str(np.int(z)) + 'm_bivariate.png')
+    )
+
+    plt.close()
+    return
+
+
+#----------------------------------------------------------------------
+def labeling(var_name1, var_name2, amp):
+    plt.xlabel(var_name1)
+    plt.ylabel(var_name2)
+    if var_name1 == 'qt':
+        plt.xlabel(var_name1 + ' ( * ' + np.str(amp) + ')')
+        plt.ylabel(var_name2)
+    else:
+        plt.xlabel(var_name1)
+        plt.ylabel(var_name2 + ' ( * ' + np.str(amp) + ')')
+
     return
