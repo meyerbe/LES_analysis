@@ -22,6 +22,7 @@ from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 cdef class CloudClosure:
     def __init__(self):
         print('Cloud Closure')
+        self.p_ref = None
         return
     # cpdef do_everything(path, path_ref):
     #     path_fields = os.path.join(path, 'fields', )
@@ -80,8 +81,9 @@ cdef class CloudClosure:
     #
     #     return
 
-    cpdef initialize(self, path, path_ref):
-        nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
+    cpdef initialize(self, path, path_ref, case_name):
+        print('nml: ', os.path.join(path, case_name+'.in'))
+        nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
         cdef int nx, ny, nz, gw
         nx = nml['grid']['nx']
         ny = nml['grid']['ny']
@@ -373,16 +375,22 @@ cdef class CloudClosure:
             int ny = nml['grid']['ny']
             int nz = nml['grid']['nz']
             int dz = nml['grid']['dz']
+            int dt_stat = nml['stats_io']['frequency']
+            int nt
             double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')       # <type 'CloudClosure._memoryviewslice'>
 
         for k in range(nz):
             p_ref[k] = self.p_ref[k]
-        # # p_ref = self.p_ref
-        # print('p_ref: ', np.shape(self.p_ref), self.p_ref.shape, p_ref.shape, nz)
+        ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
+        print('ql profile:', ql_profile.shape, type(ql_profile))
+
+        time_profile = read_in_netcdf('t', 'timeseries', path_ref)
+        nt = time_profile.shape[0]
+        print('time in stats file: ', time_profile.shape, nt, dt_stat)
+
         files = os.listdir(os.path.join(path,'fields'))
         N = len(files)
         print('Found the following directories', files, N)
-
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
         print('initializing Clausius Clapeyron')
@@ -401,6 +409,7 @@ cdef class CloudClosure:
         # create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
 
         '''(2) Read in Fields'''
+        # for PDF construction
         cdef:
             double [:,:,:] s_
             double [:,:,:] T_
@@ -408,7 +417,6 @@ cdef class CloudClosure:
             double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
             double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            # double [:,:,:] qi_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double qi_ = 0.0
             # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -417,6 +425,25 @@ cdef class CloudClosure:
             int ishift = ny
             int i, j, ij
             double Lv
+
+        # for PDF sampling
+        cdef:
+            int n_sample = np.int(1e2)
+            double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
+            double ql_mean
+        alpha_comp = np.zeros(n_sample)
+        alpha_comp_thl = np.zeros(n_sample)
+
+        # for <ql> intercomparison
+        cdef:
+            double ql_mean_ = 0.0
+            int n, n1, n2
+
         var_list = ['s', 'qt', 'temperature', 'ql']
         data_all = np.ndarray(shape=(0, nvar))
         data = np.ndarray(shape=((nx * ny), nvar))
@@ -430,13 +457,14 @@ cdef class CloudClosure:
                 path_fields = os.path.join(path, 'fields', nc_file_name)
                 print('path_fields', path_fields)
                 s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+                print('')
                 for i in range(nx):
                     for j in range(ny):
                         ij = i*ishift + j
                         '''(3) Compute liquid potential temperature from temperature and moisture'''
                         # theta_l[i,j,k] = thetali_c(p_ref[iz],T_[i,j,iz],qt_[i,j,iz],ql_[i,j,iz],qi_, LH)
                         # thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-                        Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
+                        Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
                         theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
                         qt[ij,k] = qt_[i,j,iz]
                         ql[ij,k] = ql_[i,j,iz]
@@ -465,67 +493,66 @@ cdef class CloudClosure:
             '''(5) Compute Kernel-Estimate PDF '''
             # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
 
-        #     relative_entropy(data, clf, kde)
+            # relative_entropy(data, clf, kde)
+            print('')
+
+
+
+            '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
+            #       1. sample (th_l, qt) from PDF (Monte Carlo ???
+            #       2. compute ql for samples
+            #       3. consider ensemble average <ql> = domain mean representation???
+            time_a = time.clock()
+
+
+            # S, y = clf.sample(n_samples=n_sample)
+            # print('clf samples: ', S.shape, y.shape)
+            Th_l, y = clf_thl.sample(n_samples=n_sample)
+            print('clf thl samples: ', Th_l.shape, y.shape)
+            # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
+            # S, y = clf_s.sample(n_samples=nn)
+            # S_norm, y = clf_s_norm.sample(n_samples=nn)
+            time_b = time.clock()
+            print('time clf.sample: ', time_b-time_a)
+
+            for i in range(n_sample):
+                # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
+                T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
+                ql_mean += ql_comp_thl[i]
+            plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, 0, iz * dz, path)
+
+            print('From CloudClosure Scheme: ', ql_mean)
+
+            '''(C) compare to mean profile'''
+            print('')
+            # find correct time
+
+            time1_ = np.int(files[0][0:-3])
+            time2_ = np.int(files[-1][0:-3])
+            n = 0
+            while(time_profile[n]<nt):
+                while(time_profile[n]<time1_):
+                    n+=1
+                n1 = n
+                while(time_profile[n]<time2_):
+                    n+=1
+                n2 = n
+
+            for n in range(n1,n2):
+                ql_mean_ += ql_profile[n,iz]
+            print('From ql_profile[k]: ', ql_mean_)
+            print('times files', time1_, time2_)
+            print('times profile', n1, n2, time_profile[n1], time_profile[n2])
+
+        time2 = time.clock()
+
+        print('total time: ', time2-time1)
+
 
         '''(6) Save Gaussian Mixture PDFs '''
         # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
         # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
-
-
-        print('')
-
-
-
-        '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
-        #       1. sample (th_l, qt) from PDF (Monte Carlo ???
-        #       2. compute ql for samples
-        #       3. consider ensemble average <ql> = domain mean representation???
-        time_a = time.clock()
-        cdef:
-            int n_sample = np.int(1e2)
-            # double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            # double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
-            double ql_mean
-        alpha_comp = np.zeros(n_sample)
-        alpha_comp_thl = np.zeros(n_sample)
-
-        # S, y = clf.sample(n_samples=n_sample)
-        # print('clf samples: ', S.shape, y.shape)
-        Th_l, y = clf_thl.sample(n_samples=n_sample)
-        print('clf thl samples: ', Th_l.shape, y.shape)
-        # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
-        # print('index ref', index_ref)
-        # print('iz', iz)
-        # print('zrange', zrange)
-        # S, y = clf_s.sample(n_samples=nn)
-        # S_norm, y = clf_s_norm.sample(n_samples=nn)
-        time_b = time.clock()
-        print('time clf.sample: ', time_b-time_a)
-
-        for i in range(n_sample):
-            # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-            # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
-            ql_mean += ql_comp_thl[i]
-        plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, 0, iz * dz, path)
-
-        print('From CloudClosure Scheme: ', ql_mean)
-
-        '''(C) read in mean profile'''
-        ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
-        print(ql_profile.shape)
-        print(ql_profile[0])
-
-
-
-        time2 = time.clock()
-        print('total time: ', time2-time1)
 
         return
 
@@ -734,7 +761,6 @@ def read_in_fields(group_name, var_list, path):
         var3 = grp.variables[var_list[2]][:,:,:]
         var4 = grp.variables[var_list[3]][:,:,:]
         rootgrp.close()
-
     return var1, var2, var3, var4
 
 
@@ -742,10 +768,14 @@ def read_in_netcdf(var_name, group_name, path):
     print('read in '+ var_name + ': ' +path)
     rootgrp = nc.Dataset(path, 'r')
     grp = rootgrp.groups[group_name]
-    if group_name == 'reference' or group_name == 'profiles':
+    if group_name == 'reference' or group_name == 'timeseries':
         var = grp.variables[var_name][:]
         rootgrp.close()
         return var[:]
+    elif group_name == 'profiles':
+        var = grp.variables[var_name][:,:]
+        rootgrp.close()
+        return var[:,:]
     elif group_name == 'fields':
         var = grp.variables[var_name][:,:,:]
         rootgrp.close()
