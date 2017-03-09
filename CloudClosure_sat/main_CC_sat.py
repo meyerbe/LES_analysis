@@ -43,10 +43,10 @@ def main():
     ClCl.initialize(path, path_ref, case_name)
     # ClCl.verification_CC(path, path_ref)
 
-    print('')
     ncomp = 2
     krange = np.arange(6, 20, 8)
     print('zrange', krange*dz)
+    print('')
     ClCl.predict_pdf(path, path_ref, ncomp, krange, nml)
 
     return

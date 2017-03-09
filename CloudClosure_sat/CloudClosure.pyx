@@ -82,6 +82,7 @@ cdef class CloudClosure:
     #     return
 
     cpdef initialize(self, path, path_ref, case_name):
+        print('--- Initialize ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
         cdef int nx, ny, nz, gw
@@ -155,7 +156,6 @@ cdef class CloudClosure:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', path_ref)[:]#
         print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
-        print('')
 
         return
 
@@ -350,8 +350,8 @@ cdef class CloudClosure:
 
     # ----------------------------------------------------------------------------------------------------
     cpdef predict_pdf(self, path, path_ref, ncomp_, krange_, nml):
-        print('')
         print('--- PDF Prediction ---')
+        print('')
         # cdef extern from "thermodynamics_sa.h":
         #     inline double temperature_no_ql(double pd, double pv, double s, double qt)
         cdef extern from "thermodynamic_functions.h":
@@ -382,7 +382,8 @@ cdef class CloudClosure:
         for k in range(nz):
             p_ref[k] = self.p_ref[k]
         ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
-        print('ql profile:', ql_profile.shape, type(ql_profile))
+        # print('ql profile:', ql_profile.shape, ql_profile[krange[0]])
+        # print(ql_profile[krange[1]])
 
         time_profile = read_in_netcdf('t', 'timeseries', path_ref)
         nt = time_profile.shape[0]
@@ -390,14 +391,16 @@ cdef class CloudClosure:
 
         files = os.listdir(os.path.join(path,'fields'))
         N = len(files)
-        print('Found the following directories', files, N)
+        print('Found the following fields: ', files, N)
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
-        print('initializing Clausius Clapeyron')
+        print('')
+        print('Initializing Clausius Clapeyron')
         cdef:
             LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
             ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
+        print('')
 
         # ________________________________________________________________________________________
         '''(A) Compute PDF f(s,qt) from LES data'''
@@ -457,13 +460,10 @@ cdef class CloudClosure:
                 path_fields = os.path.join(path, 'fields', nc_file_name)
                 print('path_fields', path_fields)
                 s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
-                print('')
+                '''(3) Compute liquid potential temperature from temperature and moisture'''
                 for i in range(nx):
                     for j in range(ny):
                         ij = i*ishift + j
-                        '''(3) Compute liquid potential temperature from temperature and moisture'''
-                        # theta_l[i,j,k] = thetali_c(p_ref[iz],T_[i,j,iz],qt_[i,j,iz],ql_[i,j,iz],qi_, LH)
-                        # thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
                         Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
                         theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
                         qt[ij,k] = qt_[i,j,iz]
@@ -474,10 +474,6 @@ cdef class CloudClosure:
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
-                # data1_ = theta_l.reshape((nx * ny), nz)
-                # data2_ = qt_.reshape((nx * ny), nz)
-                # data[:, 0] = data1_[:, iz]
-                # data[:, 1] = data2_[:, iz]
                 data[:, 0] = theta_l[:, k]
                 data[:, 1] = qt[:, k]
                 data_all = np.append(data_all, data, axis=0)
@@ -508,7 +504,7 @@ cdef class CloudClosure:
             # S, y = clf.sample(n_samples=n_sample)
             # print('clf samples: ', S.shape, y.shape)
             Th_l, y = clf_thl.sample(n_samples=n_sample)
-            print('clf thl samples: ', Th_l.shape, y.shape)
+            # print('clf thl samples: ', Th_l.shape, y.shape)
             # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
             # S, y = clf_s.sample(n_samples=nn)
             # S_norm, y = clf_s_norm.sample(n_samples=nn)
@@ -522,12 +518,11 @@ cdef class CloudClosure:
                 ql_mean += ql_comp_thl[i]
             plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, 0, iz * dz, path)
 
-            print('From CloudClosure Scheme: ', ql_mean)
+
 
             '''(C) compare to mean profile'''
             print('')
-            # find correct time
-
+            # find correct times in profile
             time1_ = np.int(files[0][0:-3])
             time2_ = np.int(files[-1][0:-3])
             n = 0
@@ -541,9 +536,14 @@ cdef class CloudClosure:
 
             for n in range(n1,n2):
                 ql_mean_ += ql_profile[n,iz]
-            print('From ql_profile[k]: ', ql_mean_)
+            print('')
+            print('<ql> from CloudClosure Scheme: ', ql_mean)
+            print('<ql> from ql_profile[k]: ', ql_mean_)
             print('times files', time1_, time2_)
             print('times profile', n1, n2, time_profile[n1], time_profile[n2])
+
+            print('')
+            print('')
 
         time2 = time.clock()
 
@@ -553,6 +553,7 @@ cdef class CloudClosure:
         '''(6) Save Gaussian Mixture PDFs '''
         # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
         # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+
 
         return
 
@@ -591,7 +592,7 @@ cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z):
     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
-    print('')
+    # print('')
 
     # if var_name1 == 'qt' or var_name2 == 'qt':
     #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
