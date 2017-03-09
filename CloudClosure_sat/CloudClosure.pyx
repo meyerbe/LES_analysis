@@ -16,7 +16,7 @@ from sklearn import mixture
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
-from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali_c
+from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
 
 cdef class CloudClosure:
@@ -302,7 +302,7 @@ cdef class CloudClosure:
                     theta_l[i,j,k] = thetali_c(p_ref[k], T_[i,j,k], qt_[i,j,k], ql_[i,j,k], qi_, Lv)
 
                     T_comp[i,j,k], ql_comp[i,j,k], alpha[i,j,k] = sat_adj_fromentropy(p_ref[k], s, qt, CC, LH)
-                    T_comp_thl[i,j,k], ql_comp_thl[i,j,k], alpha_thl[i,j,k] = sat_adj_fromthetali_c(p_ref[k], theta_l[i,j,k], qt_[i,j,k], CC, LH)
+                    T_comp_thl[i,j,k], ql_comp_thl[i,j,k], alpha_thl[i,j,k] = sat_adj_fromthetali(p_ref[k], theta_l[i,j,k], qt_[i,j,k], CC, LH)
 
                     if (ql_comp[i,j,k] - ql) > max_ql:
                         max_ql = (ql_comp[i,j,k] - ql)
@@ -509,7 +509,7 @@ cdef class CloudClosure:
         for i in range(n_sample):
             pass
             # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali_c(p_ref[iz], Th_l[i, 0], Th_l[i, 1], LH, CC)
+            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
         #     plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
         #     plot_sat_adj(T_comp_thl, ql_comp_thl, Th, data_thl, data_ql, 'thl', 'qt', nn, t, iz * dz)
 
