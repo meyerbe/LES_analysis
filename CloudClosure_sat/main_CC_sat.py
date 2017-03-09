@@ -35,7 +35,7 @@ def main():
 
     ClCl = CloudClosure.CloudClosure()
     ClCl.initialize(path, path_ref)
-    # ClCl.verification_CC(path, path_ref)
+    ClCl.verification_CC(path, path_ref)
 
     print('')
     ncomp = 2

@@ -166,6 +166,7 @@ cdef class CloudClosure:
         cdef extern from "thermodynamic_functions.h":
             inline double pd_c(const double p0,const double qt, const double qv)
             inline double pv_c(const double p0, const double qt, const double qv)
+            inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
 
         path_fields = os.path.join(path, 'fields', )
         cdef:
@@ -174,10 +175,11 @@ cdef class CloudClosure:
         # (0) Namelist File
         nml = simplejson.loads(open(os.path.join(path, 'Bomex.in')).read())
         # cdef int nx, ny, nz, gw
-        nx = nml['grid']['nx']
-        ny = nml['grid']['ny']
-        nz = nml['grid']['nz']
-        gw = nml['grid']['gw']
+        cdef:
+            nx = nml['grid']['nx']
+            ny = nml['grid']['ny']
+            nz = nml['grid']['nz']
+            gw = nml['grid']['gw']
 
         # (1) Reference State
         cdef double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')                         # <type 'CloudClosure._memoryviewslice'>
@@ -212,7 +214,7 @@ cdef class CloudClosure:
         print('')
         cdef:
             double s, qt, T, ql, qv
-            double pv, pd
+            double pv, pd, pref
             double T_unsat
             double min_T_unsat = 9999.9
             double max_T_unsat = -9999.9
@@ -247,18 +249,21 @@ cdef class CloudClosure:
         ###############################################
         # Saturation Adjustment
         # (3) saturation adjustment
-        LH = CC_thermodynamics_c.LatentHeat(nml)
+        cdef:
+            LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+            ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         print('done Lookup table')
-        CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
         alpha_ = np.zeros(shape=(nx,ny,nz))
         T_comp = np.zeros(shape=(nx,ny,nz))
         ql_comp = np.zeros(shape=(nx,ny,nz))
         alpha = np.zeros(shape=(nx,ny,nz))
         theta_l = np.zeros(shape=(nx,ny,nz))
+        # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
         T_comp_thl = np.zeros(shape=(nx,ny,nz))
         ql_comp_thl = np.zeros(shape=(nx,ny,nz))
         alpha_thl = np.zeros(shape=(nx,ny,nz))
+        qi_ = 0
         n_alpha = 0
         # print('alpha shape', alpha_.shape)
         for i in range(nx):
@@ -293,15 +298,18 @@ cdef class CloudClosure:
                     qt = qt_[i,j,k]
                     ql = ql_[i,j,k]
                     T = T_[i,j,k]
-                    one, two, three = sat_adj_fromentropy(p_ref[k], s, qt, CC, LH)
+                    Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
+                    theta_l[i,j,k] = thetali_c(p_ref[k], T_[i,j,k], qt_[i,j,k], ql_[i,j,k], qi_, Lv)
+
                     T_comp[i,j,k], ql_comp[i,j,k], alpha[i,j,k] = sat_adj_fromentropy(p_ref[k], s, qt, CC, LH)
+                    T_comp_thl[i,j,k], ql_comp_thl[i,j,k], alpha_thl[i,j,k] = sat_adj_fromthetali_c(p_ref[k], theta_l[i,j,k], qt_[i,j,k], CC, LH)
+
                     if (ql_comp[i,j,k] - ql) > max_ql:
                         max_ql = (ql_comp[i,j,k] - ql)
                     elif (ql_comp[i,j,k] - ql) < min_ql:
                         min_ql = (ql_comp[i,j,k] - ql)
                     if ql > 0.0:# and alpha_[i,j,k] > 0.0:
                         if np.abs(T_comp[i,j,k] - T) > max_T_sat:
-
                             max_T_sat = np.abs(T_comp[i,j,k] - T)
                         if np.abs(T_comp_thl[i,j,k] - T) > max_T_sat_thl:
                             max_T_sat_thl = np.abs(T_comp_thl[i,j,k] - T)
@@ -348,7 +356,7 @@ cdef class CloudClosure:
             # inline double pd_c(const double p0,const double qt, const double qv)
             # inline double pv_c(const double p0, const double qt, const double qv)
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-        from CC_thermodynamics_c import sat_adj_fromentropy
+        # from CC_thermodynamics_c import sat_adj_fromentropy
 
         time1 = time.clock()
 
@@ -383,7 +391,6 @@ cdef class CloudClosure:
             LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
             ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
-
 
         # ________________________________________________________________________________________
         '''(A) Compute PDF f(s,qt) from LES data'''
@@ -502,7 +509,7 @@ cdef class CloudClosure:
         for i in range(n_sample):
             pass
             # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali_c(p_ref[iz - 1], Th_l[i, 0], Th_l[i, 1])
+            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali_c(p_ref[iz], Th_l[i, 0], Th_l[i, 1], LH, CC)
         #     plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
         #     plot_sat_adj(T_comp_thl, ql_comp_thl, Th, data_thl, data_ql, 'thl', 'qt', nn, t, iz * dz)
 
