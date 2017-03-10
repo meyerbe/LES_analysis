@@ -26,7 +26,7 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     # grp = rootgrp.groups[group_name]
-    if group_name == 'reference':
+    if group_name == 'reference' or group_name == 'timeseries':
         var = rootgrp.groups[group_name].variables[variable_name][:]
         rootgrp.close()
     elif group_name == 'profiles':
