@@ -12,6 +12,7 @@ import array
 import cython
 from cython cimport floating
 from sklearn import mixture
+from sklearn.preprocessing import StandardScaler
 
 
 import CC_thermodynamics_c
@@ -429,10 +430,12 @@ cdef class CloudClosure:
             int ishift = ny
             int i, j, ij
             double Lv
+        # theta_l_norm = np.zeros([nx*ny*N],dtype=np.double,order='c')               # <type 'CloudClosure._memoryviewslice'>
+        # qt_norm = np.zeros([nx*ny*N],dtype=np.double,order='c')                    # <type 'CloudClosure._memoryviewslice'>
 
         # for PDF sampling
         cdef:
-            int n_sample = np.int(1e3)
+            int n_sample = np.int(1e8)
             double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -449,12 +452,12 @@ cdef class CloudClosure:
             int n, n1, n2
 
         var_list = ['s', 'qt', 'temperature', 'ql']
-        data_all = np.ndarray(shape=(0, nvar))
         data = np.ndarray(shape=((nx * ny), nvar))
         means_ = np.ndarray(shape=(nk, ncomp, nvar))
         covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
         for k in range(nk):
             iz = krange[k]
+            data_all = np.ndarray(shape=(0, nvar))
             time_a = time.clock()
             for d in files:
                 nc_file_name = d
@@ -469,29 +472,46 @@ cdef class CloudClosure:
                         theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
                         qt[ij,k] = qt_[i,j,iz]
                         ql[ij,k] = ql_[i,j,iz]
-
-                '''(4) Compute bivariate PDF'''
-                #   (a) for (s,qt)
-                #           ...
-                #   (b) for (th_l,qt)
+                del ql_
                 data[:, 0] = theta_l[:, k]
                 data[:, 1] = qt[:, k]
+                # data[:, 0] = theta_l_norm[:, k]
+                # data[:, 1] = qt_norm[:, k]
                 data_all = np.append(data_all, data, axis=0)
             time_b = time.clock()
             print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
             time_a = time.clock()
-            clf_thl = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-            plot_PDF(data, 'thl', 'qt', nvar, clf_thl, path)
-            means_[k, :, :] = clf_thl.means_[:, :]
-            covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
+
+            '''(4) Normalise Data'''
+            # X = StandardScaler().fit_transform(X)
+            # theta_l_norm = StandardScaler().fit_transform(data_all[:,0])#[:,0]
+            # qt_norm = StandardScaler().fit_transform(data[:,1])#[:,0]
+            scaler = StandardScaler()
+            data_all_norm = scaler.fit_transform(data_all)
+            print('normalise')
+            # print(theta_l.shape, theta_l_norm.shape, qt.shape, qt_norm.shape)
+            print(theta_l.shape, qt.shape, data_all.shape, data_all_norm.shape)
+            print()
+            '''(5) Compute bivariate PDF'''
+            #   (a) for (s,qt)
+            #           ...
+            #   (b) for (th_l,qt)
+            # clf_thl = Gaussian_bivariate(ncomp, data_all, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+            clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+            # # plot_PDF(data_all, 'thl', 'qt', nvar, clf_thl, path)
+            # # means_[k, :, :] = clf_thl.means_[:, :]
+            # # covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
+            # plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, iz*dz, path)
+            means_[k, :, :] = clf_thl_norm.means_[:, :]
+            covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
             time_b = time.clock()
             print('time for GMM for z='+str(iz*dz)+': '+str(time_b-time_a))
 
-            '''(5) Compute Kernel-Estimate PDF '''
-            # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-
-            # relative_entropy(data, clf, kde)
-            print('')
+            # '''(6) Compute Kernel-Estimate PDF '''
+            # # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+            #
+            # # relative_entropy(data, clf, kde)
+            # print('')
 
 
 
@@ -501,23 +521,32 @@ cdef class CloudClosure:
             #       3. consider ensemble average <ql> = domain mean representation???
             time_a = time.clock()
 
-
+            '''(1) Draw samples'''
             # S, y = clf.sample(n_samples=n_sample)
-            # print('clf samples: ', S.shape, y.shape)
-            Th_l, y = clf_thl.sample(n_samples=n_sample)
-            # print('clf thl samples: ', Th_l.shape, y.shape)
-            # Th_norm, y = clf_thl_norm.sample(n_samples=nn)
             # S, y = clf_s.sample(n_samples=nn)
             # S_norm, y = clf_s_norm.sample(n_samples=nn)
+            # print('clf samples: ', S.shape, y.shape)
+            # Th_l, y = clf_thl.sample(n_samples=n_sample)
+            # print('clf thl samples: ', Th_l.shape, y.shape)
+            Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
+            print('clf thl samples: ', Th_l_norm.shape, y_norm.shape)
+
             time_b = time.clock()
             print('time clf.sample: ', time_b-time_a)
 
+            '''(2) Rescale theta_l and qt'''
+            print('parameters')
+            print(scaler.get_params())       # {'copy': True, 'with_mean': True, 'with_std': True}
+            Th_l = scaler.inverse_transform(Th_l_norm)
+            print(Th_l[0:3, 0], Th_l[0:3, 1])
+
+            '''(3) Compute ql (saturation adjustment)'''
             for i in range(n_sample):
                 # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
                 T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
                 ql_mean = ql_mean + ql_comp_thl[i]
             ql_mean = ql_mean / n_sample
+            # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
             # plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, iz * dz, path)
 
 
@@ -548,7 +577,8 @@ cdef class CloudClosure:
             print('<ql> from ql_profile[k]: ', ql_mean_)
             print('times files', time1_, time2_)
             print('times profile', n1, n2, time_profile[n1], time_profile[n2])
-
+            error = ql_mean - ql_mean_
+            plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error, iz*dz, path)
             print('')
             print('')
 
