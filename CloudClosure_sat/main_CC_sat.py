@@ -26,13 +26,13 @@ def main():
     # path_ref = os.path.join(path, 'Stats.Bomex.nc')
     # do_everything(path, path_ref)
 
-    path = '../test_bomex_n1024/'
-    path_ref = os.path.join(path, 'Stats.Bomex.nc')
-    case_name = 'Bomex'
+    # path = '../test_bomex_n1024/'
+    # path_ref = os.path.join(path, 'Stats.Bomex.nc')
+    # case_name = 'Bomex'
 
-    path = '../test_bomex/'
-    case_name = 'Bomex'
-    path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
+    # path = '../test_bomex/'
+    # case_name = 'Bomex'
+    # path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
 
 
     nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
@@ -44,7 +44,10 @@ def main():
     # ClCl.verification_CC(path, path_ref)
 
     ncomp = 2
-    krange = np.arange(6, 20, 8)
+    # Bomex
+    # krange = np.arange(6, 20, 8)
+    krange = np.asarray([20, 40])
+    krange = np.asarray([20])
     print('zrange', krange*dz)
     print('')
     ClCl.predict_pdf(path, path_ref, ncomp, krange, nml)

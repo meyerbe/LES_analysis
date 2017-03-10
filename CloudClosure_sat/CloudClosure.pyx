@@ -17,6 +17,8 @@ from sklearn import mixture
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
+# from plotting_functions import plot_PDF_samples_qt, plot_PDF_samples, plot_sat_adj, plot_PDF
+from plotting_functions import plot_PDF
 
 
 cdef class CloudClosure:
@@ -155,7 +157,7 @@ cdef class CloudClosure:
         except:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', path_ref)[:]#
-        print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
+        # print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
 
         return
 
@@ -358,7 +360,6 @@ cdef class CloudClosure:
             # inline double pd_c(const double p0,const double qt, const double qv)
             # inline double pv_c(const double p0, const double qt, const double qv)
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-        from plotting_functions import plot_PDF_samples_qt, plot_PDF_samples, plot_sat_adj
         time1 = time.clock()
 
 
@@ -379,12 +380,6 @@ cdef class CloudClosure:
             int nt
             double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')       # <type 'CloudClosure._memoryviewslice'>
 
-        for k in range(nz):
-            p_ref[k] = self.p_ref[k]
-        ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
-        # print('ql profile:', ql_profile.shape, ql_profile[krange[0]])
-        # print(ql_profile[krange[1]])
-
         time_profile = read_in_netcdf('t', 'timeseries', path_ref)
         nt = time_profile.shape[0]
         print('time in stats file: ', time_profile.shape, nt, dt_stat)
@@ -392,6 +387,12 @@ cdef class CloudClosure:
         files = os.listdir(os.path.join(path,'fields'))
         N = len(files)
         print('Found the following fields: ', files, N)
+
+        for k in range(nz):
+            p_ref[k] = self.p_ref[k]
+        ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
+        # print('ql profile:', ql_profile[krange[0:nk]])#ql_profile.shape, ql_profile[krange[0]])
+        # print(ql_profile[krange[1]])
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
         print('')
@@ -431,14 +432,14 @@ cdef class CloudClosure:
 
         # for PDF sampling
         cdef:
-            int n_sample = np.int(1e2)
+            int n_sample = np.int(1e3)
             double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
-            double ql_mean
+            double ql_mean = 0.0
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
 
@@ -469,7 +470,6 @@ cdef class CloudClosure:
                         qt[ij,k] = qt_[i,j,iz]
                         ql[ij,k] = ql_[i,j,iz]
 
-
                 '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
                 #           ...
@@ -480,7 +480,8 @@ cdef class CloudClosure:
             time_b = time.clock()
             print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
             time_a = time.clock()
-            clf_thl = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz)
+            clf_thl = Gaussian_bivariate(ncomp, data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+            plot_PDF(data, 'thl', 'qt', nvar, clf_thl, path)
             means_[k, :, :] = clf_thl.means_[:, :]
             covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
             time_b = time.clock()
@@ -515,8 +516,9 @@ cdef class CloudClosure:
                 # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
                 T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
                 # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
-                ql_mean += ql_comp_thl[i]
-            plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, 0, iz * dz, path)
+                ql_mean = ql_mean + ql_comp_thl[i]
+            ql_mean = ql_mean / n_sample
+            # plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, iz * dz, path)
 
 
 
@@ -534,8 +536,13 @@ cdef class CloudClosure:
                     n+=1
                 n2 = n
 
-            for n in range(n1,n2):
-                ql_mean_ += ql_profile[n,iz]
+            if time1_ == time2_:
+                ql_mean_ = ql_profile[n1,iz]
+            else:
+                for n in range(n1,n2):
+                    ql_mean_ += ql_profile[n,iz]
+                ql_mean_ /= (n2-n1)
+
             print('')
             print('<ql> from CloudClosure Scheme: ', ql_mean)
             print('<ql> from ql_profile[k]: ', ql_mean_)
@@ -587,19 +594,21 @@ def relative_entropy(data, clf, kde):
 
     return
 #----------------------------------------------------------------------
-cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z):
+cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z, path):
     cdef int ncomp = ncomp_
     clf = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
     # clf = sklearn.mixture.GaussianMixture(n_components=2, covariance_type='full')
     clf.fit(data)
     # print('')
 
+    # nvar = 2
+    # plot_PDF(data, 'thl', 'qt', nvar, clf, path)
     # if var_name1 == 'qt' or var_name2 == 'qt':
-    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z)
+    #     plot_PDF_samples_qt(data, var_name1, var_name2, clf, time, z, path)
     #     print('!!!! qt: factor 100')
     # else:
-    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
-    # # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
+    #     plot_PDF_samples(data, var_name1, var_name2, clf, time, z, path)
+    # plot_PDF_samples(data, var_name1, var_name2, clf, time, z)
 
     return clf
 
