@@ -25,9 +25,12 @@ def read_in_nml(path, case_name):
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
-    grp = rootgrp.groups[group_name]
-    if group_name == 'profiles' or group_name == 'reference':
+    # grp = rootgrp.groups[group_name]
+    if group_name == 'reference':
         var = rootgrp.groups[group_name].variables[variable_name][:]
+        rootgrp.close()
+    elif group_name == 'profiles':
+        var = rootgrp.groups[group_name].variables[variable_name][:,:]
         rootgrp.close()
     elif group_name == 'fields':
         var = rootgrp.groups[group_name].variables[variable_name][:,:,:]
