@@ -452,11 +452,14 @@ cdef class CloudClosure:
             double ql_mean_profile = 0.0
             double ql_mean_field
             int n, n1, n2
+            double error
+            double rel_error = 0.0
 
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
         means_ = np.ndarray(shape=(nk, ncomp, nvar))
         covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+        # error_array = np.ndarray(shape=(nk,))
         for k in range(nk):
             iz = krange[k]
             print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
@@ -478,6 +481,7 @@ cdef class CloudClosure:
                         ql[ij,k] = ql_[i,j,iz]
                         ql_mean_field += ql_[i,j,iz]
                 del s_, ql_, qt_, T_
+                ql_mean_field /= (nx*ny)
                 data[:, 0] = theta_l[:, k]
                 data[:, 1] = qt[:, k]
                 # data[:, 0] = theta_l_norm[:, k]
@@ -503,10 +507,8 @@ cdef class CloudClosure:
             #   (b) for (th_l,qt)
             # clf_thl = Gaussian_bivariate(ncomp, data_all, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
             clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-            # # plot_PDF(data_all, 'thl', 'qt', nvar, clf_thl, path)
             # # means_[k, :, :] = clf_thl.means_[:, :]
             # # covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
-            # plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, iz*dz, path)
             means_[k, :, :] = clf_thl_norm.means_[:, :]
             covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
             time_b = time.clock()
@@ -579,10 +581,12 @@ cdef class CloudClosure:
                 ql_mean_profile /= (n2-n1)
 
             error = ql_mean - ql_mean_field
+            if ql_mean_field > 0.0:
+                rel_error = error / ql_mean_field
             print('<ql> from CloudClosure Scheme: ', ql_mean)
             print('<ql> from ql fields: ', ql_mean_field)
             print('<ql> from ql_profile[k]: ', ql_mean_profile)
-            print('error (<ql>_CC - <ql>_field): '+str(error))
+            print('error (<ql>_CC - <ql>_field): '+str(error)+ ', rel err: '+str(rel_error))
             # print('times files', time1_, time2_)
             # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
             print('')
@@ -590,6 +594,7 @@ cdef class CloudClosure:
             print('before plotting:', np.shape(ql))
             plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error, iz*dz, path)
             plot_samples('norm', data_all_norm, ql[:,k], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path)
+            plot_samples('original', data_all, ql[:,k], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path)
             plot_hist(ql, path)
             print('')
             print('')

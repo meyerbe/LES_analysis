@@ -126,7 +126,7 @@ def plot_ql_n_all(files_, zrange, path, prof=True):
     plt.title('mean ql (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
 
     plt.savefig(
-        os.path.join(path, 'figs_stats', 'ql_number.png'))
+        os.path.join(path, 'figs_stats', 'ql_number_fromfield.png'))
     # plt.show()
     plt.close()
     return
@@ -142,17 +142,25 @@ def plot_mean(files_, zrange, path):
     print(time)
 
     plt.figure(figsize=(10, 7))
+    print('files'), files_
     for t in files_:
-        it = np.int(t / dt_stats)
-        print('dt stats: ', t, dt_stats, it, ql_mean.shape)
-        plt.plot(ql_mean[it, :], zrange, label='t=' + str(it * dt_stats) + 's')
+        path_fields = os.path.join(path, 'fields', str(t) + '.nc')
+        ql = read_in_netcdf('ql', 'fields', path_fields)
+        ql_mean_fields = np.mean(np.mean(ql, axis=0), axis=0)
+
+        it = np.int(np.double(t) / np.double(dt_stats))
+        print('it', it, 'dt_stats', dt_stats)
+        # print('type t', type(t), t, type(dt_stats), dt_stats, type(it))
+        # print('dt stats: ', t, dt_stats, it, ql_mean.shape)
+        plt.plot(ql_mean[it, :], zrange, label='t=' + str(it * dt_stats) + 's (from Stats)')
+        plt.plot(ql_mean_fields[:], zrange, label='t=' + str(it * dt_stats) + 's (from field)')
     plt.legend()
     plt.xlabel('mean ql')
     plt.ylabel('height z [m]')
     plt.title('mean ql (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
 
     plt.savefig(
-        os.path.join(path, 'figs_stats', 'ql_mean_.png'))
+        os.path.join(path, 'figs_stats', 'ql_mean_fromfield.png'))
     # plt.show()
     plt.close()
     return
