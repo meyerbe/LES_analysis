@@ -411,7 +411,7 @@ cdef class CloudClosure:
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)
         '''(1) Statistics File'''
-        # nc_file_name_out = 'CC_alltime.nc'
+        nc_file_name_out = 'CC_alltime.nc'
         # create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
 
         '''(2) Read in Fields'''
@@ -424,7 +424,6 @@ cdef class CloudClosure:
             double [:,:,:] ql_
             double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double qi_ = 0.0
-            # double [:,:,:] theta_l = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -445,6 +444,8 @@ cdef class CloudClosure:
             # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
             double [:,:] Th_l= np.zeros([n_sample, nvar], dtype=np.double, order='c')
             double ql_mean = 0.0
+            double [:,:] error_array = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_array = np.ndarray(shape=(nk,len(ncomp_range)))
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
 
@@ -462,8 +463,6 @@ cdef class CloudClosure:
         for ncomp in ncomp_range:
             means_ = np.ndarray(shape=(nk, ncomp, nvar))
             covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
-            error_array = np.ndarray(shape=(nk,len(ncomp_range)))
-            rel_error_array = np.ndarray(shape=(nk,len(ncomp_range)))
             for k in range(nk):
                 iz = krange[k]
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
@@ -592,7 +591,8 @@ cdef class CloudClosure:
                 print('<ql> from CloudClosure Scheme: ', ql_mean)
                 print('<ql> from ql fields: ', ql_mean_field)
                 print('<ql> from ql_profile[k]: ', ql_mean_profile)
-                print('error (<ql>_CC - <ql>_field): '+str(error)+ ', rel err: '+str(rel_error))
+                print('error (<ql>_CC - <ql>_field): '+str(error)+ ', '+str(error_array[k,count_ncomp]))
+                print('rel err: '+str(rel_error) + ', ' + str(rel_error_array[k,count_ncomp]))
                 # print('times files', time1_, time2_)
                 # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
                 print('')
@@ -607,7 +607,7 @@ cdef class CloudClosure:
 
                 del data_all, data_all_norm
             count_ncomp += 1
-        plot_error_vs_ncomp(error_array, ncomp_range, krange, dz, path_out)
+        plot_error_vs_ncomp(error_array, rel_error_array, ncomp_range, krange, dz, path_out)
         time2 = time.clock()
 
 

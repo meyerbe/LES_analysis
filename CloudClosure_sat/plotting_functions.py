@@ -219,60 +219,73 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
 
 
 def plot_hist(data_ql, path):
-    plt.figure(figsize=(12,6))
-    print('plot hist', data_ql.shape, data_ql[:,0].shape)
-
-    bins = np.linspace(np.amin(data_ql), np.amax(data_ql), 1000)
-    # print(np.amin(data_ql), np.amax(data_ql))
-    # print('nonzero:', np.count_nonzero(data_ql))
-    # # print(np.array(data_ql[:,0]))
-    # # print(bins)
-    # # print('shape ql: ', data_ql.shape)
-    plt.subplot(1,2,1)
-    time1 = time.clock()
-    plt.hist(data_ql[:,0], bins)
-    plt.xlim(0.0, 1e-6)
-    # print('time hist:', time.clock() - time1)
-    # plt.title('Histogram LES')
-    # plt.xlabel('ql')
-    plt.subplot(1, 2, 2)
-
-    # bins = np.linspace(np.amin(data_ql), np.amax(data_ql), 10)
-    # print(np.amin(data_ql), np.amax(data_ql))
-    # plt.subplot(2,3,4)
-    # print('shape ql: ', data_ql.shape)
-    # time1 = time.clock()
-    # plt.hist(data_ql, bins)
-    # print('time hist:', time.clock()-time1)
-    # plt.title('Histogram LES')
-    # plt.xlabel('ql')
+    # plt.figure(figsize=(12,6))
+    # print('plot hist', data_ql.shape, data_ql[:,0].shape)
     #
-    # plt.subplot(2,3,5)
-    # plt.hist(samples_ql, bins)
-    # plt.title('Histogram samples')
-    # plt.xlabel('ql')
-
-    # plt.show()
-
-    savename = 'hist_figure.png'
-    plt.savefig(
-        os.path.join(path, 'CloudClosure_figures', savename))
-    plt.close()
+    # bins = np.linspace(np.amin(data_ql), np.amax(data_ql), 1000)
+    # # print(np.amin(data_ql), np.amax(data_ql))
+    # # print('nonzero:', np.count_nonzero(data_ql))
+    # # # print(np.array(data_ql[:,0]))
+    # # # print(bins)
+    # # # print('shape ql: ', data_ql.shape)
+    # plt.subplot(1,2,1)
+    # time1 = time.clock()
+    # plt.hist(data_ql[:,0], bins)
+    # plt.xlim(0.0, 1e-6)
+    # # print('time hist:', time.clock() - time1)
+    # # plt.title('Histogram LES')
+    # # plt.xlabel('ql')
+    # plt.subplot(1, 2, 2)
+    #
+    # # bins = np.linspace(np.amin(data_ql), np.amax(data_ql), 10)
+    # # print(np.amin(data_ql), np.amax(data_ql))
+    # # plt.subplot(2,3,4)
+    # # print('shape ql: ', data_ql.shape)
+    # # time1 = time.clock()
+    # # plt.hist(data_ql, bins)
+    # # print('time hist:', time.clock()-time1)
+    # # plt.title('Histogram LES')
+    # # plt.xlabel('ql')
+    # #
+    # # plt.subplot(2,3,5)
+    # # plt.hist(samples_ql, bins)
+    # # plt.title('Histogram samples')
+    # # plt.xlabel('ql')
+    #
+    # # plt.show()
+    #
+    # savename = 'hist_figure.png'
+    # plt.savefig(
+    #     os.path.join(path, 'CloudClosure_figures', savename))
+    # plt.close()
     return
 
 
-def plot_error_vs_ncomp(error_array, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp(error_array, rel_error_array, ncomp_array, krange, dz, path):
     # error_array = (nk x ncomp):   array for relative errors
     # ncomp_array
+    nk, n_ncomp = np.shape(error_array)
+    for ncomp in range(n_ncomp):
+        for k in range(nk):
+            print('ncomp, k, error, rel error', ncomp, k, error_array[k,ncomp], rel_error_array[k,ncomp])
 
-    plt.figure()
+
+    plt.figure(figsize=(12,6))
     nk = np.shape(error_array)[0]
+    plt.subplot(1, 2, 1)
     for k in range(nk):
-        plt.plot(ncomp_array, error_array[k,:], '-o', label='z='+str(krange[k]*dz))
+        plt.plot(ncomp_array, rel_error_array[k, :], '-o', label='z=' + str(krange[k] * dz))
     plt.legend()
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in <ql>')
     plt.title('Relative Error in grid mean liquid water')
+    plt.subplot(1, 2, 2)
+    for k in range(nk):
+        plt.plot(ncomp_array, error_array[k,:], '-o', label='z='+str(krange[k]*dz))
+    plt.legend()
+    plt.xlabel('# Gaussian components in PDF')
+    plt.ylabel('absolute error in <ql>')
+    plt.title('Absolute Error in grid mean liquid water')
     savename = 'error_figure.png'
     plt.savefig(
         os.path.join(path, 'CloudClosure_figures', savename))
