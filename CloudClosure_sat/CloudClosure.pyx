@@ -19,7 +19,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 # from plotting_functions import plot_PDF_samples_qt, plot_PDF_samples, plot_sat_adj, plot_PDF
-from plotting_functions import plot_PDF, plot_samples, plot_hist
+from plotting_functions import plot_PDF, plot_samples, plot_hist, plot_error_vs_ncomp
 
 
 cdef class CloudClosure:
@@ -353,7 +353,7 @@ cdef class CloudClosure:
 
 
     # ----------------------------------------------------------------------------------------------------
-    cpdef predict_pdf(self, path, path_ref, ncomp_, krange_, nml):
+    cpdef predict_pdf(self, path_in, path_out, path_ref, ncomp_range, krange_, nml):
         print('--- PDF Prediction ---')
         print('')
         # cdef extern from "thermodynamics_sa.h":
@@ -368,7 +368,7 @@ cdef class CloudClosure:
         # ________________________________________________________________________________________
         '''Set up files etc.'''
         cdef:
-            int ncomp = ncomp_
+            int ncomp
             int nvar = 2
             Py_ssize_t [:] krange = krange_
             int nk = len(krange)
@@ -386,7 +386,7 @@ cdef class CloudClosure:
         nt = time_profile.shape[0]
         print('time in stats file: ', time_profile.shape, nt, dt_stat)
 
-        files = os.listdir(os.path.join(path,'fields'))
+        files = os.listdir(os.path.join(path_in,'fields'))
         N = len(files)
         print('Found the following fields: ', files, N)
 
@@ -443,6 +443,7 @@ cdef class CloudClosure:
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
+            double [:,:] Th_l= np.zeros([n_sample, nvar], dtype=np.double, order='c')
             double ql_mean = 0.0
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
@@ -454,151 +455,159 @@ cdef class CloudClosure:
             int n, n1, n2
             double error
             double rel_error = 0.0
+            int count_ncomp = 0
 
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
-        means_ = np.ndarray(shape=(nk, ncomp, nvar))
-        covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
-        # error_array = np.ndarray(shape=(nk,))
-        for k in range(nk):
-            iz = krange[k]
-            print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
-            data_all = np.ndarray(shape=(0, nvar))
-            ql_mean_field = 0.0
-            time_a = time.clock()
-            for d in files:
-                nc_file_name = d
-                path_fields = os.path.join(path, 'fields', nc_file_name)
-                print('path_fields', path_fields)
-                s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
-                '''(3) Compute liquid potential temperature from temperature and moisture'''
-                for i in range(nx):
-                    for j in range(ny):
-                        ij = i*ishift + j
-                        Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
-                        theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
-                        qt[ij,k] = qt_[i,j,iz]
-                        ql[ij,k] = ql_[i,j,iz]
-                        ql_mean_field += ql_[i,j,iz]
-                del s_, ql_, qt_, T_
-                ql_mean_field /= (nx*ny)
-                data[:, 0] = theta_l[:, k]
-                data[:, 1] = qt[:, k]
-                # data[:, 0] = theta_l_norm[:, k]
-                # data[:, 1] = qt_norm[:, k]
-                data_all = np.append(data_all, data, axis=0)
-            time_b = time.clock()
-            print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
-            time_a = time.clock()
+        for ncomp in ncomp_range:
+            means_ = np.ndarray(shape=(nk, ncomp, nvar))
+            covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+            error_array = np.ndarray(shape=(nk,len(ncomp_range)))
+            rel_error_array = np.ndarray(shape=(nk,len(ncomp_range)))
+            for k in range(nk):
+                iz = krange[k]
+                print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
+                data_all = np.ndarray(shape=(0, nvar))
+                ql_mean_field = 0.0
+                time_a = time.clock()
+                for d in files:
+                    nc_file_name = d
+                    path_fields = os.path.join(path_in, 'fields', nc_file_name)
+                    print('path_fields', path_fields)
+                    s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+                    '''(3) Compute liquid potential temperature from temperature and moisture'''
+                    for i in range(nx):
+                        for j in range(ny):
+                            ij = i*ishift + j
+                            Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
+                            theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
+                            qt[ij,k] = qt_[i,j,iz]
+                            ql[ij,k] = ql_[i,j,iz]
+                            ql_mean_field += ql_[i,j,iz]
+                    del s_, ql_, qt_, T_
+                    ql_mean_field /= (nx*ny)
+                    data[:, 0] = theta_l[:, k]
+                    data[:, 1] = qt[:, k]
+                    # data[:, 0] = theta_l_norm[:, k]
+                    # data[:, 1] = qt_norm[:, k]
+                    data_all = np.append(data_all, data, axis=0)
+                time_b = time.clock()
+                print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
+                time_a = time.clock()
 
-            '''(4) Normalise Data'''
-            # X = StandardScaler().fit_transform(X)
-            # theta_l_norm = StandardScaler().fit_transform(data_all[:,0])#[:,0]
-            # qt_norm = StandardScaler().fit_transform(data[:,1])#[:,0]
-            scaler = StandardScaler()
-            data_all_norm = scaler.fit_transform(data_all)
-            print('normalise')
-            # print(theta_l.shape, theta_l_norm.shape, qt.shape, qt_norm.shape)
-            print(theta_l.shape, qt.shape, data_all.shape, data_all_norm.shape)
-            print('')
-            '''(5) Compute bivariate PDF'''
-            #   (a) for (s,qt)
-            #           ...
-            #   (b) for (th_l,qt)
-            # clf_thl = Gaussian_bivariate(ncomp, data_all, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-            clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-            # # means_[k, :, :] = clf_thl.means_[:, :]
-            # # covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
-            means_[k, :, :] = clf_thl_norm.means_[:, :]
-            covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
-            time_b = time.clock()
-            # print('time for GMM for z='+str(iz*dz)+': '+str(time_b-time_a))
+                '''(4) Normalise Data'''
+                # X = StandardScaler().fit_transform(X)
+                # theta_l_norm = StandardScaler().fit_transform(data_all[:,0])#[:,0]
+                # qt_norm = StandardScaler().fit_transform(data[:,1])#[:,0]
+                scaler = StandardScaler()
+                data_all_norm = scaler.fit_transform(data_all)
+                # print('normalise')
+                # print(theta_l.shape, theta_l_norm.shape, qt.shape, qt_norm.shape)
+                # print(theta_l.shape, qt.shape, data_all.shape, data_all_norm.shape)
+                print('')
+                '''(5) Compute bivariate PDF'''
+                #   (a) for (s,qt)
+                #           ...
+                #   (b) for (th_l,qt)
+                # clf_thl = Gaussian_bivariate(ncomp, data_all, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
+                clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
+                # # means_[k, :, :] = clf_thl.means_[:, :]
+                # # covariance_[k,:,:,:] = clf_thl.covariances_[:,:,:]
+                means_[k, :, :] = clf_thl_norm.means_[:, :]
+                covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+                time_b = time.clock()
+                # print('time for GMM for z='+str(iz*dz)+': '+str(time_b-time_a))
 
-            # '''(6) Compute Kernel-Estimate PDF '''
-            # # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-            #
-            # # relative_entropy(data, clf, kde)
-            # print('')
-
-
-
-            '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
-            #       1. sample (th_l, qt) from PDF (Monte Carlo ???
-            #       2. compute ql for samples
-            #       3. consider ensemble average <ql> = domain mean representation???
-            time_a = time.clock()
-
-            '''(1) Draw samples'''
-            # S, y = clf.sample(n_samples=n_sample)
-            # S, y = clf_s.sample(n_samples=nn)
-            # S_norm, y = clf_s_norm.sample(n_samples=nn)
-            # print('clf samples: ', S.shape, y.shape)
-            # Th_l, y = clf_thl.sample(n_samples=n_sample)
-            # print('clf thl samples: ', Th_l.shape, y.shape)
-            Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
-            # print('clf thl samples: ', Th_l_norm.shape, y_norm.shape)
-
-            time_b = time.clock()
-            # print('time clf.sample: ', time_b-time_a)
-
-            '''(2) Rescale theta_l and qt'''
-            print('Inverse Normalisation')
-            # print(scaler.get_params())       # {'copy': True, 'with_mean': True, 'with_std': True}
-            Th_l = scaler.inverse_transform(Th_l_norm)
-            print(Th_l[0:3, 0], Th_l[0:3, 1])
-
-            '''(3) Compute ql (saturation adjustment)'''
-            print('!!!!', n_sample, np.shape(T_comp_thl), np.shape(ql_comp_thl), np.shape(alpha_comp_thl), np.shape(Th_l))
-            for i in range(n_sample-1):
-                # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-                T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                ql_mean = ql_mean + ql_comp_thl[i]
-            ql_mean = ql_mean / n_sample
-            # plot_sat_adj(T_comp, ql_comp, S, data, data_ql, 's', 'qt', nn, t, iz*dz)
-            # plot_sat_adj(T_comp_thl, ql_comp_thl, Th_l, data, ql, 'thl', 'qt', n_sample, ncomp, iz * dz, path)
+                # '''(6) Compute Kernel-Estimate PDF '''
+                # # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
+                #
+                # # relative_entropy(data, clf, kde)
+                # print('')
 
 
 
-            '''(C) compare to mean profile'''
-            print('')
-            # find correct times in profile
-            time1_ = np.int(files[0][0:-3])
-            time2_ = np.int(files[-1][0:-3])
-            n = 0
-            while(time_profile[n]<nt):
-                while(time_profile[n]<time1_):
-                    n+=1
-                n1 = n
-                while(time_profile[n]<time2_):
-                    n+=1
-                n2 = n
+                '''(B) Compute mean liquid water <ql> from PDF f(s,qt)'''
+                #       1. sample (th_l, qt) from PDF (Monte Carlo ???
+                #       2. compute ql for samples
+                #       3. consider ensemble average <ql> = domain mean representation???
+                time_a = time.clock()
 
-            if time1_ == time2_:
-                ql_mean_profile = ql_profile[n1,iz]
-            else:
-                for n in range(n1,n2):
-                    ql_mean_profile += ql_profile[n,iz]
-                ql_mean_profile /= (n2-n1)
+                '''(1) Draw samples'''
+                # S, y = clf.sample(n_samples=n_sample)
+                # S, y = clf_s.sample(n_samples=nn)
+                # S_norm, y = clf_s_norm.sample(n_samples=nn)
+                # print('clf samples: ', S.shape, y.shape)
+                # Th_l, y = clf_thl.sample(n_samples=n_sample)
+                # print('clf thl samples: ', Th_l.shape, y.shape)
+                Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
+                # print('clf thl samples: ', Th_l_norm.shape, y_norm.shape)
 
-            error = ql_mean - ql_mean_field
-            if ql_mean_field > 0.0:
-                rel_error = error / ql_mean_field
-            print('<ql> from CloudClosure Scheme: ', ql_mean)
-            print('<ql> from ql fields: ', ql_mean_field)
-            print('<ql> from ql_profile[k]: ', ql_mean_profile)
-            print('error (<ql>_CC - <ql>_field): '+str(error)+ ', rel err: '+str(rel_error))
-            # print('times files', time1_, time2_)
-            # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
-            print('')
+                time_b = time.clock()
+                # print('time clf.sample: ', time_b-time_a)
 
-            print('before plotting:', np.shape(ql))
-            plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error, iz*dz, path)
-            plot_samples('norm', data_all_norm, ql[:,k], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path)
-            plot_samples('original', data_all, ql[:,k], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path)
-            plot_hist(ql, path)
-            print('')
-            print('')
+                '''(2) Rescale theta_l and qt'''
+                # print('Inverse Normalisation')
+                # print(scaler.get_params())       # {'copy': True, 'with_mean': True, 'with_std': True}
+                Th_l = scaler.inverse_transform(Th_l_norm)
+                # print(Th_l[0:3, 0], Th_l[0:3, 1])
 
+                '''(3) Compute ql (saturation adjustment)'''
+                print('!!!!', n_sample, np.shape(T_comp_thl), np.shape(ql_comp_thl), np.shape(alpha_comp_thl), np.shape(Th_l), np.shape(Th_l_norm))
+                for i in range(n_sample-2):
+                    # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
+                    T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                    ql_mean = ql_mean + ql_comp_thl[i]
+                ql_mean = ql_mean / n_sample
+
+
+                '''(C) compare to mean profile'''
+                print('')
+                # find correct times in profile
+                time1_ = np.int(files[0][0:-3])
+                time2_ = np.int(files[-1][0:-3])
+                n = 0
+                while(time_profile[n]<nt):
+                    while(time_profile[n]<time1_):
+                        n+=1
+                    n1 = n
+                    while(time_profile[n]<time2_):
+                        n+=1
+                    n2 = n
+
+                if time1_ == time2_:
+                    ql_mean_profile = ql_profile[n1,iz]
+                else:
+                    for n in range(n1,n2):
+                        ql_mean_profile += ql_profile[n,iz]
+                    ql_mean_profile /= (n2-n1)
+
+                error = ql_mean - ql_mean_field
+                if ql_mean_field > 0.0:
+                    rel_error = error / ql_mean_field
+                else:
+                    rel_error = 0.0
+                error_array[k,count_ncomp] = error
+                rel_error_array[k,count_ncomp] = rel_error
+
+                print('<ql> from CloudClosure Scheme: ', ql_mean)
+                print('<ql> from ql fields: ', ql_mean_field)
+                print('<ql> from ql_profile[k]: ', ql_mean_profile)
+                print('error (<ql>_CC - <ql>_field): '+str(error)+ ', rel err: '+str(rel_error))
+                # print('times files', time1_, time2_)
+                # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
+                print('')
+
+                # print('before plotting:', np.shape(ql))
+                plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error, iz*dz, path_out)
+                plot_samples('norm', data_all_norm, ql[:,k], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                plot_samples('original', data_all, ql[:,k], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                plot_hist(ql, path_out)
+                print('')
+                print('')
+
+                del data_all, data_all_norm
+            count_ncomp += 1
+        plot_error_vs_ncomp(error_array, ncomp_range, krange, dz, path_out)
         time2 = time.clock()
 
 
@@ -607,8 +616,8 @@ cdef class CloudClosure:
 
 
         '''(6) Save Gaussian Mixture PDFs '''
-        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        # dump_variable(os.path.join(fullpath_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
+        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
 
 
         return

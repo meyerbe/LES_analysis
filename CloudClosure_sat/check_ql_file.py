@@ -32,19 +32,21 @@ def main():
     dt_stats = nml['stats_io']['frequency']
 
     files = os.listdir(os.path.join(path, 'fields'))
-    print(files)
     t = np.int(files[0][0:-3])
 
     # files_ = [14400, 21600]
     # t = files_[0]
     files_ = [files[0][0:-3]]
+    files_ = [10800, 14400, 16200, 21600]
+    print('All Files: ', files)
+    print('Selected Files: ', files_)
 
-    path_fields = os.path.join(path, 'fields', str(t)+'.nc')
-    ql = read_in_netcdf('ql', 'fields', path_fields)
+    # path_fields = os.path.join(path, 'fields', str(t)+'.nc')
+    # ql = read_in_netcdf('ql', 'fields', path_fields)
     zrange = read_in_netcdf('z', 'reference', path_ref)
 
     plot_ql_n_all(files_, zrange, path, prof=False)
-    # plot_mean(files_, zrange, path)
+    plot_mean(files_, zrange, path)
     plot_qt(files_, zrange, path)
     return
 
@@ -154,6 +156,11 @@ def plot_mean(files_, zrange, path):
         # print('dt stats: ', t, dt_stats, it, ql_mean.shape)
         plt.plot(ql_mean[it, :], zrange, label='t=' + str(it * dt_stats) + 's (from Stats)')
         plt.plot(ql_mean_fields[:], zrange, label='t=' + str(it * dt_stats) + 's (from field)')
+        mini = np.min([np.amin(ql_mean[it,:]),np.amin(ql_mean_fields)])
+        maxi = np.max([np.amax(ql_mean[it,:]),np.amax(ql_mean_fields)])
+        plt.plot([mini, maxi], [1080, 1080])
+        plt.plot([mini, maxi], [3600, 3600])
+        plt.plot([mini, maxi], [3640, 3640])
     plt.legend()
     plt.xlabel('mean ql')
     plt.ylabel('height z [m]')
