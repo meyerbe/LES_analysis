@@ -2,8 +2,10 @@ import os
 import pylab as plt
 import numpy as np
 import matplotlib.mlab as mlab
+from matplotlib.colors import LogNorm
 from sklearn.preprocessing import StandardScaler
 import time
+import traceback
 
 
 label_size = 8
@@ -62,17 +64,15 @@ def plot_PDF(data, data_norm, var_name1, var_name2, nvar, clf, scaler, ncomp, er
     # X_ = np.ndarray()
     # Z_pred =
 
-
-
-    plt.figure(figsize=(12,8))
-    plt.subplot(1,3,1)
+    plt.figure(figsize=(16,8))
+    plt.subplot(1,4,1)
     plt.scatter(data[:,0], data[:,1], s=5, alpha=0.2)
     plt.title('data')
     labeling(var_name1,var_name2,1,1)
     plt.xlim(np.amin(data[:,0]), np.amax(data[:,0]))
     plt.ylim(np.amin(data[:,1]), np.amax(data[:,1]))
 
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, 4, 2)
     ax = plt.contour(x_, y_, np.exp(ZZ).T)
     plt.scatter(data_norm[:, 0], data_norm[:, 1], s=5, alpha=0.2)
     plt.colorbar(ax)
@@ -81,7 +81,7 @@ def plot_PDF(data, data_norm, var_name1, var_name2, nvar, clf, scaler, ncomp, er
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
 
-    plt.subplot(1,3,3)
+    plt.subplot(1,4,3)
     ax = plt.contourf(x_,y_,np.exp(ZZ).T)
     plt.colorbar(ax)
     # plt.scatter(data_norm[:, 0], data_norm[:, 1], s=5, alpha=0.2)
@@ -89,6 +89,19 @@ def plot_PDF(data, data_norm, var_name1, var_name2, nvar, clf, scaler, ncomp, er
     labeling(var_name1, var_name2, scaler.scale_[0], scaler.scale_[1])
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
+
+    plt.subplot(1, 4, 4)
+    try:
+        ax = plt.contourf(x_, y_, np.exp(ZZ).T, norm = LogNorm())
+        plt.colorbar(ax)
+    except:
+        print('except in: plot_PDF, subplot(1,4,3)')
+    # plt.scatter(data_norm[:, 0], data_norm[:, 1], s=5, alpha=0.2)
+    plt.title('PDF(thl, qt)')
+    labeling(var_name1, var_name2, scaler.scale_[0], scaler.scale_[1])
+    plt.xlim(xmin, xmax)
+    plt.ylim(ymin, ymax)
+
 
     plt.suptitle('GMM, ncomp='+str(ncomp)+', error: '+str(error)+'    (z='+str(z)+')')
 
@@ -120,10 +133,6 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
 
     scale_thl = scaler.scale_[0]
     scale_qt = scaler.scale_[1]
-    xmin = np.amin(data[:,0])
-    xmax = np.amax(data[:,0])
-    ymin = np.amin(data[:,1])
-    ymax = np.amax(data[:,1])
     xmin = np.min([np.amin(data[:, 0]),np.amin(samples[:, 0])])
     xmax = np.max([np.amax(data[:, 0]),np.amax(samples[:, 0])])
     ymin = np.min([np.amin(data[:, 1]),np.amin(samples[:, 1])])
@@ -138,9 +147,9 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
     if type == 'norm':
-        plt.title('data norm')
+        plt.title('data norm (n='+str(np.shape(data)[0])+')')
     else:
-        plt.title('data')
+        plt.title('data (n='+str(np.shape(data)[0])+')')
     labeling(var_name1, var_name2, scale_thl, scale_qt)
 
     plt.subplot(2,2,2)
@@ -151,9 +160,24 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
     labeling(var_name1, var_name2, 0, 0)
 
     plt.subplot(2, 2, 3)
-    ax = plt.scatter(data[:, 0], data[:, 1], c=data_ql[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
-    if np.amax(data_ql[:]) > 0.0:
-        plt.colorbar(ax, shrink=0.6)
+    try:
+        ax = plt.scatter(data[:, 0], data[:, 1], c=data_ql[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
+        if np.amax(data_ql[:]) > 0.0:
+            plt.colorbar(ax, shrink=0.6)
+    except:
+        # traceback.print_exc()
+        color_arr = np.zeros(shape=np.size(samples_ql))
+        for i in range(np.size(data_ql)):
+            color_arr[i] = data_ql[i] * 1e3
+        print('data_ql except', np.amin(data_ql), np.amax(data_ql), np.amin(color_arr), np.amax(color_arr),np.shape(color_arr))
+        try:
+            ax = plt.scatter(data[:, 0], data[:, 1], c=color_arr[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
+            if np.amax(data_ql[:]) > 0.0:
+                plt.colorbar(ax, shrink=0.6)
+        except:
+            # traceback.print_exc()
+            print('except except (data ql)')
+            ax = plt.scatter(data[:, 0], data[:, 1], s=6, alpha=0.5, edgecolors='none', vmin=ql_min,vmax=ql_max)  # , cmap = cm)
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
     if type == 'norm':
@@ -165,10 +189,11 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
 
 
     plt.subplot(2, 2, 4)
-    color_arr = np.zeros(shape = np.size(samples_ql))
+    color_arr = np.zeros(shape=np.size(samples_ql))
     for i in range(np.size(samples_ql)):
-        color_arr[i] = samples_ql[i]*1e3
-    print('samples_ql ', np.amin(samples_ql), np.amax(samples_ql), np.amin(color_arr), np.amax(color_arr),  np.shape(color_arr))
+        color_arr[i] = samples_ql[i] * 1e3
+    print('samples_ql ', np.amin(samples_ql), np.amax(samples_ql), np.amin(color_arr), np.amax(color_arr),
+          np.shape(color_arr))
     try:
         print('try')
         # ax = plt.scatter(samples[:, 0], samples[:, 1], c=color_arr[:], s=6, alpha=0.5, edgecolors='none')
@@ -186,7 +211,7 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
             print('except-except')
             ax = plt.scatter(samples[:, 0], samples[:, 1], s=6, alpha=0.5, edgecolors='none')#, cmap = cm)
             # pass
-        # pass
+            # pass
 
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)

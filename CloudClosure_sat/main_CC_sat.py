@@ -45,13 +45,26 @@ def main():
     ClCl.initialize(path_in, path_ref, case_name)
     # ClCl.verification_CC(path, path_ref)
 
+    files = os.listdir(os.path.join(path_in, 'fields'))
     ncomp_range = [1, 2, 3, 4, 5, 6, 8, 10]
-    krange = np.asarray([27, 91])       # Bomex large, kyle
-    # krange = np.asarray([10, 17, 20, 25, 50])     # Bomex test
-    # krange = np.asarray([10, 17, 25, 50])
+    # ncomp_range = [1, 2, 10]
+
+    # DYCOMS RF01
+    # krange = np.asarray([140,166])
+    # files = ['13800.nc', '14400.nc']
+    # files = ['13800.nc']
+    # Bomex large, kyle
+    # krange = np.asarray([27, 91])
+    # Bomex 170413
+    krange = np.asarray([20, 39])
+    files = ['21600.nc']
+    # Bomex test
+    # krange = np.asarray([10, 17, 20, 25, 50])
+    N = len(files)
+    print('Found the following directories', files, N)
     print('zrange: ' + str(krange * dz) + ', dz: ' + str(dz), 'ncomp: ' + str(ncomp_range))
     print('')
-    ClCl.predict_pdf(path_in, path_out, path_ref, ncomp_range, krange, nml)
+    ClCl.predict_pdf(files, path_in, path_out, path_ref, ncomp_range, krange, nml)
 
     # for ncomp in [1,2,3,4,5,6,7,8,9,10]:
     # for ncomp in [1, 3, 5, 10, 15]:
@@ -64,7 +77,7 @@ def main():
     #     # krange = np.asarray([20])
     #     print('zrange: '+str(krange*dz)+', dz: '+str(dz), 'ncomp: '+str(ncomp))
     #     print('')
-    #     ClCl.predict_pdf(path, path_ref, ncomp, krange, nml)
+    #     ClCl.predict_pdf(files, path, path_ref, ncomp, krange, nml)
 
 
 

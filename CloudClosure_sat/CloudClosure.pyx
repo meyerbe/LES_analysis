@@ -165,7 +165,7 @@ cdef class CloudClosure:
 
 
     # ----------------------------------------------------------------------------------------------------
-    cpdef verification_CC(self, path, path_ref):
+    cpdef verification_CC(self, files, path, path_ref):
         print('Verification')
         cdef extern from "thermodynamics_sa.h":
             inline double temperature_no_ql(double pd, double pv, double s, double qt)
@@ -201,9 +201,9 @@ cdef class CloudClosure:
             double [:,:,:] qt_
             double [:,:,:] T_
             double [:,:,:] ql_
-        files = os.listdir(os.path.join(path, 'fields'))
-        N = len(files)
-        print('Found the following directories', files, N)
+        # files = os.listdir(os.path.join(path, 'fields'))
+        # N = len(files)
+        # print('Found the following directories', files, N)
         nc_file_name = str(files[0])
         path_fields = os.path.join(path_fields, nc_file_name)
         var_list = ['s', 'qt', 'temperature', 'ql']
@@ -353,7 +353,7 @@ cdef class CloudClosure:
 
 
     # ----------------------------------------------------------------------------------------------------
-    cpdef predict_pdf(self, path_in, path_out, path_ref, ncomp_range, krange_, nml):
+    cpdef predict_pdf(self, files, path_in, path_out, path_ref, ncomp_range, krange_, nml):
         print('--- PDF Prediction ---')
         print('')
         # cdef extern from "thermodynamics_sa.h":
@@ -386,7 +386,7 @@ cdef class CloudClosure:
         nt = time_profile.shape[0]
         print('time in stats file: ', time_profile.shape, nt, dt_stat)
 
-        files = os.listdir(os.path.join(path_in,'fields'))
+        # files = os.listdir(os.path.join(path_in,'fields'))
         N = len(files)
         print('Found the following fields: ', files, N)
 
@@ -435,7 +435,7 @@ cdef class CloudClosure:
 
         # for PDF sampling
         cdef:
-            int n_sample = np.int(1e5)
+            int n_sample = np.int(1e6)
             double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -445,7 +445,7 @@ cdef class CloudClosure:
             double [:,:] Th_l= np.zeros([n_sample, nvar], dtype=np.double, order='c')
             double ql_mean = 0.0
             double [:,:] error_array = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_array = np.ndarray(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_array = np.zeros(shape=(nk,len(ncomp_range)))
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
 
@@ -545,10 +545,8 @@ cdef class CloudClosure:
                 # print('time clf.sample: ', time_b-time_a)
 
                 '''(2) Rescale theta_l and qt'''
-                # print('Inverse Normalisation')
                 # print(scaler.get_params())       # {'copy': True, 'with_mean': True, 'with_std': True}
-                Th_l = scaler.inverse_transform(Th_l_norm)
-                # print(Th_l[0:3, 0], Th_l[0:3, 1])
+                Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
 
                 '''(3) Compute ql (saturation adjustment)'''
                 print('!!!!', n_sample, np.shape(T_comp_thl), np.shape(ql_comp_thl), np.shape(alpha_comp_thl), np.shape(Th_l), np.shape(Th_l_norm))
@@ -557,7 +555,6 @@ cdef class CloudClosure:
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
                     ql_mean = ql_mean + ql_comp_thl[i]
                 ql_mean = ql_mean / n_sample
-
 
                 '''(C) compare to mean profile'''
                 print('')
@@ -580,25 +577,33 @@ cdef class CloudClosure:
                         ql_mean_profile += ql_profile[n,iz]
                     ql_mean_profile /= (n2-n1)
 
-                error = ql_mean - ql_mean_field
+                error_array[k,count_ncomp] = ql_mean - ql_mean_field
                 if ql_mean_field > 0.0:
-                    rel_error = error / ql_mean_field
+                    rel_error_array[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
                 else:
-                    rel_error = 0.0
-                error_array[k,count_ncomp] = error
-                rel_error_array[k,count_ncomp] = rel_error
+                    rel_error_array[k,count_ncomp] = 0.0
 
                 print('<ql> from CloudClosure Scheme: ', ql_mean)
                 print('<ql> from ql fields: ', ql_mean_field)
                 print('<ql> from ql_profile[k]: ', ql_mean_profile)
-                print('error (<ql>_CC - <ql>_field): '+str(error)+ ', '+str(error_array[k,count_ncomp]))
-                print('rel err: '+str(rel_error) + ', ' + str(rel_error_array[k,count_ncomp]))
+                print('error (<ql>_CC - <ql>_field): '+str(error_array[k,count_ncomp]))
+                print('rel err: '+ str(rel_error_array[k,count_ncomp]))
                 # print('times files', time1_, time2_)
                 # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
                 print('')
 
-                # print('before plotting:', np.shape(ql))
-                plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error, iz*dz, path_out)
+                '''(D) plotting'''
+                # # samples for ql-shading
+                # xmin = np.min([np.amin(data_all[:, 0]),np.amin(Th_l[:, 0])])
+                # xmax = np.max([np.amax(data_all[:, 0]),np.amax(Th_l[:, 0])])
+                # ymin = np.min([np.amin(data_all[:, 1]),np.amin(Th_l[:, 1])])
+                # ymax = np.max([np.amax(data_all[:, 1]),np.amax(Th_l[:, 1])])
+                # qt_arr = np.linspace(xmin, xmax, 1e2)
+                # thl_arr = np.linspace(ymin, ymax, 1e2)
+                # T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+
+                # plotting
+                plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error_array[k,count_ncomp], iz*dz, path_out)
                 plot_samples('norm', data_all_norm, ql[:,k], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 plot_samples('original', data_all, ql[:,k], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 plot_hist(ql, path_out)
