@@ -27,62 +27,6 @@ cdef class CloudClosure:
         print('Cloud Closure')
         self.p_ref = None
         return
-    # cpdef do_everything(path, path_ref):
-    #     path_fields = os.path.join(path, 'fields', )
-    #
-    #     # (1) Reference State
-    #     try:
-    #         p_ref = read_in_netcdf('p0_half', 'reference', path_ref)
-    #     except:
-    #         print('no p0_half profile')
-    #         p_ref = read_in_netcdf('p0', 'reference', path_ref)
-    #
-    #     # (2) Fields
-    #     cdef:
-    #         double [:,:,:] s_
-    #         double [:,:,:] qt_
-    #         double [:,:,:] T_
-    #         double [:,:,:] ql_
-    #     files = os.listdir(os.path.join(path, 'fields'))
-    #     N = len(files)
-    #     print('Found the following directories', files, N)
-    #     nc_file_name = str(files[0])
-    #     path_fields = os.path.join(path_fields, nc_file_name)
-    #     s_ = read_in_netcdf('s', 'fields', path_fields)
-    #     qt_ = read_in_netcdf('qt', 'fields', path_fields)
-    #     T_ = read_in_netcdf('temperature', 'fields', path_fields)
-    #     ql_ = read_in_netcdf('ql', 'fields', path_fields)
-    #     print('')
-    #
-    #     cdef:
-    #         int i, j, k
-    #         double s, qt, T, ql
-    #         double pv, pd
-    #         double T_unsat
-    #     i = 10
-    #     j = 10
-    #     for k in [10]:
-    #         s = s_[i,j,k]
-    #         qt = qt_[i,j,k]
-    #         ql = ql_[i,j,k]
-    #         T = T_[i,j,k]
-    #         pref = p_ref[k]
-    #         qv = np.double(qt, copy = True)
-    #
-    #         pv = pref * eps_vi * qv / (1.0 - qt + eps_vi * qv)
-    #         pd = pref - pv
-    #
-    #         T_unsat = T_tilde * np.exp((s -
-    #                                     (1.0 - qt)*(sd_tilde - Rd*np.log(pd/p_tilde))
-    #                                     - qt*(sv_tilde - Rv*np.log(pv/p_tilde)) )
-    #                                     / ( (1.0-qt)*cpd + qt*cpv))
-    #
-    #         print('difference: ', T - T_unsat)
-    #         print('ql=', ql)
-    #         print('')
-    #         # print('')
-    #
-    #     return
 
     cpdef initialize(self, path, path_ref, case_name):
         print('')
@@ -154,12 +98,17 @@ cdef class CloudClosure:
         # print(np.shape(self.p_ref_e))
 
         self.p_ref = np.zeros([nz],dtype=np.double,order='c')                         # <type 'CloudClosure._memoryviewslice'>
+        if case_name[0:8] == 'ZGILS_S6':
+            path_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
+            # self.p_ref = read_in_netcdf('p0_half', 'reference', path_ref)
         try:
             self.p_ref = read_in_netcdf('p0_half', 'reference', path_ref)
         except:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', path_ref)[:]#
         # print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
+
+        self.zrange = read_in_netcdf('z', 'reference', path_ref)
 
         return
 
@@ -410,9 +359,7 @@ cdef class CloudClosure:
         #       - read in fields
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)
-        '''(1) Statistics File'''
-        nc_file_name_out = 'CC_alltime.nc'
-        # create_statistics_file(os.path.join(fullpath_out, 'CloudClosure'), nc_file_name_out, ncomp, nvar, len(zrange))
+
 
         '''(2) Read in Fields'''
         # for PDF construction
@@ -460,7 +407,12 @@ cdef class CloudClosure:
 
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
+        # data = np.ndarray(shape=(10, nvar))
         for ncomp in ncomp_range:
+            '''(1) Statistics File'''
+            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'.nc'
+            # create_statistics_file(os.path.join(path_out, 'CloudClosure'), nc_file_name_out, files[0][0:-3], ncomp, nvar, nk)
+            self.create_statistics_file(os.path.join(path_out, 'CloudClosure'), nc_file_name_out, files[0][0:-3], ncomp, nvar, nk)
             means_ = np.ndarray(shape=(nk, ncomp, nvar))
             covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             for k in range(nk):
@@ -485,11 +437,14 @@ cdef class CloudClosure:
                             ql_mean_field += ql_[i,j,iz]
                     del s_, ql_, qt_, T_
                     ql_mean_field /= (nx*ny)
+                    # data[:, 0] = theta_l[0:10, k]
+                    # data[:, 1] = qt[0:10, k]
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
                     # data[:, 0] = theta_l_norm[:, k]
                     # data[:, 1] = qt_norm[:, k]
                     data_all = np.append(data_all, data, axis=0)
+                    print('???', d, k, data.shape, data_all.shape)
                 time_b = time.clock()
                 print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
                 time_a = time.clock()
@@ -612,7 +567,7 @@ cdef class CloudClosure:
 
                 del data_all, data_all_norm
             count_ncomp += 1
-        plot_error_vs_ncomp(error_array, rel_error_array, ncomp_range, krange, dz, path_out)
+            plot_error_vs_ncomp(error_array, rel_error_array, ncomp_range, krange, dz, path_out)
         time2 = time.clock()
 
 
@@ -621,11 +576,52 @@ cdef class CloudClosure:
 
 
         '''(6) Save Gaussian Mixture PDFs '''
-        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, len(zrange))
-        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, len(zrange))
+        dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
+        dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, nk)
 
 
         return
+
+
+
+
+
+    #----------------------------------------------------------------------
+    #----------------------------------------------------------------------
+    def create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
+        print('create statistics file: '+ path+', '+ file_name)
+        # ncomp: number of Gaussian components in EM
+        # nvar: number of variables of multi-variate Gaussian components
+    #     global time, zrange
+    #     print('create file:', path, file_name)
+        rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
+        dimgrp = rootgrp.createGroup('dims')
+        means_grp = rootgrp.createGroup('means')
+        means_grp.createDimension('nz', nz_)
+        means_grp.createDimension('ncomp', ncomp)
+        means_grp.createDimension('nvar', nvar)
+        cov_grp = rootgrp.createGroup('covariances')
+        cov_grp.createDimension('nz', nz_)
+        cov_grp.createDimension('ncomp', ncomp)
+        cov_grp.createDimension('nvar', nvar)
+        weights_grp = rootgrp.createGroup('weights')
+        weights_grp.createDimension('nz', nz_)
+        weights_grp.createDimension('EM2', 2)
+        ts_grp = rootgrp.createGroup('time')
+        ts_grp.createDimension('nt',len(time)-1)
+        var = ts_grp.createVariable('t','f8',('nt'))
+        for i in range(len(time)-1):
+            var[i] = time[i+1]
+        z_grp = rootgrp.createGroup('z-profile')
+        z_grp.createDimension('nz', nz_)
+        var = z_grp.createVariable('height', 'f8', ('nz'))
+        for i in range(nz_):
+            var[i] = self.zrange[i]
+        rootgrp.close()
+        # print('create file end')
+        return
+
+
 
 
 
@@ -859,49 +855,18 @@ def read_in_netcdf(var_name, group_name, path):
 
 
 #----------------------------------------------------------------------
-def create_statistics_file(path,file_name, ncomp, nvar, nz_):
-    # ncomp: number of Gaussian components in EM
-    # nvar: number of variables of multi-variate Gaussian components
-    global time, zrange
-    print('create file:', path, file_name)
-    rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
-    dimgrp = rootgrp.createGroup('dims')
-    means_grp = rootgrp.createGroup('means')
-    means_grp.createDimension('nz', nz_)
-    means_grp.createDimension('ncomp', ncomp)
-    means_grp.createDimension('nvar', nvar)
-    cov_grp = rootgrp.createGroup('covariances')
-    cov_grp.createDimension('nz', nz_)
-    cov_grp.createDimension('ncomp', ncomp)
-    cov_grp.createDimension('nvar', nvar)
-    weights_grp = rootgrp.createGroup('weights')
-    weights_grp.createDimension('nz', nz_)
-    weights_grp.createDimension('EM2', 2)
-    ts_grp = rootgrp.createGroup('time')
-    ts_grp.createDimension('nt',len(time)-1)
-    var = ts_grp.createVariable('t','f8',('nt'))
-#     for i in range(len(time)-1):
-#         var[i] = time[i+1]
-#     z_grp = rootgrp.createGroup('z-profile')
-#     z_grp.createDimension('nz', len(zrange))
-#     var = z_grp.createVariable('height', 'f8', ('nz'))
-#     for i in range(len(zrange)):
-#         var[i] = zrange[i]
-#     rootgrp.close()
-#     # print('create file end')
-    return
 
-# def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-#     print('-------- dump variable --------', var_name, group_name, path)
-#     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
-#     if group_name == 'means':
-#         add_means(path, var_name, ncomp, nvar)
-#         data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
-#         for i in range(nz_):
-#             for j in range(ncomp):
-#                 for k in range(nvar):
-#                     data[i,j,k] = data_[i,j,k]
-#         write_mean(path, group_name, data, var_name)
+def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
+    print('-------- dump variable --------', var_name, group_name, path)
+    # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
+    if group_name == 'means':
+        add_means(path, var_name, ncomp, nvar)
+        data = np.empty((nz_,ncomp,nvar), dtype=np.double, order='c')
+        for i in range(nz_):
+            for j in range(ncomp):
+                for k in range(nvar):
+                    data[i,j,k] = data_[i,j,k]
+        write_mean(path, group_name, data, var_name)
 #
 #     elif group_name == 'covariances':
 #         add_covariance(path, var_name, ncomp, nvar)
@@ -923,73 +888,73 @@ def create_statistics_file(path,file_name, ncomp, nvar, nz_):
 #
 #     # write_field(path, group_name, data, var_name)
 #     # print('--------')
-#     return
-#
-# def add_means(path, var_name, ncomp, nvar):
-#     print('add means: ', var_name, path)
-#     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     rootgrp = nc.Dataset(path, 'r+')
-#     group = rootgrp.groups['means']
-#     var = group.createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
-#     rootgrp.close()
-#     return
-#
-# def add_covariance(path, var_name, ncomp, nvar):
-#     # print('add covariance: ', var_name, path)
-#     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     rootgrp = nc.Dataset(path, 'r+')
-#     group = rootgrp.groups['covariances']
-#     var = group.createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
-#     rootgrp.close()
-#     return
-#
-# def add_weights(path, var_name, ncomp, nvar):
-#     # print('add weights: ', var_name, path)
-#     # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     rootgrp = nc.Dataset(path, 'r+')
-#     group = rootgrp.groups['weights']
-#     var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
-#     rootgrp.close()
-#     return
-#
-#
-# def write_mean(path, group_name, data, var_name):
-#     print('write mean:', path, var_name, data.shape)
-#     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     fieldgrp = rootgrp.groups[group_name]
-#     var = fieldgrp.variables[var_name]
-#     var[:, :, :] = data[:,:,:]
-#     rootgrp.close()
-#     return
-#
-# def write_covar(path, group_name, data, var_name):
-#     # print('write covar:', path, var_name, data.shape)
-#     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     fieldgrp = rootgrp.groups[group_name]
-#     var = fieldgrp.variables[var_name]
-#     var[:, :, :,:] = data[:, :, :,:]
-#     rootgrp.close()
-#     return
-#
-# def write_weights(path, group_name, data, var_name):
-#     # print('write weights:', path, var_name, data.shape)
-#     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     fieldgrp = rootgrp.groups[group_name]
-#     var = fieldgrp.variables[var_name]
-#     print(var.shape, data.shape)
-#     var[:, :] = data[:,:]
-#     rootgrp.close()
-#     return
-#
-# def write_field(path, group_name, data, var_name):
-#     # print('')
-#     # print('write field:', path, var_name, data.shape, group_name)
-#     rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
-#     fieldgrp = rootgrp.groups[group_name]
-#     # print('fieldgrp', fieldgrp)
-#     var = fieldgrp.variables[var_name]
-#     # var = data
-#        # var[:] = np.array(data)
-#     # var[:, :, :] = data
-#     rootgrp.close()
-#     return
+    return
+
+def add_means(path, var_name, ncomp, nvar):
+    print('add means: ', var_name, path)
+    # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    rootgrp = nc.Dataset(path, 'r+')
+    group = rootgrp.groups['means']
+    var = group.createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+    rootgrp.close()
+    return
+
+def add_covariance(path, var_name, ncomp, nvar):
+    # print('add covariance: ', var_name, path)
+    # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    rootgrp = nc.Dataset(path, 'r+')
+    group = rootgrp.groups['covariances']
+    var = group.createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
+    rootgrp.close()
+    return
+
+def add_weights(path, var_name, ncomp, nvar):
+    # print('add weights: ', var_name, path)
+    # rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    rootgrp = nc.Dataset(path, 'r+')
+    group = rootgrp.groups['weights']
+    var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
+    rootgrp.close()
+    return
+
+
+def write_mean(path, group_name, data, var_name):
+    print('write mean:', path, var_name, data.shape)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    var = fieldgrp.variables[var_name]
+    var[:, :, :] = data[:,:,:]
+    rootgrp.close()
+    return
+
+def write_covar(path, group_name, data, var_name):
+    # print('write covar:', path, var_name, data.shape)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    var = fieldgrp.variables[var_name]
+    var[:, :, :,:] = data[:, :, :,:]
+    rootgrp.close()
+    return
+
+def write_weights(path, group_name, data, var_name):
+    # print('write weights:', path, var_name, data.shape)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    var = fieldgrp.variables[var_name]
+    print(var.shape, data.shape)
+    var[:, :] = data[:,:]
+    rootgrp.close()
+    return
+
+def write_field(path, group_name, data, var_name):
+    # print('')
+    # print('write field:', path, var_name, data.shape, group_name)
+    rootgrp = nc.Dataset(path, 'r+', format='NETCDF4')
+    fieldgrp = rootgrp.groups[group_name]
+    # print('fieldgrp', fieldgrp)
+    var = fieldgrp.variables[var_name]
+    # var = data
+       # var[:] = np.array(data)
+    # var[:, :, :] = data
+    rootgrp.close()
+    return

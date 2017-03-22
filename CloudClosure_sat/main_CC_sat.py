@@ -46,20 +46,33 @@ def main():
     # ClCl.verification_CC(path, path_ref)
 
     files = os.listdir(os.path.join(path_in, 'fields'))
-    ncomp_range = [1, 2, 3, 4, 5, 6, 8, 10]
-    # ncomp_range = [1, 2, 10]
+    # ncomp_range = [1, 2, 3, 4, 5, 6, 8, 10]
+    ncomp_range = [1, 2]
 
+    # ZGILS 6
+    files = ['1382400.nc']
+    # files_ = [1317600, 1339200, 1360800, 1382400]  # ZGILS 6
+    krange = np.asarray([16, 37, 50])
+    # ZGILS S12
+    # files = ['432000.nc']
+    # krange = np.asarray([35,40,45])
     # DYCOMS RF01
     # krange = np.asarray([140,166])
     # files = ['13800.nc', '14400.nc']
     # files = ['13800.nc']
+    # DYCOMS RF02
+    # krange = np.asarray([120, 170])
+    # files = ['18000.nc']
     # Bomex large, kyle
     # krange = np.asarray([27, 91])
     # Bomex 170413
-    krange = np.asarray([20, 39])
+    # krange = np.asarray([20, 39])
+    krange = np.asarray([20])
     files = ['21600.nc']
     # Bomex test
+    # files = ['14400.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
+    # krange = np.asarray([10, 20, 50])
     N = len(files)
     print('Found the following directories', files, N)
     print('zrange: ' + str(krange * dz) + ', dz: ' + str(dz), 'ncomp: ' + str(ncomp_range))
