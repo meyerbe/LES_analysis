@@ -2,7 +2,16 @@ import netCDF4 as nc
 import numpy as np
 import json as  simplejson
 import os
+import pickle
+# Load the dictionary back from the pickle file.
+# ----------------------------------------------------------------------
 
+def read_in_pickle(path, filename):
+    data = pickle.load( open(os.path.join(path, filename), "rb" ) )
+    return data
+
+
+# ----------------------------------------------------------------------
 def read_in_nml(path, case_name):
     global nx, dx
     nml = simplejson.loads(open(os.path.join(path,case_name + '.in')).read())

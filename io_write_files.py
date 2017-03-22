@@ -2,11 +2,14 @@ import netCDF4 as nc
 import numpy as np
 import json as  simplejson
 import os
+import pickle
+
+
+
 
 # ____________________
 ''' PICKLES '''
 def dump_pickle(data,out_path,file_name):
-    data_ = (1.4,42)
     # output = open(os.path.join(out_path,'data.pkl'), 'w')
     output = open(os.path.join(out_path, file_name), 'w')
     pickle.dump(data, output)
