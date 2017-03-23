@@ -62,7 +62,7 @@ def main():
         var_list = ['w', 'u', 's']
     else:
         var_list = ['w', 'temperature', 'qt']
-    var_corr_list = ['wtemperatureqt', 'wthetaliqt']
+    var_corr_list = ['wsqt', 'wthetaliqt']
 
     d = files[0]
     var = var_corr_list[0]
@@ -85,8 +85,6 @@ def main():
 
     '''(1) read in nc-files - trivar EM2 PDF'''
     for var in var_corr_list:
-        if var == 'wthetaliqt':
-            var_list[1] = 'thetali'
         count_t = 0
         print('')
         print('read in ' + var)
@@ -94,19 +92,32 @@ def main():
             nc_file_name = 'EM2_trivar_' + str(d)
             fullpath_in = os.path.join(in_path, 'EM2_trivar', nc_file_name)
             print('fullpath_in', fullpath_in)
-            means = read_in_netcdf(var, 'means', fullpath_in)
-            covars = read_in_netcdf(var, 'covariances', fullpath_in)
-            weights = read_in_netcdf(var, 'weights', fullpath_in)
+            if var == 'wthetaliqt':
+                var_list[1] = 'thetali'
+                try:
+                    means = read_in_netcdf(var, 'means', fullpath_in)
+                    covars = read_in_netcdf(var, 'covariances', fullpath_in)
+                    weights = read_in_netcdf(var, 'weights', fullpath_in)
+                except:
+                    print('wthetaliqt not in variables')
+            else:
+                means = read_in_netcdf(var, 'means', fullpath_in)
+                covars = read_in_netcdf(var, 'covariances', fullpath_in)
+                weights = read_in_netcdf(var, 'weights', fullpath_in)
 
             means_time[count_t,:,:,:] = means[:,:,:]
             covariance_time[count_t, :, :, :] = covars[:, :, :]
             weights_time[count_t,:,:] = weights[:,:]
-
             mean_tot_time[count_t,:,:], covar_tot_time[count_t,:,:,:] = covariance_estimate_from_multicomp_pdf(means, covars, weights)
             count_t += 1
 
         '''(2) sort PDF components according to weights'''
+        print('')
         print('Sorting A')
+        try:
+            os.mkdir(os.path.join(fullpath_out, 'EM2_trivar_figures', 'sortA'))
+        except:
+            pass
         for n in range(time_.size):
             for k in range(z_max):
                 if weights_time[n, k, 0] < weights_time[n, k, 1]:
@@ -130,6 +141,10 @@ def main():
 
         '''(3) sort PDF components according to their mean'''
         print('Sorting B')
+        try:
+            os.mkdir(os.path.join(fullpath_out, 'EM2_trivar_figures', 'sortB'))
+        except:
+            pass
         for n in range(time_.size):
             for k in range(z_max):
                 if means_time[n, k, 0, 0] < means_time[n, k, 1, 0]:
@@ -154,6 +169,10 @@ def main():
 
         '''(4) sort PDF components according to Var[w]'''
         print('Sorting C')
+        try:
+            os.mkdir(os.path.join(fullpath_out, 'EM2_trivar_figures', 'sortC'))
+        except:
+            pass
         for n in range(time_.size):
             for k in range(z_max):
                 if covariance_time[n, k, 0, 0, 0] < covariance_time[n, k, 1, 0, 0]:
@@ -178,6 +197,10 @@ def main():
 
         '''(5) sort PDF components according to E[qt] or Var[qt]'''
         print('Sorting D')
+        try:
+            os.mkdir(os.path.join(fullpath_out, 'EM2_trivar_figures', 'sortD'))
+        except:
+            pass
         for n in range(time_.size):
             for k in range(z_max):
                 if means_time[n, k, 0, 2] < means_time[n, k, 1, 2]:
@@ -452,17 +475,19 @@ def read_in_nml(path, case_name):
 # ----------------------------------------------------------------------
 # # ----------------------------------------------------------------------
 # def read_in_netcdf(variable_name, group_name, fullpath_in):
-#     print('-------', variable_name, group_name, fullpath_in)
+#     print('read in netcdf: ', variable_name, group_name, fullpath_in)
 #     rootgrp = nc.Dataset(fullpath_in, 'r')
-#     var = rootgrp.groups[group_name].variables[variable_name]
-#
-#     shape = var.shape
-#     # print('shape:',var.shape)
-#     data = np.ndarray(shape=var.shape)
-#     data = var[:]
-#     rootgrp.close()
-#     return data
-#
+# #     var = rootgrp.groups[group_name].variables[variable_name]
+#     if group_name == 'timeseries':
+#         var = rootgrp.groups[group_name].variables[variable_name][:]
+#         rootgrp.close()
+# #     shape = var.shape
+# #     # print('shape:',var.shape)
+# #     data = np.ndarray(shape=var.shape)
+# #     data = var[:]
+# #     rootgrp.close()
+#     return var
+
 
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------

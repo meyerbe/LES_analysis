@@ -44,6 +44,12 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
     elif group_name == 'fields':
         var = rootgrp.groups[group_name].variables[variable_name][:,:,:]
         rootgrp.close()
+    else:
+        var_ = rootgrp.groups[group_name].variables[variable_name]
+        shape_ = var_.shape
+        dims_ = np.size(shape_)
+        var = np.ndarray(shape=shape_)
+        var[:] = var_[:]
     return var
     # var = grp.variables[variable_name]
     # # var = rootgrp.groups[group_name].variables[variable_name]
