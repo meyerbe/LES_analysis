@@ -286,32 +286,54 @@ def plot_hist(data_ql, path):
     return
 
 
-def plot_error_vs_ncomp(error_array, rel_error_array, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp(error_ql, rel_error_ql, error_cf, rel_error_cf, ncomp_array, krange, dz, path):
     # error_array = (nk x ncomp):   array for relative errors
     # ncomp_array
-    nk, n_ncomp = np.shape(error_array)
+    nk, n_ncomp = np.shape(error_ql)
     for ncomp in range(n_ncomp):
         for k in range(nk):
-            print('ncomp, k, error, rel error', ncomp, k, error_array[k,ncomp], rel_error_array[k,ncomp])
+            print('ncomp, k, error, rel error', ncomp, k, error_ql[k, ncomp], rel_error_ql[k, ncomp])
 
 
     plt.figure(figsize=(12,6))
-    nk = np.shape(error_array)[0]
+    nk = np.shape(error_ql)[0]
     plt.subplot(1, 2, 1)
     for k in range(nk):
-        plt.plot(ncomp_array, rel_error_array[k, :], '-o', label='z=' + str(krange[k] * dz))
+        plt.plot(ncomp_array, rel_error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
     plt.legend()
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in <ql>')
     plt.title('Relative Error in grid mean liquid water')
     plt.subplot(1, 2, 2)
     for k in range(nk):
-        plt.plot(ncomp_array, error_array[k,:], '-o', label='z='+str(krange[k]*dz))
+        plt.plot(ncomp_array, error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
     plt.legend()
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in <ql>')
     plt.title('Absolute Error in grid mean liquid water')
-    savename = 'error_figure.png'
+    savename = 'error_figure_ql.png'
+    plt.savefig(
+        os.path.join(path, 'CloudClosure_figures', savename))
+    plt.close()
+
+
+    plt.figure(figsize=(12, 6))
+    nk = np.shape(error_ql)[0]
+    plt.subplot(1, 2, 1)
+    for k in range(nk):
+        plt.plot(ncomp_array, rel_error_cf[k, :], '-o', label='z=' + str(krange[k] * dz))
+    plt.legend()
+    plt.xlabel('# Gaussian components in PDF')
+    plt.ylabel('relative error in CF')
+    plt.title('Relative Error in Cloud Fraction')
+    plt.subplot(1, 2, 2)
+    for k in range(nk):
+        plt.plot(ncomp_array, error_cf[k, :], '-o', label='z=' + str(krange[k] * dz))
+    plt.legend()
+    plt.xlabel('# Gaussian components in PDF')
+    plt.ylabel('absolute error in CF')
+    plt.title('Absolute Error in Cloud Fraction')
+    savename = 'error_figure_cf.png'
     plt.savefig(
         os.path.join(path, 'CloudClosure_figures', savename))
     plt.close()
