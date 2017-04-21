@@ -19,7 +19,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 # from plotting_functions import plot_PDF_samples_qt, plot_PDF_samples, plot_sat_adj, plot_PDF
-from plotting_functions import plot_PDF, plot_samples, plot_hist, plot_error_vs_ncomp
+from plotting_functions import plot_PDF, plot_samples, plot_hist, plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf
 
 
 cdef class CloudClosure:
@@ -392,7 +392,7 @@ cdef class CloudClosure:
             double [:,:] Th_l= np.zeros([n_sample, nvar], dtype=np.double, order='c')
             double ql_mean = 0.0
             double cf_comp = 0.0
-            double cf_field = 0.0
+            double [:] cf_field = np.zeros(shape=(nk))
             double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
@@ -422,6 +422,7 @@ cdef class CloudClosure:
                 iz = krange[k]
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
                 data_all = np.ndarray(shape=(0, nvar))
+                ql_all = np.ndarray(shape=(0))
                 ql_mean_field = 0.0
                 time_a = time.clock()
                 for d in files:
@@ -439,14 +440,16 @@ cdef class CloudClosure:
                             ql[ij,k] = ql_[i,j,iz]
                             ql_mean_field += ql_[i,j,iz]
                             if ql[ij,k] > 0.0:
-                                cf_field += 1.0
+                                cf_field[k] += 1.0
                     del s_, ql_, qt_, T_
-                    ql_mean_field /= (nx*ny)
-                    cf_field /= (nx*ny)
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
                     data_all = np.append(data_all, data, axis=0)
-                    print('???', d, k, data.shape, data_all.shape)
+                    ql_all = np.append(ql_all, ql[:,k], axis=0)
+                    print('??? dk', d, k, data.shape, data_all.shape, ql.shape, ql_all.shape)
+
+                ql_mean_field /= len(files)*(nx*ny)
+                cf_field[k] /= len(files)*(nx*ny)
                 time_b = time.clock()
                 print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
                 time_a = time.clock()
@@ -536,11 +539,11 @@ cdef class CloudClosure:
                     ql_mean_profile /= (n2-n1)
 
                 error_ql[k,count_ncomp] = ql_mean - ql_mean_field
-                error_cf[k,count_ncomp] = cf_comp - cf_field
+                error_cf[k,count_ncomp] = cf_comp - cf_field[k]
                 if ql_mean_field > 0.0:
                     rel_error_ql[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
-                if cf_field > 0.0:
-                    rel_error_cf[k,count_ncomp] = (cf_comp - cf_field) / cf_field
+                if cf_field[k] > 0.0:
+                    rel_error_cf[k,count_ncomp] = (cf_comp - cf_field[k]) / cf_field[k]
 
                 print('<ql> from CloudClosure Scheme: ', ql_mean)
                 print('<ql> from ql fields: ', ql_mean_field)
@@ -568,15 +571,16 @@ cdef class CloudClosure:
 
                 # plotting
                 plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error_ql[k,count_ncomp], iz*dz, path_out)
-                plot_samples('norm', data_all_norm, ql[:,k], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-                plot_samples('original', data_all, ql[:,k], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 plot_hist(ql, path_out)
                 print('')
                 print('')
 
                 del data_all, data_all_norm
             count_ncomp += 1
-            plot_error_vs_ncomp(error_ql, rel_error_ql, error_cf, rel_error_cf, ncomp_range, krange, dz, path_out)
+            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_range, krange, dz, path_out)
+            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field, ncomp_range, krange, dz, path_out)
         time2 = time.clock()
 
 

@@ -15,6 +15,7 @@ def dump_pickle(data,out_path,file_name):
     pickle.dump(data, output)
     output.close()
     return
+
 def test_pickle(in_path,file_name):
     print('')
     print('------- test pickle ------')

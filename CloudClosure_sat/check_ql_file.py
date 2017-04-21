@@ -45,24 +45,29 @@ def main():
     # files_ = [18000, 18900, 19800, 20700]
 
     # files_ = [0, 1*day, 2*day, 3*day, 4*day, 5*day]
-    files_ = [0, 1 * day, 2 * day, 3 * day, 4 * day, 5 * day, 6*day, 7*day, 8*day]
+    # files_ = [0, 1 * day, 2 * day, 3 * day, 4 * day, 5 * day, 6*day, 7*day, 8*day]
     # files_ = [6*day, 7*day, 8*day, 9*day, 10*day, 11*day, 12*day, 13*day]
     # files_ = files
     # files_ = [0]
 
     #  Bomex 170314_weno7
-    files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
-    files_cum = [5*hour, np.int(5.5*hour), 6*hour]
+    # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+    # files_cum = [5*hour, np.int(5.5*hour), 6*hour]
 
     #  Rico
     # files_ = [0, 2 * hour, 4 * hour, 6 * hour, 8 * hour, 10 * hour, 12 * hour,
     #                 14 * hour, 16 * hour, 18 * hour, 20 * hour, 22 * hour, 24 * hour]
+    # files_cum = [23 * hour, np.int(23.5 * hour), 24 * hour]
 
     #  DYCOMS RF01
-    # files_ = ['1800.nc','3600.nc']
+    # files_ = ['1800.nc','3600.nc', '7200.nc']
+    # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour]
+    # files_cum = ['10800.nc', '12600.nc', '14400.nc']
 
     # DYCOMS RF02
-    # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+    files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+    # files_cum = ['10800.nc', '12600.nc', '14400.nc']
+    files_cum = ['18000.nc', '19800.nc', '21600.nc']
 
     # files_ = [1317600, 1339200, 1360800, 1382400]      # ZGILS 6
     print('All Files: ', files)
@@ -83,6 +88,7 @@ def main():
     # plot_mean_var('thetali', files_, zrange, path)
 
     plot_mean_cumulated('ql', files_cum, zrange, path)
+    plot_mean_cumulated('s', files_cum, zrange, path)
 
     return
 
@@ -98,7 +104,7 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     # time = read_in_netcdf('t', 'timeseries', path_references)
 
     print('')
-    print(files_cum, len(files_cum))
+    print('files_cum', files_cum, len(files_cum))
 
     plt.figure(figsize=(9, 6))
     cm1 = plt.cm.get_cmap('bone')
@@ -124,9 +130,9 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     plt.legend()
     plt.xlabel('mean ' + var_name)
     plt.ylabel('height z [m]')
-    plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny * len(files_cum)) + ')')
     plt.savefig(
-        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_cum.png'))
+        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_cum.pdf'))
     # plt.show()
     plt.close()
 
@@ -164,12 +170,12 @@ def plot_mean_var(var_name, files_, zrange, path):
     plt.legend()
     plt.xlabel('mean ' + var_name)
     plt.ylabel('height z [m]')
-    plt.title('mean '+var_name+' (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('mean '+var_name+' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
     plt.subplot(1, 2, 2)
     plt.legend()
     plt.xlabel('Var['+var_name+']')
     plt.ylabel('height z [m]')
-    plt.title('Var['+var_name+'] (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('Var['+var_name+'] (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
     plt.savefig(
         os.path.join(path, 'figs_stats', var_name+'_mean_var_fromfield.png'))
     # plt.show()
@@ -187,6 +193,7 @@ def plot_ql_n_all(files_, zrange, path, prof=True):
     count_color = 0.0
     plt.figure(figsize=(14,7))
     for t in files_:
+        print('')
         if str(t)[-1] == 'c':
             path_fields = os.path.join(path, 'fields', str(t))
             it = np.int(t[0:-3])
@@ -208,10 +215,12 @@ def plot_ql_n_all(files_, zrange, path, prof=True):
         ql_mean_fields = np.mean(np.mean(ql,axis=0),axis=0)
         ax = plt.subplot(1,2,1)
         plt.plot(nql_all, zrange, color = cm2(count_color/len(files_)), label='t=' + str(it) + 's')
-        try:
-            ax.set_xscale('log')
-        except:
-            pass
+        if np.any(nql_all) > 0.0:
+            try:
+                ax.set_xscale('log')
+            except:
+                print('no log-scaling possible (nql_all=' + str(nql_all) + ')')
+                pass
         plt.subplot(1, 2, 2)
         plt.plot(ql_mean_fields, zrange, color=cm2(count_color/len(files_)), label='t=' + str(it) + 's')
         if prof:
@@ -226,12 +235,12 @@ def plot_ql_n_all(files_, zrange, path, prof=True):
     plt.legend()
     plt.xlabel('# non-zero ql')
     plt.ylabel('height z [m]')
-    plt.title('# non-zero ql (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('# non-zero ql (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
     plt.subplot(1, 2, 2)
     plt.legend()
     plt.xlabel('mean ql')
     plt.ylabel('height z [m]')
-    plt.title('mean ql (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('mean ql (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
 
     plt.savefig(
         os.path.join(path, 'figs_stats', 'ql_number_fromfield.png'))
@@ -299,7 +308,7 @@ def plot_mean(var_name, files_, zrange, path):
     plt.legend()
     plt.xlabel('mean '+var_name)
     plt.ylabel('height z [m]')
-    plt.title('mean '+var_name + ' (' + case_name + ', nx*ny=1' + str(nx * ny) + ')')
+    plt.title('mean '+var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
 
     plt.savefig(
         os.path.join(path, 'figs_stats', var_name + '_mean_fromfield.png'))
