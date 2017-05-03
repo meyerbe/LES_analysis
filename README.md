@@ -39,6 +39,25 @@
 `arqr_py.py`: QR decomposition
 
 
+
+# Cloud Closure
+__CloudClosure_sat:__
+- `check_ql_file.py`: compute and plot statistics from a single 3D field output or cumulated over several output fields
+corresponding to several timesteps (mean profiles of liquid  water, entropy and thetali; maximum liquid water)
+- `plotting_gaussians.py`: plotting Gaussian functions with adjustable number of components (only for illustration)
+- __`main_CC_sat.py`__: defining path, casename, timesteps etc.; calling the main file `CloudClosure.pyx`
+- __`CloudClosure.pyx`__: reading in files, computing GMM (Gaussian Mixture Model) PDF, saving corresponding parameters,
+Monte Carlo sampling from fitted PDF and computing (grid cell) mean liquid water from data and samples to compute the fitting error;
+calling plotting functions
+- __`CC_thermodynamics.pyx`__: Clausius Clapeyron incl. Lookup Table; Latent Heat class; saturation adjustment, analog to PyCLES;
+Cython interfaces to thermodynamic functions from C-files, that are directly copied from PyCLES (in _Csrc_)
+- `plotting_functions.py`: plotting functions for Data scatterplot, sampling
+
+__Repositories:__
+- _CloudClosure_: test version, in python
+- _CloudClosure_unsat_: test of unsaturated thermodynamics, to verify LES output
+- ___CloudClosure_sat___: current version
+
 # IO
 
 `io_read_in_files.py`: read in nc-files, Namelist files etc.
