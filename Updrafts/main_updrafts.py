@@ -25,7 +25,7 @@ def main():
     # Bomex test
     files = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20, 25], dtype=np.int32)
+    krange = np.asarray([20], dtype=np.int32)
     # krange = np.asarray([20, 25])
     # krange = np.asarray([18,30,38])
     print('...', type(krange), type(krange[0]))

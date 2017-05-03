@@ -18,6 +18,9 @@
 
 # !!!! sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
 
+# Option: read in fields and PDF parameters from Cloud Closure and use clf.predict(field_data) for producing labels
+
+
 import os
 import json as simplejson
 import time
@@ -66,6 +69,7 @@ cdef class Updrafts:
 
         self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
         self.zrange = krange * dz
+        # print('zrange', self.zrange.shape, krange.shape, type(krange), type(self.zrange))
 
         return
 
@@ -159,8 +163,9 @@ cdef class Updrafts:
             double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
 
         # for Labeling
-        cdef:
-            double [:,:,:] labels = np.zeros(shape=(nx, ny, nk))
+        # cdef:
+        #     double [:,:,:] labels = np.zeros(shape=(nx, ny, nk))
+        labels = np.zeros(shape=(nx, ny, nk))
 
 
         var_list = ['s', 'qt', 'temperature', 'ql']
@@ -168,6 +173,7 @@ cdef class Updrafts:
         for ncomp in ncomp_range:
             means_ = np.ndarray(shape=(nk, ncomp, nvar))
             covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+            weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
             tt = files[0][0:-3]
             nc_file_name_CC = 'CC_updrafts_time'+str(tt)+'.nc'
@@ -207,36 +213,181 @@ cdef class Updrafts:
                 ql_mean_field /= len(files)*(nx*ny)
                 cf_field[k] /= len(files)*(nx*ny)
 
-                '''(4) Normalise Data'''
+                '''(3) Normalise Data'''
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
 
-                '''(5) Compute bivariate PDF'''
+                '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
                 # clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-                # cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z, path):
                 clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
                 clf_thl_norm.fit(data_all_norm)
                 means_[k, :, :] = clf_thl_norm.means_[:, :]
                 covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+                weights_[k,:] = clf_thl_norm.weights_[:]
 
 
-                '''(6) Sort and look for labels'''
+                '''(5) Sort and look for labels'''
                 labels_ = clf_thl_norm.predict(data_all_norm)
+                # labels_ = np.int(clf_thl_norm.predict(data_all_norm))
                 # print('LABELS: ', type(labels))
                 print('')
                 print('Labels: ', np.count_nonzero(labels_), labels_.shape, data_all_norm.shape)
+                # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
+                means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_, clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
+                print('Labels new: ', np.count_nonzero(labels_new))
+
                 # rearrange into 2D array (for only one data file)
                 for i in range(nx):
                     for j in range(ny):
                         ij = i*ishift + j
-                        labels[i,j,k] = labels_[ij]
-            # !!!! sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
+                        labels[i,j,k] = labels_new[ij]
+
+
+            #     '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
+            #     #       1. sample (th_l, qt) from PDF (Monte Carlo ???
+            #     #       2. compute ql for samples
+            #     #       3. consider ensemble average <ql> = domain mean representation???
+            #     '''(1) Draw samples'''
+            #     Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
+            #     '''(2) Rescale theta_l and qt'''
+            #     Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
+            #
+            #     '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
+            #     for i in range(n_sample-2):
+            #         # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
+            #         T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+            #         ql_mean = ql_mean + ql_comp_thl[i]
+            #         if ql_comp_thl[i] > 0:
+            #             cf_comp += 1
+            #     ql_mean = ql_mean / n_sample
+            #     cf_comp = cf_comp / n_sample
+            #
+            #     error_ql[k,count_ncomp] = ql_mean - ql_mean_field
+            #     error_cf[k,count_ncomp] = cf_comp - cf_field[k]
+            #     if ql_mean_field > 0.0:
+            #         rel_error_ql[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
+            #     if cf_field[k] > 0.0:
+            #         rel_error_cf[k,count_ncomp] = (cf_comp - cf_field[k]) / cf_field[k]
+            #
+            #     print('<ql> from CloudClosure Scheme: ', ql_mean)
+            #     print('<ql> from ql fields: ', ql_mean_field)
+            #     print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
+            #     print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
+            #
+            # count_ncomp += 1
+
+            # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
+            # means, covars, weight, labels = self.sort_PDF(means_, covariance_, weights_, labels_)
+
             # self.write_updrafts_field(self.path_out, nc_file_name_labels, labels)
             self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
 
+        return
+
+
+
+    cpdef sort_PDF(self, means_, covariances_, weights_, labels_):
+        '''sort PDF components according to <qt>'''
+        # sort such that PDF-component 0 has larger mean qt than PDF-component 1, i.e. PDF-component 0 represents the updrafts
+
+        # means_ = (ncomp x nvar)
+        # covariances_ = (ncomp, nvar, nvar)
+        # weights_ = (ncomp)
+        # labels_ = (nx * ny)
+
+        cdef:
+            double [:,:] means = means_
+            double [:,:,:] covars = covariances_
+            double [:] weights = weights_
+            # double [:] labels = np.ndarray(shape=labels_.shape, ndtype=np.double)
+            # double [:] labels = np.ndarray(shape=labels_.shape)
+            int nk = len(self.zrange)
+            int nij = labels_.shape[0]
+            int nvar = 2
+
+        labels = np.zeros(shape = labels_.shape)
+
+        print(means.shape, covars.shape, weights.shape)
+        # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
+        if means[0, 1] < means[1, 1]:
+            print('')
+            print('sorting')
+            aux = weights[1]
+            weights[1] = weights[0]
+            weights[0] = aux
+            for i1 in range(nvar):  # loop over variables
+                aux = means[1, i1]
+                means[1, i1] = means[0, i1]
+                means[0, i1] = aux
+                for i2 in range(nvar):
+                    aux = covars[1, i1, i2]
+                    covars[1, i1, i2] = covars[0, i1, i2]
+                    covars[0, i1, i2] = aux
+            labels = [int(not labels_[i]) for i in range(nij)]
+
+            # # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+            # # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+            # # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+            # # print('')
+        return means, covars, weights, labels
+
+
+
+
+    cpdef sort_PDF_allk(self, means_, covariances_, weights_, labels_):
+        '''sort PDF components according to <qt>'''
+        # sort such that PDF-component 0 has larger mean qt than PDF-component 1, i.e. PDF-component 0 represents the updrafts
+
+        # means_ = (nk x ncomp x nvar)
+        # covariances_ = (nk x ncomp x nvar x nvar)
+        # weights_ = (nk x ncomp)
+        # labels_ = (nx x ny x nk)
+
+        cdef:
+            double [:,:,:] means = means_[:,:,:]
+            double [:,:,:,:] covars = covariances_
+            double [:,:] weights = weights_
+            double [:,:,:] labels = np.ndarray(shape=labels_.shape,ndtype=np.double)
+            int nk = len(self.zrange)
+            # Py_ssize_t nij = labels.shape
+            int nij = labels_.shape
+            int nvar = 2
+        # means = means_
+        # covars = covariances_
+        # weights = weights_
+
+        print('')
+        print('sorting', nij)
+        print(means.shape, covars.shape, weights.shape)
+        for k in range(nk):
+            # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
+            if means[k, 0, 1] < means[k, 1, 1]:
+                aux = weights[k, 1]
+                weights[k, 1] = weights[k, 0]
+                weights[k, 0] = aux
+                for i1 in range(nvar):  # loop over variables
+                    aux = means[k, 1, i1]
+                    means[k, 1, i1] = means[k, 0, i1]
+                    means[k, 0, i1] = aux
+                    for i2 in range(nvar):
+                        aux = covars[k, 1, i1, i2]
+                        covars[k, 1, i1, i2] = covars[k, 0, i1, i2]
+                        covars[k, 0, i1, i2] = aux
+        #         # for i in range(nx):
+        #         #     for j in range(ny):
+        #         a = [int(not labels[i]) for i in range(nij)]
+        #
+        # print(a[0:3])
+        # print(labels[0:3])
+
+        # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+        # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+        # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+        # print('')
+        return means, covars, weights, labels
 
 
     #----------------------------------------------------------------------
@@ -252,7 +403,10 @@ cdef class Updrafts:
         nk = len(self.zrange)
         z_grp.createDimension('nz', nk)
         var = z_grp.createVariable('z', 'f8', 'nz')
-        var[:] = self.zrange
+        # print('....', self.zrange.shape, type(self.zrange), type(self.zrange[:]))
+        for k in range(nk):
+            var[k] = self.zrange[k]
+        # var[:] = self.zrange[:]
 
         # field_grp = rootgrp.createGroup('fields')
         # field_grp.createDimension('nx', nml['grid']['nx'])
@@ -271,7 +425,7 @@ cdef class Updrafts:
     #     return
 
     # cpdef write_updrafts_field(self, path, file_name, double[:,:,:] data):
-    cpdef write_updrafts_field(self, path, file_name, double[:,:,:] data, nml):
+    cpdef write_updrafts_field(self, path, file_name, data, nml):
         print('write updrafts: ' + os.path.join(path, file_name))
         root = nc.Dataset(os.path.join(path, file_name), 'r+', format='NETCDF4')
         field_grp = root.createGroup('fields')
@@ -283,13 +437,14 @@ cdef class Updrafts:
         labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz',))
         labels.units = ' '
         labels[:,:,:] = data
-        # field_grp = root.groups['fields']
-        # var = field_grp.variables['labels']
-        # var = root.groups['fields'].variables['labels']
-        # var = fieldgrp.variables[name]
-        # var[:,:,:] = np.array(data)
-        root.close()
+        # # field_grp = root.groups['fields']
+        # # var = field_grp.variables['labels']
+        # # var = root.groups['fields'].variables['labels']
+        # # var = fieldgrp.variables[name]
+        # # var[:,:,:] = np.array(data)
+        # root.close()
         return
+
 
     cpdef create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
         print('create statistics file: '+ path+', '+ file_name)
