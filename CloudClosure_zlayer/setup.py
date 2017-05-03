@@ -46,10 +46,6 @@ _ext = Extension('CloudClosure_z', ['CloudClosure_z.pyx'], include_dirs=include_
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
-_ext = Extension('CloudClosure', ['CloudClosure.pyx'], include_dirs=include_path,
-                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
-                 runtime_library_dirs=library_dirs)
-extensions.append(_ext)
 
 _ext = Extension('CC_thermodynamics_c', ['CC_thermodynamics_c.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
