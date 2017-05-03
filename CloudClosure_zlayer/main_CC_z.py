@@ -3,8 +3,7 @@ import argparse
 import json as simplejson
 import numpy as np
 
-import CloudClosure
-# import CloudClosure_z
+import CloudClosure_z
 
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
@@ -21,7 +20,7 @@ def main():
     # nz = nml['grid']['nz']
     dz = nml['grid']['dz']
 
-    ClCl = CloudClosure.CloudClosure()
+    ClCl = CloudClosure_z.CloudClosure()
     ClCl.initialize(path, case_name)
 
     files = os.listdir(os.path.join(path, 'fields'))
