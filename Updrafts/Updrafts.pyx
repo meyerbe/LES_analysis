@@ -16,7 +16,6 @@
 #           red = differences (could be further distinguised into which algorithm classifies it as an updraft point)
 #       - compute conditional statistics, e.g. cloud fraction and compare
 
-# !!!! sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
 
 # Option: read in fields and PDF parameters from Cloud Closure and use clf.predict(field_data) for producing labels
 
