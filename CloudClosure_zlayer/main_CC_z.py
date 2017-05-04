@@ -3,7 +3,8 @@ import argparse
 import json as simplejson
 import numpy as np
 
-import CloudClosure_z
+import CloudClosure_dz
+import CloudClosure
 
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
@@ -20,8 +21,9 @@ def main():
     # nz = nml['grid']['nz']
     dz = nml['grid']['dz']
 
-    ClCl = CloudClosure_z.CloudClosure()
-    ClCl.initialize(path, case_name)
+    ClCl = CloudClosure_dz.CloudClosure()
+    # ClCl = CloudClosure.CloudClosure()
+
 
     files = os.listdir(os.path.join(path, 'fields'))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -31,7 +33,7 @@ def main():
     # files = ['1382400.nc']
     # files_ = [1317600, 1339200, 1360800, 1382400]  # ZGILS 6
     files = files[0:25:2]
-    krange = np.asarray([25, 25, 40, 50, 60, 65])
+    krange = np.asarray([25, 25, 40, 50, 60, 65], dtype=np.int32)
     # ZGILS S12
     # files = ['432000.nc']
     # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
@@ -68,6 +70,10 @@ def main():
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
     print('')
+    print(path)
+    print('')
+
+    ClCl.initialize(krange, path, case_name)
     ClCl.predict_pdf(files, path, ncomp_range, dz_range, krange, nml)
 
     return

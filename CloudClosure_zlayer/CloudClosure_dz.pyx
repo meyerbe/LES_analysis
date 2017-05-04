@@ -1,12 +1,13 @@
 import os
-include 'parameters.pxi'
-import numpy as np
-import netCDF4 as nc
+#include 'parameters.pxi'
 import json as simplejson
 import time
+import netCDF4 as nc
+import numpy as np
 
 from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
+
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
@@ -17,6 +18,7 @@ from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 cdef class CloudClosure:
     def __init__(self):
         self.path_ref = ' '
+        self.path_out = ' '
         self.p_ref = None
         self.z_ref = None
         self.zrange = None
@@ -24,10 +26,16 @@ cdef class CloudClosure:
 
 
 
-    cpdef initialize(self, path, case_name):
+    cpdef initialize(self, krange, path, case_name):
         print('--- Cloud Closure Scheme ---')
+        print(path)
+        print(case_name)
+        print('')
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
-        cdef int nz = nml['grid']['nz']
+        cdef:
+            int nz = nml['grid']['nz']
+            int dz = nml['grid']['dz']
+        self.path_out = os.path.join(path, 'CloudClosure')
 
         if case_name[0:8] == 'ZGILS_S6':
             self.path_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
@@ -41,13 +49,16 @@ cdef class CloudClosure:
             self.p_ref = read_in_netcdf('p0', 'reference', self.path_ref)[:]
 
         self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
-        self.zrange = self.z_ref
+        self.zrange = np.double(krange) * dz
+        print('')
+        print('zrange', self.zrange[:])
 
         return
 
 
 
-    cpdef predict_pdf(self, files, path, ncomp_range, dz_range_, krange_, nml):
+
+    cpdef predict_pdf(self, files, path, ncomp_range, dz_range_, int [:] krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
@@ -61,7 +72,7 @@ cdef class CloudClosure:
         cdef:
             int ncomp
             int nvar = 2
-            Py_ssize_t [:] krange = krange_
+            int [:] krange = krange_
             int nk = len(krange)
             int dz_range = dz_range_
             Py_ssize_t k, iz
@@ -97,7 +108,6 @@ cdef class CloudClosure:
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)
 
-
         '''(1) Read in Fields'''
         # for PDF construction
         cdef:
@@ -107,7 +117,7 @@ cdef class CloudClosure:
             double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
             double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] ql_all = np.ndarray(shape=(0))
+            double [:] ql_all
             double qi_ = 0.0
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] data_all
@@ -140,17 +150,19 @@ cdef class CloudClosure:
         for ncomp in ncomp_range:
             means_ = np.ndarray(shape=(nk, ncomp, nvar))
             covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+            weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
-            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(dz_range)+'.nc'
-            self.create_statistics_file(os.path.join(path, 'CloudClosure'), nc_file_name_out, files[0][0:-3], ncomp, nvar, nk)
+            tt = files[0][0:-3]
+            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(dz_range)+'_time'+str(tt)+'.nc'
+            self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
             for k in range(nk):
                 iz = krange[k]
+                print('')
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
                 data_all = np.ndarray(shape=(0, nvar))
                 ql_all = np.ndarray(shape=(0))
                 ql_mean_field = 0.0
-
 
                 for d in files:
                     nc_file_name = d
@@ -177,19 +189,20 @@ cdef class CloudClosure:
                 ql_mean_field /= len(files)*(nx*ny)
                 cf_field[k] /= len(files)*(nx*ny)
 
-                '''(4) Normalise Data'''
+                '''(3) Normalise Data'''
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
 
-                '''(5) Compute bivariate PDF'''
+                '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
                 clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
                 means_[k, :, :] = clf_thl_norm.means_[:, :]
                 covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+                weights_[k,:] = clf_thl_norm.weights_[:]
 
-                # '''(6) Compute Kernel-Estimate PDF '''
+                # '''(5) Compute Kernel-Estimate PDF '''
                 # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
                 # relative_entropy(data, clf, kde)
                 # print('')
