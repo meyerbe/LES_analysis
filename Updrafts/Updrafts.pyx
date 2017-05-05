@@ -33,11 +33,6 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-cdef class CloudClosure:
-    def __init__(self):
-        return
-    cpdef initialize(self):
-        return
 
 
 cdef class Updrafts:
@@ -128,6 +123,8 @@ cdef class Updrafts:
         '''(1) Read in Fields'''
         # for PDF construction
         cdef:
+            int i, j, ij
+            int ishift = ny
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
@@ -138,14 +135,11 @@ cdef class Updrafts:
             double qi_ = 0.0
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] data_all
-            int ishift = ny
-            int i, j, ij
             double Lv
 
         # for PDF sampling
         cdef:
             int n_sample = np.int(1e6)
-            double [:] cf_field = np.zeros(shape=(nk))
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] alpha_comp_thl = np.zeros(n_sample)
@@ -154,6 +148,7 @@ cdef class Updrafts:
         cdef:
             double ql_mean_field
             double ql_mean = 0.0
+            double [:] cf_field = np.zeros(shape=(nk))
             double cf_comp = 0.0
             int count_ncomp = 0
             double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
