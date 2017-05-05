@@ -27,8 +27,8 @@ def main():
 
     files = os.listdir(os.path.join(path, 'fields'))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    ncomp_range = [1,2]
-    dk_range = 3        # number of layers below and above added to data
+    # ncomp_range = [1, 2]
+    dk_range = 2        # number of layers below and above added to data
 
     # ZGILS 6
     # files = ['1382400.nc']
@@ -76,7 +76,8 @@ def main():
     print('')
 
     ClCl.initialize(krange, path, case_name)
-    ClCl.predict_pdf(files, path, ncomp_range, dk_range, krange, nml)
+    for dk_range in [0, 1, 2, 3]:
+        ClCl.predict_pdf(files, path, ncomp_range, dk_range, krange, nml)
 
     return
 

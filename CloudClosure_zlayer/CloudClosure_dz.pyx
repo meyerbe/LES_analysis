@@ -13,7 +13,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-from plotting_functions import plot_PDF
+from plotting_functions import plot_PDF, plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf
 
 
 cdef class CloudClosure:
@@ -131,12 +131,12 @@ cdef class CloudClosure:
         # for PDF sampling
         cdef:
             # int n_sample = np.int(1e6)
-            int n_sample = np.int(1e2)
+            int n_sample = np.int(1e3)
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] alpha_comp_thl = np.zeros(n_sample)
 
-        # for Error Computation
+        # for Error Computation / <ql> intercomparison
         cdef:
             double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
             double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
@@ -198,12 +198,9 @@ cdef class CloudClosure:
                                 ql_mean_field[k] += ql_[i,j,iz+k_]
                                 if ql_[i,j,iz+k] > 0.0:
                                     cf_field[k] += 1.0
-                        # err_ql = 0
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
-                        print(qt.shape, qt_.shape, nx*ny, nx*ny*dk)
-                        print(ql.shape, ql_.shape)
-                        print('')
+                        # print('')
 
                         #qt_allz = np.append(qt_allz, qt[:,k], axis=0)
                         #thl_allz = np.append(thl_allz, theta_l[:,k], axis=0)
@@ -222,12 +219,10 @@ cdef class CloudClosure:
                 cf_field[k] /= len(files)*(nx*ny)*dk
 
                 '''(3) Normalise Data'''
-                print('-- normalise data --')
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
 
                 '''(4) Compute bivariate PDF'''
-                print('-- compute Gaussian --')
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
@@ -243,35 +238,22 @@ cdef class CloudClosure:
                 # relative_entropy(data, clf, kde)
                 # print('')
 
-                print('''(D) plotting''')
-                # def plot_PDF(data, var_name1, var_name2, ncomp, error, z, path):
-                err_ql = 0
-                save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_dz'+str(dk)
-                plot_PDF(data_all, 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
-                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-                # plot_hist(ql, path_out)
-                print('')
-                print('')
-
 
 
 
                 '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
-                print('-- compute mean liquid water from PDF --')
                 #       1. sample (th_l, qt) from PDF (Monte Carlo ???
                 #       2. compute ql for samples
                 #       3. consider ensemble average <ql> = domain mean representation???
-                print('''(1) Draw samples''')
+                '''(1) Draw samples'''
                 Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
-                print('''(2) Rescale theta_l and qt''')
+                '''(2) Rescale theta_l and qt'''
                 Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
 
-                print('''(3) Compute ql (saturation adjustment) & Cloud Fraction ''')
+                '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
                 for i in range(n_sample-2):
                     # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                    # print('i='+str(i), Th_l[i,0], T_comp_thl[i], Th_l[i,1], ql_comp_thl[i])
                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
                         cf_comp[k] += 1
@@ -284,12 +266,28 @@ cdef class CloudClosure:
                 if cf_field[k] > 0.0:
                     rel_error_cf[k,count_ncomp] = (cf_comp[k] - cf_field[k]) / cf_field[k]
 
+                print('')
                 print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
                 print('<ql> from ql fields: ', ql_mean_field[k])
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
+                print('')
+                print('CF from Cloud Closure Scheme: ', cf_comp[k])
+                print('CF from ql fields: ', cf_field[k])
+                print('error: '+str(error_cf[k,count_ncomp]))
+                print('rel error: ', rel_error_cf[k,count_ncomp])
+                print('')
 
+                '''(E) Plotting'''
+                save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_dz'+str(dk-1)
+                plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # plot_hist(ql, path_out)
+                print('')
             count_ncomp += 1
+            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_range, krange, dz, self.path_out)
+            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field, ncomp_range, krange, dz, self.path_out)
         return
 
 
