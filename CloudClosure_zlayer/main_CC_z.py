@@ -27,13 +27,14 @@ def main():
 
     files = os.listdir(os.path.join(path, 'fields'))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    dz_range = 1
+    ncomp_range = [1,2]
+    dk_range = 3        # number of layers below and above added to data
 
     # ZGILS 6
     # files = ['1382400.nc']
     # files_ = [1317600, 1339200, 1360800, 1382400]  # ZGILS 6
-    files = files[0:25:2]
-    krange = np.asarray([25, 25, 40, 50, 60, 65], dtype=np.int32)
+    # files = files[0:25:2]
+    # krange = np.asarray([25, 25, 40, 50, 60, 65], dtype=np.int32)
     # ZGILS S12
     # files = ['432000.nc']
     # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
@@ -54,16 +55,17 @@ def main():
     # krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
     # files = ['18000.nc', '19800.nc', '21600.nc']
     # Bomex test
-    # files = ['21600.nc']
+    files = ['21600.nc']
     # files = ['14400.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    # krange = np.asarray([20, 25])
+    krange = np.asarray([20, 25])
     # krange = np.asarray([18,30,38])
     # TRMM
     # files = ['1012600.nc', '1014400.nc', '1016200.nc']
     # krange = np.asarray([10, 15, 20, 30, 40, 50, 60])
 
 
+    krange = np.asarray(krange, dtype=np.int32)
     N = len(files)
     print('Found the following directories', files, N)
     print('zrange: ' + str(krange * dz))
@@ -74,7 +76,7 @@ def main():
     print('')
 
     ClCl.initialize(krange, path, case_name)
-    ClCl.predict_pdf(files, path, ncomp_range, dz_range, krange, nml)
+    ClCl.predict_pdf(files, path, ncomp_range, dk_range, krange, nml)
 
     return
 

@@ -13,6 +13,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
+from plotting_functions import plot_PDF
 
 
 cdef class CloudClosure:
@@ -35,7 +36,7 @@ cdef class CloudClosure:
         cdef:
             int nz = nml['grid']['nz']
             int dz = nml['grid']['dz']
-        self.path_out = os.path.join(path, 'CloudClosure')
+        self.path_out = os.path.join(path, 'CloudClosure_z')
 
         if case_name[0:8] == 'ZGILS_S6':
             self.path_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
@@ -58,7 +59,8 @@ cdef class CloudClosure:
 
 
 
-    cpdef predict_pdf(self, files, path, ncomp_range, dz_range_, int [:] krange_, nml):
+    # cpdef predict_pdf(self, files, path, ncomp_range, dk_range_, int [:] krange_, nml):
+    cpdef predict_pdf(self, files, path, ncomp_range, dk_, int [:] krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
@@ -74,7 +76,8 @@ cdef class CloudClosure:
             int nvar = 2
             int [:] krange = krange_
             int nk = len(krange)
-            int dz_range = dz_range_
+            # double [:] dk_range = dk_range_
+            int dk = dk_ + 1
             Py_ssize_t k, iz
             str d
             int dz = nml['grid']['dz']
@@ -111,33 +114,34 @@ cdef class CloudClosure:
         '''(1) Read in Fields'''
         # for PDF construction
         cdef:
+            int i, j, ij
+            int ishift = ny
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
-            double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] qt = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
-            double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] ql = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_all
             double qi_ = 0.0
-            double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:] data_all
-            int ishift = ny
-            int i, j, ij
             double Lv
 
         # for PDF sampling
         cdef:
-            int n_sample = np.int(1e6)
-            double [:] cf_field = np.zeros(shape=(nk))
+            # int n_sample = np.int(1e6)
+            int n_sample = np.int(1e2)
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] alpha_comp_thl = np.zeros(n_sample)
 
         # for Error Computation
         cdef:
-            double ql_mean_field
-            double ql_mean = 0.0
-            double cf_comp = 0.0
+            double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
+            double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
+            double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
+            double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
             int count_ncomp = 0
             double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
@@ -146,23 +150,28 @@ cdef class CloudClosure:
 
 
         var_list = ['s', 'qt', 'temperature', 'ql']
-        data = np.ndarray(shape=((nx * ny), nvar))
+        data = np.ndarray(shape=((nx * ny * dk), nvar))
         for ncomp in ncomp_range:
             means_ = np.ndarray(shape=(nk, ncomp, nvar))
             covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
             tt = files[0][0:-3]
-            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(dz_range)+'_time'+str(tt)+'.nc'
+            # nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(np.max(np.abs(dk_range))*dz)+'_time'+str(tt)+'.nc'
+            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(dk*dz)+'_time'+str(tt)+'.nc'
             self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
             for k in range(nk):
                 iz = krange[k]
                 print('')
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
-                data_all = np.ndarray(shape=(0, nvar))
-                ql_all = np.ndarray(shape=(0))
-                ql_mean_field = 0.0
+                # thl_allz = np.ndarray(shape=(0))     # data averaged over all levels at one time step
+                # qt_allz = np.ndarray(shape=(0))      # data averaged over all levels at one time step
+                # thl_aux = np.ndarray(shape=(0))     # data averaged over all levels at one time step
+                # qt_aux = np.ndarray(shape=(0))      # data averaged over all levels at one time step
+                ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
+                data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                ql_mean_field[k] = 0.0
 
                 for d in files:
                     nc_file_name = d
@@ -170,34 +179,61 @@ cdef class CloudClosure:
                     # print('fields: ', path_fields)
                     s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
                     '''(2) Compute liquid potential temperature from temperature and moisture'''
-                    for i in range(nx):
-                        for j in range(ny):
-                            ij = i*ishift + j
-                            Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
-                            theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
-                            qt[ij,k] = qt_[i,j,iz]
-                            ql[ij,k] = ql_[i,j,iz]
-                            ql_mean_field += ql_[i,j,iz]
-                            if ql[ij,k] > 0.0:
-                                cf_field[k] += 1.0
+
+                    # for k_ in dk_range:
+                    for k_ in range(-dk+1,dk):
+                        print('layer: k_='+str(k_), str(iz), str(iz+k_))
+
+                        for i in range(nx):
+                            for j in range(ny):
+                                ij = i*ishift + j
+                                Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
+                                # qt_aux[ij] = qt_[i,j,iz+k_]
+
+                                theta_l[k_*nx*ny+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                                #qt[ij,k] = qt_[i,j,iz+k_]
+                                #ql[ij,k] = ql_[i,j,iz+k_]
+                                qt[k_*nx*ny+ij,k] = qt_[i,j,iz+k_]
+                                ql[k_*nx*ny+ij,k] = ql_[i,j,iz+k_]
+                                ql_mean_field[k] += ql_[i,j,iz+k_]
+                                if ql_[i,j,iz+k] > 0.0:
+                                    cf_field[k] += 1.0
+                        # err_ql = 0
+                        # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
+                        # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
+                        print(qt.shape, qt_.shape, nx*ny, nx*ny*dk)
+                        print(ql.shape, ql_.shape)
+                        print('')
+
+                        #qt_allz = np.append(qt_allz, qt[:,k], axis=0)
+                        #thl_allz = np.append(thl_allz, theta_l[:,k], axis=0)
+
+
+
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
+                    # data[:, 0] = thl_allz
+                    # data[:, 1] = qt_allz
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
-                ql_mean_field /= len(files)*(nx*ny)
-                cf_field[k] /= len(files)*(nx*ny)
+                ql_mean_field[k] /= len(files)*(nx*ny)*dk
+                cf_field[k] /= len(files)*(nx*ny)*dk
 
                 '''(3) Normalise Data'''
+                print('-- normalise data --')
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
 
                 '''(4) Compute bivariate PDF'''
+                print('-- compute Gaussian --')
                 #   (a) for (s,qt)
                 #           ...
                 #   (b) for (th_l,qt)
-                clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+                # clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
+                clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
+                clf_thl_norm.fit(data_all_norm)
                 means_[k, :, :] = clf_thl_norm.means_[:, :]
                 covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
                 weights_[k,:] = clf_thl_norm.weights_[:]
@@ -207,37 +243,49 @@ cdef class CloudClosure:
                 # relative_entropy(data, clf, kde)
                 # print('')
 
+                print('''(D) plotting''')
+                # def plot_PDF(data, var_name1, var_name2, ncomp, error, z, path):
+                err_ql = 0
+                save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_dz'+str(dk)
+                plot_PDF(data_all, 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
+                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # plot_hist(ql, path_out)
+                print('')
+                print('')
+
 
 
 
                 '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
+                print('-- compute mean liquid water from PDF --')
                 #       1. sample (th_l, qt) from PDF (Monte Carlo ???
                 #       2. compute ql for samples
                 #       3. consider ensemble average <ql> = domain mean representation???
-                '''(1) Draw samples'''
+                print('''(1) Draw samples''')
                 Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
-                '''(2) Rescale theta_l and qt'''
+                print('''(2) Rescale theta_l and qt''')
                 Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
 
-                '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
+                print('''(3) Compute ql (saturation adjustment) & Cloud Fraction ''')
                 for i in range(n_sample-2):
                     # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                    ql_mean = ql_mean + ql_comp_thl[i]
+                    # print('i='+str(i), Th_l[i,0], T_comp_thl[i], Th_l[i,1], ql_comp_thl[i])
+                    ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
-                        cf_comp += 1
-                ql_mean = ql_mean / n_sample
-                cf_comp = cf_comp / n_sample
-
-                error_ql[k,count_ncomp] = ql_mean - ql_mean_field
-                error_cf[k,count_ncomp] = cf_comp - cf_field[k]
-                if ql_mean_field > 0.0:
-                    rel_error_ql[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
+                        cf_comp[k] += 1
+                ql_mean_comp[k] = ql_mean_comp[k] / n_sample
+                cf_comp[k] = cf_comp[k] / n_sample
+                error_ql[k,count_ncomp] = ql_mean_comp[k] - ql_mean_field[k]
+                error_cf[k,count_ncomp] = cf_comp[k] - cf_field[k]
+                if ql_mean_field[k] > 0.0:
+                    rel_error_ql[k,count_ncomp] = (ql_mean_comp[k] - ql_mean_field[k]) / ql_mean_field[k]
                 if cf_field[k] > 0.0:
-                    rel_error_cf[k,count_ncomp] = (cf_comp - cf_field[k]) / cf_field[k]
+                    rel_error_cf[k,count_ncomp] = (cf_comp[k] - cf_field[k]) / cf_field[k]
 
-                print('<ql> from CloudClosure Scheme: ', ql_mean)
-                print('<ql> from ql fields: ', ql_mean_field)
+                print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+                print('<ql> from ql fields: ', ql_mean_field[k])
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
 
