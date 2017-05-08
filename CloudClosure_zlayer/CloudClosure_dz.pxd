@@ -9,7 +9,8 @@ cdef class CloudClosure:
         double [:] zrange
 
     cpdef initialize(self, krange, path, case_name)
-    cpdef predict_pdf(self, files, path, ncomp_range, dk_range, int [:] krange_, nml)
+    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, dk_range, int [:] krange_, nml)
+    cpdef sample_pdf(self)
 
 
 

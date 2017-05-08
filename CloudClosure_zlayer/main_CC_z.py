@@ -4,7 +4,6 @@ import json as simplejson
 import numpy as np
 
 import CloudClosure_dz
-import CloudClosure
 
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
@@ -22,7 +21,6 @@ def main():
     dz = nml['grid']['dz']
 
     ClCl = CloudClosure_dz.CloudClosure()
-    # ClCl = CloudClosure.CloudClosure()
 
 
     files = os.listdir(os.path.join(path, 'fields'))
@@ -39,11 +37,13 @@ def main():
     # files = ['432000.nc']
     # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
     # krange = np.asarray([35,40,45])
+    # DYCOMS RF01 large
+    # krange = np.asarray([140, 150, 160, 166, 180])
+    # files = ['3600.nc']
     # DYCOMS RF01
     # krange = np.asarray([140,150,160,166,180])
     # files = ['10800.nc', '12600.nc', '14400.nc']
     # files = ['14400.nc']
-    # files = ['3600.nc']
     # DYCOMS RF02
     # krange = np.asarray([120, 170])
     # krange = np.asarray([120, 140, 160, 170, 200])
@@ -54,9 +54,9 @@ def main():
     # Bomex 170314_weno7
     # krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
     # files = ['18000.nc', '19800.nc', '21600.nc']
+    # files = ['21600.nc']
     # Bomex test
     files = ['21600.nc']
-    # files = ['14400.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
     krange = np.asarray([20, 25])
     # krange = np.asarray([18,30,38])
@@ -76,8 +76,10 @@ def main():
     print('')
 
     ClCl.initialize(krange, path, case_name)
-    for dk_range in [0, 1, 2, 3]:
-        ClCl.predict_pdf(files, path, ncomp_range, dk_range, krange, nml)
+    n_sample = 1e6
+    for dk_range in [0, 1, 2]:
+    # for dk_range in [0, 1]:
+        ClCl.predict_pdf(files, path, n_sample, ncomp_range, dk_range, krange, nml)
 
     return
 

@@ -2,6 +2,7 @@ import os
 #include 'parameters.pxi'
 import json as simplejson
 import time
+import pylab as plt
 import netCDF4 as nc
 import numpy as np
 
@@ -28,9 +29,9 @@ cdef class CloudClosure:
 
 
     cpdef initialize(self, krange, path, case_name):
+        print('')
         print('--- Cloud Closure Scheme ---')
-        print(path)
-        print(case_name)
+        print('nml: ', os.path.join(path, case_name+'.in'))
         print('')
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
         cdef:
@@ -54,19 +55,23 @@ cdef class CloudClosure:
         print('')
         print('zrange', self.zrange[:])
 
+        # plt.figure()
+        # plt.plot(self.p_ref)
+        # plt.title('p ref')
+        # plt.savefig(os.path.join(path,'CloudClosure_z_figures','p_ref.pdf'))
+        # plt.close()
         return
 
 
 
 
     # cpdef predict_pdf(self, files, path, ncomp_range, dk_range_, int [:] krange_, nml):
-    cpdef predict_pdf(self, files, path, ncomp_range, dk_, int [:] krange_, nml):
+    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, dk_, int [:] krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
         cdef extern from "thermodynamic_functions.h":
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-
         time1 = time.clock()
 
         # ________________________________________________________________________________________
@@ -86,16 +91,16 @@ cdef class CloudClosure:
             int nz = nml['grid']['nz']
             double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')       # <type 'CloudClosure._memoryviewslice'>
 
-        for k in range(nz):
-            p_ref[k] = self.p_ref[k]
-
-        # " (a) from Profiles "
         # time_profile = read_in_netcdf('t', 'timeseries', self.path_ref)
-        # nt = time_profile.shape[0]
-        # print('time in stats file: ', time_profile.shape, nt, dt_stat)
+        # nt_stats = time_profile.shape[0]
+        # print('time in stats file: ', time_profile.shape, nt_stats, dt_stats)
         # ql_profile = read_in_netcdf('ql_mean', 'profiles', path_ref)
 
         # N = len(files)
+
+        for k in range(nz):
+            p_ref[k] = self.p_ref[k]
+
 
         '''(B) Initialize Latent Heat and ClausiusClapeyron'''
         cdef:
@@ -103,7 +108,6 @@ cdef class CloudClosure:
             ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         CC.initialize(nml, LH)
         print('')
-
 
         # ________________________________________________________________________________________
         '''(C) Compute PDF f(s,qt) from LES data'''
@@ -131,9 +135,9 @@ cdef class CloudClosure:
         # for PDF sampling
         cdef:
             # int n_sample = np.int(1e6)
-            int n_sample = np.int(1e3)
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
             double [:] alpha_comp_thl = np.zeros(n_sample)
 
         # for Error Computation / <ql> intercomparison
@@ -174,6 +178,7 @@ cdef class CloudClosure:
                 ql_mean_field[k] = 0.0
 
                 for d in files:
+                    print('time: d='+str(d))
                     nc_file_name = d
                     path_fields = os.path.join(path, 'fields', nc_file_name)
                     # print('fields: ', path_fields)
@@ -205,8 +210,6 @@ cdef class CloudClosure:
                         #qt_allz = np.append(qt_allz, qt[:,k], axis=0)
                         #thl_allz = np.append(thl_allz, theta_l[:,k], axis=0)
 
-
-
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
@@ -215,8 +218,8 @@ cdef class CloudClosure:
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
-                ql_mean_field[k] /= len(files)*(nx*ny)*dk
-                cf_field[k] /= len(files)*(nx*ny)*dk
+                ql_mean_field[k] /= ( len(files)*(nx*ny)*dk )
+                cf_field[k] /= ( len(files)*(nx*ny)*dk )
 
                 '''(3) Normalise Data'''
                 scaler = StandardScaler()
@@ -253,6 +256,7 @@ cdef class CloudClosure:
                 '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
                 for i in range(n_sample-2):
                     # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
+                    # ??? ok to use same reference pressure for all ik+k_ points?
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
@@ -286,8 +290,14 @@ cdef class CloudClosure:
                 # plot_hist(ql, path_out)
                 print('')
             count_ncomp += 1
-            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_range, krange, dz, self.path_out)
-            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field, ncomp_range, krange, dz, self.path_out)
+            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_range, krange, dz, dk-1, self.path_out)
+            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, dk-1, self.path_out)
+
+            plot_PDF_components(means_, covariances_, weights_, krange, ncomp_range, dz, dk-1, self.path_out)
+        return
+
+
+    cpdef sample_pdf():
         return
 
 

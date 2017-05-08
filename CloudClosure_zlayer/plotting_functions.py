@@ -125,55 +125,77 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
 
 
 
-def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_array, krange, dz, dk, path):
     nk = error_ql.shape[0]
 
     plt.figure(figsize=(12,6))
     plt.subplot(1, 2, 1)
     for k in range(nk):
         plt.plot(ncomp_array, rel_error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
-    plt.legend(loc=4)
+    # plt.legend(loc=4)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in <ql>')
-    plt.title('Relative Error in domain mean liquid water')
+    plt.title('Relative Error domain mean liquid water (n_sample: '+str(n_sample)+')')
 
     plt.subplot(1, 2, 2)
     for k in range(nk):
         plt.plot(ncomp_array, error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
-    plt.legend(loc=4)
+    # plt.legend(loc=4)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in <ql>')
-    plt.title('Absolute Error in domain mean liquid water')
+    plt.title('Absolute Error domain mean liquid water')
 
-    save_name = 'error_figure_ql.pdf'
+    save_name = 'error_figure_ql_dz'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
     plt.close()
     return
 
 
-def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field_rel, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field_rel, ncomp_array, krange, dz, dk, path):
     plt.figure(figsize=(12, 6))
     nk = np.shape(error_cf)[0]
     plt.subplot(1, 2, 1)
     for k in range(nk):
         plt.plot(ncomp_array, rel_error_cf[k, :], '-o', label='z=' + str(krange[k] * dz))
-    plt.legend(loc=4)
+    # plt.legend(loc=4)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in CF')
-    plt.title('Relative Error in Cloud Fraction')
+    plt.title('Relative Error Cloud Fraction (n_sample: '+str(n_sample)+')')
     plt.subplot(1, 2, 2)
     for k in range(nk):
         plt.plot(ncomp_array, error_cf[k, :], '-o', label='z=' + str(krange[k] * dz)+
                                                           ', CF='+str(np.round(cf_field_rel[k],3)))
-    plt.legend(loc=1)
+    # plt.legend(loc=1)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in CF')
-    plt.title('Absolute Error in Cloud Fraction')
+    plt.title('Absolute Error Cloud Fraction')
 
-    save_name = 'error_figure_cf.pdf'
+    save_name = 'error_figure_cf_dz'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
     plt.close()
     return
+
+
+
+
+def plot_PDF_components(means_, covars_, weights_, ncomp_range, krange, dz, dk, path):
+    # means_ = (nk, ncomp, nvar)
+    # covariance_ = (nk, ncomp, nvar, nvar)
+    # weights_ = (nk, ncomp)
+
+    plt.figure()
+    plt.subplot(1,3,1)
+    for k in range(nk):
+        plt.plot()
+
+
+    return
+
+
 
 
 
