@@ -15,7 +15,7 @@ plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 10
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
-plt.rcParams['legend.fontsize'] = 10
+plt.rcParams['legend.fontsize'] = 8
 # plt.rcParams['title.fontsize'] = 15
 plt.rcParams['lines.linewidth'] = 3
 
@@ -125,6 +125,41 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
     return
 
 
+def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_array, krange, dz, dk, path):
+    cmap = cm.get_cmap('jet')
+    nk = error_ql.shape[0]
+
+    plt.figure(figsize=(18,6))
+    for k in range(nk):
+        col = cmap(np.double(k)/nk)
+
+        plt.subplot(1,2,1)
+        ql_ref = ql_mean_ref[k] * np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, np.abs(error_ql[k,:]), '-o', color=col, label=r'$\epsilon(q_l)$, z='+str(krange[k]*dz))
+        plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$=' + str(ql_mean_ref[k]))
+
+        plt.subplot(1,2,2)
+        cf_ref = cf_ref[k] * np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, np.abs(error_cf[k, :]), '-o', color=col, label=r'$\epsilon$(CF), z=' + str(krange[k] * dz))
+        plt.plot(ncomp_array, cf_ref, '-', color=col, linewidth=1, label=r'CF$_{field}$=' + str(cf_ref[k]))
+
+    plt.subplot(1, 2, 1)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
+    plt.xlabel('# Gaussian components in PDF')
+    plt.ylabel(r'abs(<ql>$_PDF$-<ql>$_{field}$)')
+    plt.title('Relative Error domain mean liquid water (n_sample: ' + str(n_sample) + ')')
+
+    plt.subplot(1, 2, 2)
+    plt.legend(loc='best', bbox_to_anchor=(0, 1))
+    plt.xlabel('# Gaussian components in PDF')
+    plt.ylabel(r'abs(CF$_PDF$-CF$_{field}$)')
+    plt.title('Absolute Error domain mean liquid water')
+
+    save_name = 'error_figure_abs_dz'+str(dk)
+    plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
+    plt.close()
+    return
+
 
 
 def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mean_comp, ncomp_array, krange, dz, dk, path):
@@ -137,14 +172,15 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mea
 
         plt.subplot(1, 2, 1)
         plt.plot(ncomp_array, rel_error_ql[k, :], '-o', color=col,
-                 label='z=' + str(krange[k] * dz)+r', <ql>$_f$='+str(np.round(ql_mean_comp[k],2)))
+                 label='z=' + str(krange[k] * dz))
         plt.plot(ncomp_array, np.zeros(len(ncomp_array)), 'k-', linewidth=1)
 
         plt.subplot(1, 2, 2)
         plt.plot(ncomp_array, error_ql[k, :], '-o', color=col,
                  label='z=' + str(krange[k] * dz))
-        ql_ref = ql_mean_ref[k] * np.ones(len(ncomp_array))
-        plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$='+str(ql_mean_ref[k]))
+
+        ql_ref = -ql_mean_ref[k] * np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'-<ql>$_{field}$='+str(ql_mean_ref[k]))
 
     plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
@@ -167,20 +203,29 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mea
 
 
 def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array, krange, dz, dk, path):
-    plt.figure(figsize=(12, 6))
+    cmap = cm.get_cmap('jet')
     nk = np.shape(error_cf)[0]
-    plt.subplot(1, 2, 1)
+
+    plt.figure(figsize=(12, 6))
     for k in range(nk):
-        plt.plot(ncomp_array, rel_error_cf[k, :], '-o', label='z=' + str(krange[k] * dz))
-    # plt.legend(loc=4)
+        col = cmap(np.double(k) / nk)
+
+        plt.subplot(1, 2, 1)
+        plt.plot(ncomp_array, rel_error_cf[k, :], '-o', color=col, label='z=' + str(krange[k] * dz))
+
+        plt.subplot(1, 2, 2)
+        plt.plot(ncomp_array, error_cf[k, :], '-o', color=col, label='z=' + str(krange[k] * dz))
+
+        cf_ref = -cf_ref[k]*np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, cf_ref, '-', color=col, linewidth=1, label=r'-CF$_{field}$='+str(cf_ref[k]))
+
+    plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in CF')
     plt.title('Relative Error Cloud Fraction (n_sample: '+str(n_sample)+')')
+
     plt.subplot(1, 2, 2)
-    for k in range(nk):
-        plt.plot(ncomp_array, error_cf[k, :], '-o', label='z=' + str(krange[k] * dz)+
-                                                          ', CF='+str(np.round(cf_ref[k],3)))
     # plt.legend(loc=1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')

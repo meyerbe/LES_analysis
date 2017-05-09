@@ -10,15 +10,18 @@ from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
 
 # TODO
-# compute ql_mean_field only once for all components (do in intialisation)
-
+# - compute ql_mean_field only once for all components (do in intialisation)
+# - make nml --> self.nml
+# - output  / dump statistics file
+# - include labeling
 
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-from plotting_functions import plot_PDF, plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_PDF_components
+from plotting_functions import plot_PDF, plot_PDF_components
+from plotting_functions import plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_abs_error
 
 
 cdef class CloudClosure:
@@ -57,7 +60,7 @@ cdef class CloudClosure:
         self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
         self.zrange = np.double(krange) * dz
         print('')
-        print('zrange', self.zrange[:])
+        print('zrange', np.double(krange) * dz)
 
         # plt.figure()
         # plt.plot(self.p_ref)
@@ -166,7 +169,7 @@ cdef class CloudClosure:
             '''(1) Statistics File'''
             tt = files[0][0:-3]
             # nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(np.max(np.abs(dk_range))*dz)+'_time'+str(tt)+'.nc'
-            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str(dk*dz)+'_time'+str(tt)+'.nc'
+            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_dz'+str((dk-1)*dz)+'_time'+str(tt)+'.nc'
             self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
             for k in range(nk):
@@ -190,7 +193,8 @@ cdef class CloudClosure:
                     '''(2) Compute liquid potential temperature from temperature and moisture'''
 
                     # for k_ in dk_range:
-                    for k_ in range(-dk+1,dk):
+                    # for k_ in range(-dk+1,dk):
+                    for k_ in range(0,dk):
                         print('layer: k_='+str(k_), str(iz), str(iz+k_))
 
                         for i in range(nx):
@@ -205,7 +209,7 @@ cdef class CloudClosure:
                                 qt[k_*nx*ny+ij,k] = qt_[i,j,iz+k_]
                                 ql[k_*nx*ny+ij,k] = ql_[i,j,iz+k_]
                                 ql_mean_field[k] += ql_[i,j,iz+k_]
-                                if ql_[i,j,iz+k] > 0.0:
+                                if ql_[i,j,iz+k_] > 0.0:
                                     cf_field[k] += 1.0
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
@@ -223,8 +227,8 @@ cdef class CloudClosure:
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
                 ql_mean_field[k] /= ( len(files)*(nx*ny)*dk )
-                print('CF field before division (dk='+str(dk)+'): ', cf_field[k]/(nx*ny*len(files)))
-                print('CF field after division (dk='+str(dk)+'): ', cf_field[k]/(len(files)*nx*ny*dk))
+                print('CF field before division (dk='+str(dk-1)+'): ', cf_field[k]/(nx*ny*len(files)))
+                print('CF field after division (dk='+str(dk-1)+'): ', cf_field[k]/(len(files)*nx*ny*dk))
                 cf_field[k] /= ( len(files)*(nx*ny)*dk )
 
                 '''(3) Normalise Data'''
@@ -298,6 +302,7 @@ cdef class CloudClosure:
             count_ncomp += 1
             plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, dk-1, self.path_out)
             plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, dk-1, self.path_out)
+            plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, dk-1, self.path_out)
 
             plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, dk-1, self.path_out)
         return

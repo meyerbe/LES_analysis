@@ -58,7 +58,7 @@ def main():
     # Bomex test
     files = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20, 25])
+    krange = np.asarray([20, 50])
     # krange = np.asarray([18,30,38])
     # TRMM
     # files = ['1012600.nc', '1014400.nc', '1016200.nc']
@@ -77,7 +77,7 @@ def main():
 
     ClCl.initialize(krange, path, case_name)
     n_sample = 1e6
-    for dk_range in [0, 1, 2]:
+    for dk_range in [0, 1, 2, 3]:
     # for dk_range in [0, 1]:
         ClCl.predict_pdf(files, path, n_sample, ncomp_range, dk_range, krange, nml)
 
