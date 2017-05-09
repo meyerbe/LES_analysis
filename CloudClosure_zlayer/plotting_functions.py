@@ -2,6 +2,7 @@ import os
 import pylab as plt
 import numpy as np
 import matplotlib.mlab as mlab
+import matplotlib.cm as cm
 from matplotlib.colors import LogNorm
 from sklearn.preprocessing import StandardScaler
 import time
@@ -16,6 +17,7 @@ plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 10
 # plt.rcParams['title.fontsize'] = 15
+plt.rcParams['lines.linewidth'] = 3
 
 
 def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, path, save_name):
@@ -125,23 +127,32 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
 
 
 
-def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_array, krange, dz, dk, path):
+def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mean_comp, ncomp_array, krange, dz, dk, path):
+    cmap = cm.get_cmap('jet')
     nk = error_ql.shape[0]
 
-    plt.figure(figsize=(12,6))
-    plt.subplot(1, 2, 1)
+    plt.figure(figsize=(18,6))
     for k in range(nk):
-        plt.plot(ncomp_array, rel_error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
-    # plt.legend(loc=4)
+        col = cmap(np.double(k)/nk)
+
+        plt.subplot(1, 2, 1)
+        plt.plot(ncomp_array, rel_error_ql[k, :], '-o', color=col,
+                 label='z=' + str(krange[k] * dz)+r', <ql>$_f$='+str(np.round(ql_mean_comp[k],2)))
+        plt.plot(ncomp_array, np.zeros(len(ncomp_array)), 'k-', linewidth=1)
+
+        plt.subplot(1, 2, 2)
+        plt.plot(ncomp_array, error_ql[k, :], '-o', color=col,
+                 label='z=' + str(krange[k] * dz))
+        ql_ref = ql_mean_ref[k] * np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$='+str(ql_mean_ref[k]))
+
+    plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in <ql>')
-    plt.title('Relative Error domain mean liquid water (n_sample: '+str(n_sample)+')')
+    plt.title('Relative Error domain mean liquid water (n_sample: ' + str(n_sample) + ')')
 
     plt.subplot(1, 2, 2)
-    for k in range(nk):
-        plt.plot(ncomp_array, error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
-    # plt.legend(loc=4)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in <ql>')
@@ -153,7 +164,9 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_array, krange
     return
 
 
-def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field_rel, ncomp_array, krange, dz, dk, path):
+
+
+def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array, krange, dz, dk, path):
     plt.figure(figsize=(12, 6))
     nk = np.shape(error_cf)[0]
     plt.subplot(1, 2, 1)
@@ -167,7 +180,7 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field_rel, ncomp
     plt.subplot(1, 2, 2)
     for k in range(nk):
         plt.plot(ncomp_array, error_cf[k, :], '-o', label='z=' + str(krange[k] * dz)+
-                                                          ', CF='+str(np.round(cf_field_rel[k],3)))
+                                                          ', CF='+str(np.round(cf_ref[k],3)))
     # plt.legend(loc=1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
@@ -182,16 +195,32 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field_rel, ncomp
 
 
 
-def plot_PDF_components(means_, covars_, weights_, ncomp_range, krange, dz, dk, path):
+def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, dk, path):
     # means_ = (nk, ncomp, nvar)
     # covariance_ = (nk, ncomp, nvar, nvar)
     # weights_ = (nk, ncomp)
 
-    plt.figure()
-    plt.subplot(1,3,1)
-    for k in range(nk):
-        plt.plot()
+    print('')
+    print('ncomp', ncomp, means_.shape, covars_.shape, weights_.shape)
 
+    plt.figure()
+    # for ncomp in ncomp_range:
+    for n in range(ncomp):
+        plt.subplot(2,3,1)
+        plt.plot(means_[:,n,0],krange, label='mean(th_l), n_comp='+str(n))
+        plt.subplot(2, 3, 4)
+        plt.plot(means_[:, n, 1], krange, label='mean(qt), n_comp=' + str(n))
+
+        plt.subplot(2, 3, 2)
+        plt.plot(covars_[:, n, 0, 0], krange, label='var(th_l), n_comp=' + str(n))
+        plt.subplot(2, 3, 5)
+        plt.plot(covars_[:, n, 1, 1], krange, label='var(qt), n_comp=' + str(n))
+
+        plt.subplot(2, 3, 4)
+        plt.plot(weights_[:, n], krange, label='weight, n_comp='+str(n))
+
+    save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_dk_'+str(dk)
+    plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
 
     return
 

@@ -9,12 +9,16 @@ import numpy as np
 from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
 
+# TODO
+# compute ql_mean_field only once for all components (do in intialisation)
+
+
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-from plotting_functions import plot_PDF, plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf
+from plotting_functions import plot_PDF, plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_PDF_components
 
 
 cdef class CloudClosure:
@@ -156,8 +160,8 @@ cdef class CloudClosure:
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny * dk), nvar))
         for ncomp in ncomp_range:
-            means_ = np.ndarray(shape=(nk, ncomp, nvar))
-            covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+            means_ = np.zeros(shape=(nk, ncomp, nvar))
+            covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
             tt = files[0][0:-3]
@@ -175,7 +179,7 @@ cdef class CloudClosure:
                 # qt_aux = np.ndarray(shape=(0))      # data averaged over all levels at one time step
                 ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                 data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                ql_mean_field[k] = 0.0
+                # ql_mean_field[k] = 0.0
 
                 for d in files:
                     print('time: d='+str(d))
@@ -219,6 +223,8 @@ cdef class CloudClosure:
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
                 ql_mean_field[k] /= ( len(files)*(nx*ny)*dk )
+                print('CF field before division (dk='+str(dk)+'): ', cf_field[k]/(nx*ny*len(files)))
+                print('CF field after division (dk='+str(dk)+'): ', cf_field[k]/(len(files)*nx*ny*dk))
                 cf_field[k] /= ( len(files)*(nx*ny)*dk )
 
                 '''(3) Normalise Data'''
@@ -233,7 +239,7 @@ cdef class CloudClosure:
                 clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
                 clf_thl_norm.fit(data_all_norm)
                 means_[k, :, :] = clf_thl_norm.means_[:, :]
-                covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+                covariances_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
                 weights_[k,:] = clf_thl_norm.weights_[:]
 
                 # '''(5) Compute Kernel-Estimate PDF '''
@@ -241,7 +247,7 @@ cdef class CloudClosure:
                 # relative_entropy(data, clf, kde)
                 # print('')
 
-
+                # -------------------------------------------
 
 
                 '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
@@ -290,15 +296,91 @@ cdef class CloudClosure:
                 # plot_hist(ql, path_out)
                 print('')
             count_ncomp += 1
-            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_range, krange, dz, dk-1, self.path_out)
+            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, dk-1, self.path_out)
             plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, dk-1, self.path_out)
 
-            plot_PDF_components(means_, covariances_, weights_, krange, ncomp_range, dz, dk-1, self.path_out)
+            plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, dk-1, self.path_out)
         return
 
 
-    cpdef sample_pdf():
-        return
+
+
+    cpdef sample_pdf(self, data, clf, double ql_mean_ref, double cf_ref, double pref,
+                            ClausiusClapeyron CC, LatentHeat LH, ncomp_range, n_sample, nml):
+        # 1. sample (th_l, qt) from PDF (Monte Carlo ???
+        # 2. compute ql for samples
+        # 3. consider ensemble average <ql> = domain mean representation???
+
+        cdef:
+            int i, k
+            int nvar = 2
+            int nz = nml['grid']['nz']
+            int nk = ql_mean_ref.shape[0]
+
+        # for PDF sampling
+        cdef:
+            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
+            double [:] alpha_comp_thl = np.zeros(n_sample)
+
+        # for Error Computation / <ql> intercomparison
+        cdef:
+            int count_ncomp = 0
+            # double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
+            # double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
+            double ql_mean_comp = 0.0
+            double cf_comp = 0.0
+            double error_ql = 0.0
+            double rel_error_ql = 0.0
+            double error_cf = 0.0
+            double rel_error_cf = 0.0
+
+
+
+        '''(1) Draw samples'''
+        scaler = StandardScaler()
+        data_nrom = scaler.fit_transform(data)
+        Th_l_norm, y_norm = clf.sample(n_samples=n_sample)
+        '''(2) Rescale theta_l and qt'''
+        Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
+
+        '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
+        for i in range(n_sample-2):
+            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(pref, Th_l[i, 0], Th_l[i, 1], CC, LH)
+            ql_mean_comp = ql_mean_comp + ql_comp_thl[i]
+            if ql_comp_thl[i] > 0:
+                cf_comp += 1
+        ql_mean_comp = ql_mean_comp / n_sample
+        cf_comp = cf_comp / n_sample
+        error_ql = ql_mean_comp - ql_mean_ref
+        error_cf = cf_comp- cf_ref
+        if ql_mean_ref > 0.0:
+            rel_error_ql = (ql_mean_comp - ql_mean_ref) / ql_mean_ref
+        if cf_ref > 0.0:
+            rel_error_cf = (cf_comp - cf_ref) / cf_ref
+
+        print('')
+        print('<ql> from CloudClosure Scheme: ', ql_mean_comp)
+        print('<ql> from ql fields: ', ql_mean_ref)
+        print('error (<ql>_CC - <ql>_field): '+ str(error_ql))
+        print('rel err: '+ str(rel_error_ql))
+        print('')
+        print('CF from Cloud Closure Scheme: ', cf_comp)
+        print('CF from ql fields: ', cf_ref)
+        print('error: '+str(error_cf))
+        print('rel error: ', rel_error_cf)
+        print('')
+
+        # '''(E) Plotting'''
+        # save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_dz'+str(dk-1)
+        # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+        # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+        # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+        # # plot_hist(ql, path_out)
+        # print('')
+
+        return ql_mean_comp, error_ql, rel_error_ql, cf_comp, error_cf, rel_error_cf
 
 
 
