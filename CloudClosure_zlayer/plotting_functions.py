@@ -139,9 +139,9 @@ def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_arra
         plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$=' + str(ql_mean_ref[k]))
 
         plt.subplot(1,2,2)
-        cf_ref = cf_ref[k] * np.ones(len(ncomp_array))
+        ref = cf_ref[k] * np.ones(len(ncomp_array))
         plt.plot(ncomp_array, np.abs(error_cf[k, :]), '-o', color=col, label=r'$\epsilon$(CF), z=' + str(krange[k] * dz))
-        plt.plot(ncomp_array, cf_ref, '-', color=col, linewidth=1, label=r'CF$_{field}$=' + str(cf_ref[k]))
+        plt.plot(ncomp_array, ref, '-', color=col, linewidth=1, label=r'CF$_{field}$=' + str(cf_ref[k]))
 
     plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
@@ -201,13 +201,13 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mea
 
 
 
-
 def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array, krange, dz, dk, path):
     cmap = cm.get_cmap('jet')
     nk = np.shape(error_cf)[0]
-
+    ncomp = len(ncomp_array)
     plt.figure(figsize=(12, 6))
     for k in range(nk):
+        print(cf_ref[k]*np.ones(len(ncomp_array)))
         col = cmap(np.double(k) / nk)
 
         plt.subplot(1, 2, 1)
@@ -216,8 +216,8 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array
         plt.subplot(1, 2, 2)
         plt.plot(ncomp_array, error_cf[k, :], '-o', color=col, label='z=' + str(krange[k] * dz))
 
-        cf_ref = -cf_ref[k]*np.ones(len(ncomp_array))
-        plt.plot(ncomp_array, cf_ref, '-', color=col, linewidth=1, label=r'-CF$_{field}$='+str(cf_ref[k]))
+        ref = -cf_ref[k]*np.ones(ncomp)
+        plt.plot(ncomp_array, ref, '-', color=col, linewidth=1, label=r'-CF$_{field}$='+str(cf_ref[k]))
 
     plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
@@ -251,20 +251,37 @@ def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, dk, path):
     plt.figure()
     # for ncomp in ncomp_range:
     for n in range(ncomp):
-        plt.subplot(2,3,1)
-        plt.plot(means_[:,n,0],krange, label='mean(th_l), n_comp='+str(n))
+        plt.subplot(2, 3, 1)
+        plt.plot(means_[:,n,0],krange, '-o', label='mean(th_l), n_comp='+str(n))
         plt.subplot(2, 3, 4)
-        plt.plot(means_[:, n, 1], krange, label='mean(qt), n_comp=' + str(n))
+        plt.plot(means_[:, n, 1], krange, '-o', label='mean(qt), n_comp=' + str(n))
 
         plt.subplot(2, 3, 2)
-        plt.plot(covars_[:, n, 0, 0], krange, label='var(th_l), n_comp=' + str(n))
+        plt.plot(covars_[:, n, 0, 0], krange, '-o', label='var(th_l), n_comp=' + str(n))
         plt.subplot(2, 3, 5)
-        plt.plot(covars_[:, n, 1, 1], krange, label='var(qt), n_comp=' + str(n))
+        plt.plot(covars_[:, n, 1, 1], krange, '-o', label='var(qt), n_comp=' + str(n))
 
-        plt.subplot(2, 3, 4)
-        plt.plot(weights_[:, n], krange, label='weight, n_comp='+str(n))
+        plt.subplot(2, 3, 3)
+        plt.plot(weights_[:, n], krange, '-o', label='weight, n_comp='+str(n))
 
-    save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_dk_'+str(dk)
+    plt.subplot(2, 3, 1)
+    plt.title(r'<$\theta_l$>')
+    plt.legend(loc='best')
+    plt.subplot(2, 3, 4)
+    plt.title(r'<$q_t$>')
+    plt.legend(loc='best')
+    plt.subplot(2, 3, 2)
+    plt.title(r'Var[$\theta_l$]')
+    plt.legend(loc='best')
+    plt.subplot(2, 3, 5)
+    plt.title(r'Var[$q_t]')
+    plt.legend(loc='best')
+    plt.subplot(2, 3, 3)
+    plt.title('weights')
+    plt.legend(loc='best')
+
+
+    save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_dk'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
 
     return
