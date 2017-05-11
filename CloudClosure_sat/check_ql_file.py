@@ -35,12 +35,13 @@ def main():
     print('')
 
     files = os.listdir(os.path.join(path, 'fields'))
+    print('All Files: ', files)
     t = np.int(files[0][0:-3])
 
     day = np.int(24 * 3600)
     hour = np.int(3600)
     # t = files_[0]
-    files_ = [files[0][0:-3]]
+    # files_ = [files[0][0:-3]]
     # files_ = [10800, 12000, 13200, 14400]
     # files_ = [18000, 18900, 19800, 20700]
 
@@ -49,6 +50,12 @@ def main():
     # files_ = [6*day, 7*day, 8*day, 9*day, 10*day, 11*day, 12*day, 13*day]
     # files_ = files
     # files_ = [0]
+
+    # Bomex_test
+    levels = [400, 500, 600, 720, 800, 900, 1000]
+    # files_ = ['21600.nc']
+    files_ = ['3600.nc']
+    files_cum = files_
 
     #  Bomex 170314_weno7
     # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
@@ -65,30 +72,53 @@ def main():
     # files_cum = ['10800.nc', '12600.nc', '14400.nc']
 
     # DYCOMS RF02
-    files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+    # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
     # files_cum = ['10800.nc', '12600.nc', '14400.nc']
-    files_cum = ['18000.nc', '19800.nc', '21600.nc']
+    # files_cum = ['18000.nc', '19800.nc', '21600.nc']
+
+    # ZGILS S6
+    # files_ = files
+    # files_cum = files[0:44:2]
+
+    # ZGILS S12
+    # files_ = files
+    # files_cum = ['86400.nc', '172800.nc', '259200.nc', '345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
+    # files_cum = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
+
+    # TRMM_LBA
+    # files_ = files
+    # files_cum = ['1012600.nc', '1014400.nc', '1016200.nc']
+
 
     # files_ = [1317600, 1339200, 1360800, 1382400]      # ZGILS 6
-    print('All Files: ', files)
+
     print('Selected Files: ', files_)
 
     # path_fields = os.path.join(path, 'fields', str(t)+'.nc')
     # ql = read_in_netcdf('ql', 'fields', path_fields)
+    print('path_ref', path_ref)
     zrange = read_in_netcdf('z', 'reference', path_ref)
+    print('')
+    print('zrange: ', zrange)
 
-    # plot_ql_n_all(files_, zrange, path, prof=True)
+    # plot_ql_n_all(files_, zrange, path, prof=False)
     # plot_mean('ql', files_, zrange, path)
     # plot_mean('s', files_, zrange, path)
     # plot_mean('thetali', files_, zrange, path)
-    # plot_mean('qt', files_, zrange, path)
+    plot_mean_levels('qt', files_, zrange, levels, path)
+    plot_mean_levels('ql', files_, zrange, levels, path)
+
+    # plot_mean('qt', files_, zrange, levels, path)
+    # plot_mean('ql', files_, zrange, levels, path)
     # plot_mean_var('ql', files_, zrange, path)
     # plot_mean_var('qt', files_, zrange, path)
     # plot_mean_var('s', files_, zrange, path)
     # plot_mean_var('thetali', files_, zrange, path)
 
-    plot_mean_cumulated('ql', files_cum, zrange, path)
-    plot_mean_cumulated('s', files_cum, zrange, path)
+    # plot_mean_cumulated('ql', files_cum, zrange, path)
+    # plot_mean_cumulated('s', files_cum, zrange, path)
+
+    # plot_max_var('ql', zrange, path)
 
     return
 
@@ -110,6 +140,7 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     cm1 = plt.cm.get_cmap('bone')
     cm2 = plt.cm.get_cmap('winter')
     count_color = 0.0
+    day = 24 * 3600
 
     for t in files_cum:
         if str(t)[-1] == 'c':
@@ -122,7 +153,21 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
         var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
         mean_all += var_mean_field
 
-        plt.plot(var_mean_field[:], zrange, '--', color=cm1(count_color / len(files_cum)), label='t=' + str(it) + 's (from field)')
+
+        if it < 3600:
+            lab = str(it) + 's'
+            print('sss')
+        elif it < 3600 * 24:
+
+            lab = str(np.round(it/3600,0)) + 'h'
+            print('hhh')
+        else:
+            d = it / day
+            h = np.mod(it, day) / 3600
+            s = np.mod(np.mod(it, day), 3600)
+            # lab = str(np.round(d,0)) + 'days ' + str(np.round(h,0)) + 'h ' + str(np.round(s,0)) + 's'
+            lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
+        plt.plot(var_mean_field[:], zrange, '--', color=cm1(count_color / len(files_cum)), label='t=' + lab + ' (from field)')
         count_color += 1.0
 
     mean_all /= len(files_cum)
@@ -130,7 +175,7 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     plt.legend()
     plt.xlabel('mean ' + var_name)
     plt.ylabel('height z [m]')
-    plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny * len(files_cum)) + ')')
+    plt.title('mean ' + var_name + ' (' + case_name + ', n*nx*ny=' + str(nx * ny * len(files_cum)) + ')')
     plt.savefig(
         os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_cum.pdf'))
     # plt.show()
@@ -182,6 +227,34 @@ def plot_mean_var(var_name, files_, zrange, path):
     plt.close()
     return
 
+
+def plot_max_var(var_name, zrange, path):
+    global case_name
+    global nx, ny, nz, dz, dt_stats
+    cm1 = plt.cm.get_cmap('bone')
+    cm2 = plt.cm.get_cmap('winter')
+    count_color = 0.0
+
+    path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
+    var_max = read_in_netcdf(var_name + '_max', 'profiles', path_references)
+    time = read_in_netcdf('t', 'timeseries', path_references)
+
+    plt.figure(figsize=(14, 7))
+
+    for it in range(var_max.shape[0]):
+        tt = np.int((np.double(it) - time[0]) / np.double(dt_stats))
+        plt.plot(var_max[tt, :], zrange, 'k--', label='t=' + str(tt * dt_stats) + 's')
+
+    plt.legend()
+    plt.xlabel('max' + var_name)
+    plt.ylabel('height z [m]')
+    plt.title('max' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
+    plt.title('max[' + var_name + '] (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
+    plt.savefig(
+        os.path.join(path, 'figs_stats', var_name + '_max_fromprofile.png'))
+    # plt.show()
+    plt.close()
+    return
 
 
 def plot_ql_n_all(files_, zrange, path, prof=True):
@@ -250,13 +323,14 @@ def plot_ql_n_all(files_, zrange, path, prof=True):
 
 
 
-def plot_mean(var_name, files_, zrange, path):
+def plot_mean(var_name, files_, zrange, levels, path):
+    print('plotting mean')
     global case_name
     global nx, ny, nz, dz, dt_stats
     path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
     var_mean = read_in_netcdf(var_name+'_mean', 'profiles', path_references)
     time = read_in_netcdf('t', 'timeseries', path_references)
-    print(time)
+    # print(time)
     # cm1 = plt.cm.get_cmap('viridis')
     cm1 = plt.cm.get_cmap('bone')
     cm2 = plt.cm.get_cmap('winter')
@@ -265,46 +339,61 @@ def plot_mean(var_name, files_, zrange, path):
     plt.figure(figsize=(9, 6))
     # print('files'), files_
     for t in files_:
+        print('t', t)
         if str(t)[-1] == 'c':
+
             path_fields = os.path.join(path, 'fields', str(t))
-            it = np.int(t[0:-3])
+            if case_name == 'TRMM_LBA':
+                it = np.int(t[3:-3])
+            else:
+                it = np.int(t[0:-3])
         else:
             path_fields = os.path.join(path, 'fields', str(t) + '.nc')
-            it = np.double(t)
+            if case_name == 'TRMM_LBA':
+                it = np.int(t[3:-1])
+            else:
+                it = np.double(t)
         # path_fields = os.path.join(path, 'fields', str(t) + '.nc')
         var_field = read_in_netcdf(var_name, 'fields', path_fields)
         var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
 
         tt = np.int((np.double(it)-time[0]) / np.double(dt_stats))
-        print('tt', tt, 'dt_stats', dt_stats)
+        # print('tt', tt, 'dt_stats', dt_stats, 'it', it, 'time[0]', time[0])
         plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label='t=' + str(it) + 's (from field)')
         plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color/len(files_)), label='t=' + str(tt * dt_stats) + 's (from Stats)')
         count_color += 1.0
     mini = np.min([np.amin(var_mean[tt,:]),np.amin(var_mean_field)])
     maxi = np.max([np.amax(var_mean[tt,:]),np.amax(var_mean_field)])
-    # Bomex 170314
-    # plt.plot([mini, maxi], [800, 800], 'k', linewidth=1, label='800m')
-    # plt.plot([mini, maxi], [1560, 1560], 'k', linewidth=1, label='1520m')
-    # Bomex Kyle
-    # plt.plot([mini, maxi], [1080, 1080], 'k', linewidth=1)
-    # plt.plot([mini, maxi], [3600, 3600], 'k', linewidth=1)
-    # plt.plot([mini, maxi], [3640, 3640], 'k', linewidth=1)
-    # ZGILS 12
-    # plt.plot([mini, maxi], [700, 700], 'k', linewidth=1, label='700m')
-    # plt.plot([mini, maxi], [800, 800], 'k', linewidth=1, label='800m')
-    # plt.plot([mini, maxi], [900, 900], 'k', linewidth=1, label='900m')
-    # ZGILS 6
-    # plt.plot([mini, maxi], [700, 700], 'k', linewidth=1, label='700m')
-    # plt.plot([mini, maxi], [1000, 1000], 'k', linewidth=1, label='1000m')
-    # plt.plot([mini, maxi], [1500, 1500], 'k', linewidth=1, label='1500m')
-    # plt.plot([mini, maxi], [2500, 2500], 'k', linewidth=1, label='2500m')
-    # Dycoms RF01
-    # plt.plot([mini, maxi], [600, 600], 'k', linewidth=1, label='600m')
-    # plt.plot([mini, maxi], [830, 830], 'k', linewidth=1, label='830m')
-    # plt.plot([mini, maxi], [900, 900], 'k', linewidth=1, label='900m')
-    # DYCOMS RF02
-    plt.plot([mini, maxi], [600, 600], 'k', linewidth=1, label='600m')
-    plt.plot([mini, maxi], [850, 850], 'k', linewidth=1, label='850m')
+    # if case_name == 'Bomex':
+    #     # Bomex 170314
+    #     plt.plot([mini, maxi], [800, 800], 'k', linewidth=1, label='800m')
+    #     plt.plot([mini, maxi], [1560, 1560], 'k', linewidth=1, label='1520m')
+    #     # Bomex Kyle
+    #     # plt.plot([mini, maxi], [1080, 1080], 'k', linewidth=1)
+    #     # plt.plot([mini, maxi], [3600, 3600], 'k', linewidth=1)
+    #     # plt.plot([mini, maxi], [3640, 3640], 'k', linewidth=1)
+    # elif case_name[0:8] == 'ZGILS_S12':
+    #     # ZGILS 12
+    #     # plt.plot([mini, maxi], [700, 700], 'k', linewidth=1, label='700m')
+    #     # plt.plot([mini, maxi], [800, 800], 'k', linewidth=1, label='800m')
+    #     # plt.plot([mini, maxi], [900, 900], 'k', linewidth=1, label='900m')
+    # elif case_name[0:7] == 'ZGILS_S6':
+    #     # ZGILS 6
+    #     plt.plot([mini, maxi], [700, 700], 'k', linewidth=1, label='700m')
+    #     plt.plot([mini, maxi], [1000, 1000], 'k', linewidth=1, label='1000m')
+    #     plt.plot([mini, maxi], [1500, 1500], 'k', linewidth=1, label='1500m')
+    #     plt.plot([mini, maxi], [2500, 2500], 'k', linewidth=1, label='2500m')
+    # elif case_name[0:10] == 'DYCOMS_RF01':
+    #     # Dycoms RF01
+    #     plt.plot([mini, maxi], [600, 600], 'k', linewidth=1, label='600m')
+    #     plt.plot([mini, maxi], [830, 830], 'k', linewidth=1, label='830m')
+    #     plt.plot([mini, maxi], [900, 900], 'k', linewidth=1, label='900m')
+    # elif case_name[0:10] == 'DYCOMS_RF02':
+    #     # DYCOMS RF02
+    #     plt.plot([mini, maxi], [600, 600], 'k', linewidth=1, label='600m')
+    #     plt.plot([mini, maxi], [850, 850], 'k', linewidth=1, label='850m')
+    for l in levels:
+        plt.plot([mini, maxi], [l, l], 'k', linewidth=1, label=str(l)+'m')
     plt.legend()
     plt.xlabel('mean '+var_name)
     plt.ylabel('height z [m]')
@@ -316,6 +405,86 @@ def plot_mean(var_name, files_, zrange, path):
     plt.close()
     return
 
+
+def plot_mean_levels(var_name, files_, zrange, levels, path):
+    print('plotting mean levels')
+    global case_name
+    global nx, ny, nz, dz, dt_stats
+    path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
+    var_mean = read_in_netcdf(var_name+'_mean', 'profiles', path_references)
+    time = read_in_netcdf('t', 'timeseries', path_references)
+    # print(time)
+    # cm1 = plt.cm.get_cmap('viridis')
+    cm1 = plt.cm.get_cmap('bone')
+    cm2 = plt.cm.get_cmap('winter')
+    count_color = 0.0
+
+    plt.figure(figsize=(9, 6))
+    # print('files'), files_
+    for t in files_:
+        print('t', t)
+        if str(t)[-1] == 'c':
+            path_fields = os.path.join(path, 'fields', str(t))
+            if case_name == 'TRMM_LBA':
+                it = np.int(t[3:-3])
+            else:
+                it = np.int(t[0:-3])
+        else:
+            path_fields = os.path.join(path, 'fields', str(t) + '.nc')
+            if case_name == 'TRMM_LBA':
+                it = np.int(t[3:-1])
+            else:
+                it = np.double(t)
+        # path_fields = os.path.join(path, 'fields', str(t) + '.nc')
+        var_field = read_in_netcdf(var_name, 'fields', path_fields)
+        var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
+
+        tt = np.int((np.double(it)-time[0]) / np.double(dt_stats))
+        # print('tt', tt, 'dt_stats', dt_stats, 'it', it, 'time[0]', time[0])
+        mini = np.min([np.amin(var_mean[tt, :]), np.amin(var_mean_field)])
+        maxi = np.max([np.amax(var_mean[tt, :]), np.amax(var_mean_field)])
+
+        if var_name == 'ql':
+            location = 4
+            ql = np.ndarray(shape=(0))
+            z_ = np.ndarray(shape=(0))
+            k_ = np.ndarray(shape=(0), dtype=np.int)
+            for k in range(zrange.shape[0]):
+                if var_mean_field[k] > 0.0:
+                    ql = np.append(ql, var_mean_field[k])
+                    z_ = np.append(z_, zrange[k])
+                    k_ = np.append(k_, k)
+            for l in z_:
+                if np.mod(l, 50) == 0:
+                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.5, label=str(l) + 'm')
+                else:
+                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=0.5)
+            plt.plot(ql[:], z_, color=cm1(count_color / len(files_)),
+                         label='t=' + str(it) + 's (from field)')
+            # plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color / len(files_)),
+            #              label='t=' + str(tt * dt_stats) + 's (from Stats)')
+        else:
+            location = 3
+            for l in zrange:
+                if np.mod(l,100) == 0:
+                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.0, label=str(l)+'m')
+                elif np.mod(l,10*dz) == 0:
+                    plt.plot([mini, maxi], [l, l], color='0.2', linewidth=0.2)
+            plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label='t=' + str(it) + 's (from field)')
+            plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color/len(files_)), label='t=' + str(tt * dt_stats) + 's (from Stats)')
+        count_color += 1.0
+
+
+    plt.legend(loc=location, fontsize=6)
+    plt.xlabel('mean '+var_name)
+    plt.ylabel('height z [m]')
+    plt.title('mean '+var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ', dz='+str(dz)+')')
+
+    plt.savefig(
+        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_levels.png'))
+    # plt.show()
+    plt.close()
+    return
 
 
 if __name__ == "__main__":

@@ -17,10 +17,9 @@ cdef class CloudClosure:
     # cdef double [:] p_ref_e
 
 
-
     cpdef initialize(self, path, path_ref, case_name)
     cpdef verification_CC(self, files, path, path_ref)
-    cpdef predict_pdf(self, files, path_in, path_out, path_ref, ncomp_, krange_, nml)
+    cpdef predict_pdf(self, files, path_in, path_out, path_ref, int n_sample, ncomp_, krange_, nml)
     # cpdef predict_pdf_multilevel(self, files, path_in, path_out, path_ref, ncomp_, krange_, nml)
     # def create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_)
 

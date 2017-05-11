@@ -46,38 +46,50 @@ def main():
     # ClCl.verification_CC(path, path_ref)
 
     files = os.listdir(os.path.join(path_in, 'fields'))
-    # ncomp_range = [1, 2, 3, 4, 5, 6, 8, 10]
-    ncomp_range = [1, 2]
+    print('Found the following files: ' + str(files))
+    # ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
+    ncomp_range = [1, 2, 3, 4, 5]
 
     # ZGILS 6
-    files = ['1382400.nc']
+    # files = ['1382400.nc']
     # files_ = [1317600, 1339200, 1360800, 1382400]  # ZGILS 6
-    krange = np.asarray([16, 37, 50])
+    # files = files[0:25:2]
+    # krange = np.asarray([25,25,40,50,60,65])
     # ZGILS S12
     # files = ['432000.nc']
+    # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
     # krange = np.asarray([35,40,45])
     # DYCOMS RF01
-    # krange = np.asarray([140,166])
-    # files = ['13800.nc', '14400.nc']
-    # files = ['13800.nc']
+    krange = np.asarray([140,150,160,166,180])
+    # files = ['10800.nc', '12600.nc', '14400.nc']
+    files = ['14400.nc']
+    # files = ['3600.nc']
     # DYCOMS RF02
     # krange = np.asarray([120, 170])
+    # krange = np.asarray([120, 140, 160, 170, 200])
+    # files = ['18000.nc', '19800.nc', '21600.nc']
     # files = ['18000.nc']
     # Bomex large, kyle
     # krange = np.asarray([27, 91])
-    # Bomex 170413
-    # krange = np.asarray([20, 39])
-    krange = np.asarray([20])
-    files = ['21600.nc']
+    # Bomex 170314_weno7
+    # krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
+    # files = ['18000.nc', '19800.nc', '21600.nc']
     # Bomex test
-    # files = ['14400.nc']
+    # files = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    # krange = np.asarray([10, 20, 50])
+    # krange = np.asarray([20, 25])
+    # krange = np.asarray([18,30,38])
+    # TRMM
+    # files = ['1012600.nc', '1014400.nc', '1016200.nc']
+    # krange = np.asarray([10, 15, 20, 30, 40, 50, 60])
+
+
     N = len(files)
-    print('Found the following directories', files, N)
+    n_sample = np.int(1e6)
+    print('Use the following files: ', files, N)
     print('zrange: ' + str(krange * dz) + ', dz: ' + str(dz), 'ncomp: ' + str(ncomp_range))
     print('')
-    ClCl.predict_pdf(files, path_in, path_out, path_ref, ncomp_range, krange, nml)
+    ClCl.predict_pdf(files, path_in, path_out, path_ref, n_sample, ncomp_range, krange, nml)
 
     # for ncomp in [1,2,3,4,5,6,7,8,9,10]:
     # for ncomp in [1, 3, 5, 10, 15]:

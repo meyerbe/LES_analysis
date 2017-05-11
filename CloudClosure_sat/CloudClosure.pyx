@@ -1,11 +1,11 @@
 import os
 include 'parameters.pxi'
+import json as simplejson
+import time
+import pylab as plt
+import netCDF4 as nc
 import numpy as np
 cimport numpy as np
-import netCDF4 as nc
-import json as simplejson
-import pylab as plt
-import time
 
 from cpython cimport array
 import array
@@ -28,10 +28,13 @@ cdef class CloudClosure:
         self.p_ref = None
         return
 
+
+
     cpdef initialize(self, path, path_ref, case_name):
         print('')
-        print('--- Initialize ---')
+        print('--- Cloud Closure Scheme ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
+        print('')
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
         cdef int nx, ny, nz, gw
         nx = nml['grid']['nx']
@@ -109,7 +112,6 @@ cdef class CloudClosure:
         # print('p_ref', np.shape(self.p_ref), self.p_ref.shape, type(self.p_ref[0]), self.p_ref[0])
 
         self.zrange = read_in_netcdf('z', 'reference', path_ref)
-
         return
 
 
@@ -302,7 +304,8 @@ cdef class CloudClosure:
 
 
     # ----------------------------------------------------------------------------------------------------
-    cpdef predict_pdf(self, files, path_in, path_out, path_ref, ncomp_range, krange_, nml):
+    cpdef predict_pdf(self, files, path_in, path_out, path_ref, int n_sample, ncomp_range, krange_, nml):
+        print('')
         print('--- PDF Prediction ---')
         print('')
         # cdef extern from "thermodynamics_sa.h":
@@ -313,9 +316,8 @@ cdef class CloudClosure:
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
         time1 = time.clock()
 
-
         # ________________________________________________________________________________________
-        '''Set up files etc.'''
+        '''(A) Set up files etc.'''
         cdef:
             int ncomp
             int nvar = 2
@@ -355,34 +357,34 @@ cdef class CloudClosure:
         print('')
 
         # ________________________________________________________________________________________
-        '''(A) Compute PDF f(s,qt) from LES data'''
+        '''(C) Compute PDF f(s,qt) from LES data'''
         #       - read in fields
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)
 
-
-        '''(2) Read in Fields'''
+        '''(1) Read in Fields'''
         # for PDF construction
         cdef:
+            int i, j, ij
+            int ishift = ny
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
             double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
             double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] ql_all
             double qi_ = 0.0
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # double [:,:,:] T_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # double [:,:,:] ql_comp = np.zeros([nx,ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            int ishift = ny
-            int i, j, ij
             double Lv
         # theta_l_norm = np.zeros([nx*ny*N],dtype=np.double,order='c')               # <type 'CloudClosure._memoryviewslice'>
         # qt_norm = np.zeros([nx*ny*N],dtype=np.double,order='c')                    # <type 'CloudClosure._memoryviewslice'>
 
         # for PDF sampling
         cdef:
-            int n_sample = np.int(1e6)
+            # int n_sample = np.int(1e8)
             double [:] T_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_comp = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'>
@@ -390,34 +392,35 @@ cdef class CloudClosure:
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             # int [:] alpha_comp_thl = np.zeros([n_sample],dtype=np.int_,order='c')         # <type 'CloudClosure._memoryviewslice'
             double [:,:] Th_l= np.zeros([n_sample, nvar], dtype=np.double, order='c')
-            double ql_mean = 0.0
-            double cf_comp = 0.0
-            double [:] cf_field = np.zeros(shape=(nk))
-            double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
         alpha_comp = np.zeros(n_sample)
         alpha_comp_thl = np.zeros(n_sample)
 
-        # for <ql> intercomparison
+        # for Error Computation / <ql> intercomparison
         cdef:
             double ql_mean_profile = 0.0
             double ql_mean_field
+            double ql_mean_comp = 0.0
+            double [:] cf_field = np.zeros(shape=(nk))
+            double cf_comp = 0.0
             int n, n1, n2
             # double error
             # double rel_error = 0.0
             int count_ncomp = 0
+            double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
+
 
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
         for ncomp in ncomp_range:
+            means_ = np.ndarray(shape=(nk, ncomp, nvar))
+            covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             '''(1) Statistics File'''
             nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'.nc'
             # create_statistics_file(os.path.join(path_out, 'CloudClosure'), nc_file_name_out, files[0][0:-3], ncomp, nvar, nk)
             self.create_statistics_file(os.path.join(path_out, 'CloudClosure'), nc_file_name_out, files[0][0:-3], ncomp, nvar, nk)
-            means_ = np.ndarray(shape=(nk, ncomp, nvar))
-            covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             for k in range(nk):
                 iz = krange[k]
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
@@ -448,7 +451,7 @@ cdef class CloudClosure:
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
                     print('??? dk', d, k, data.shape, data_all.shape, ql.shape, ql_all.shape)
 
-                ql_mean_field /= len(files)*(nx*ny)
+                ql_mean_field /= ( len(files)*(nx*ny) )
                 cf_field[k] /= len(files)*(nx*ny)
                 time_b = time.clock()
                 print('time to read in data_all for z='+str(iz*dz)+': '+str(time_b-time_a))
@@ -510,42 +513,50 @@ cdef class CloudClosure:
                 for i in range(n_sample-2):
                     # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                    ql_mean = ql_mean + ql_comp_thl[i]
+                    ql_mean_comp = ql_mean_comp + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
                         cf_comp += 1
-                ql_mean = ql_mean / n_sample
+                ql_mean_comp = ql_mean_comp / n_sample
                 cf_comp = cf_comp / n_sample
 
 
                 '''(C) compare to mean profile'''
                 print('')
                 # find correct times in profile
-                time1_ = np.int(files[0][0:-3])
-                time2_ = np.int(files[-1][0:-3])
-                n = 0
-                while(time_profile[n]<nt):
-                    while(time_profile[n]<time1_):
-                        n+=1
-                    n1 = n
-                    while(time_profile[n]<time2_):
-                        n+=1
-                    n2 = n
-
-                if time1_ == time2_:
-                    ql_mean_profile = ql_profile[n1,iz]
+                case_name = nml['meta']['casename']
+                if case_name == 'TRMM_LBA':
+                    time1_ = np.int(files[0][3:-3])
+                    time2_ = np.int(files[-1][3:-3])
                 else:
-                    for n in range(n1,n2):
-                        ql_mean_profile += ql_profile[n,iz]
-                    ql_mean_profile /= (n2-n1)
+                    time1_ = np.int(files[0][0:-3])
+                    time2_ = np.int(files[-1][0:-3])
+                n = 0
+                if case_name == 'Bomex':
+                    while(time_profile[n]<nt):
+                        while(time_profile[n]<time1_):
+                            n+=1
+                        n1 = n
+                        while(time_profile[n]<time2_):
+                            n+=1
+                        n2 = n
 
-                error_ql[k,count_ncomp] = ql_mean - ql_mean_field
+                    if time1_ == time2_:
+                        ql_mean_profile = ql_profile[n1,iz]
+                    else:
+                        for n in range(n1,n2):
+                            ql_mean_profile += ql_profile[n,iz]
+                        ql_mean_profile /= (n2-n1)
+                else:
+                    ql_mean_profile = 0.0
+
+                error_ql[k,count_ncomp] = ql_mean_comp - ql_mean_field
                 error_cf[k,count_ncomp] = cf_comp - cf_field[k]
                 if ql_mean_field > 0.0:
-                    rel_error_ql[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
+                    rel_error_ql[k,count_ncomp] = (ql_mean_comp - ql_mean_field) / ql_mean_field
                 if cf_field[k] > 0.0:
                     rel_error_cf[k,count_ncomp] = (cf_comp - cf_field[k]) / cf_field[k]
 
-                print('<ql> from CloudClosure Scheme: ', ql_mean)
+                print('<ql> from CloudClosure Scheme: ', ql_mean_comp)
                 print('<ql> from ql fields: ', ql_mean_field)
                 print('<ql> from ql_profile[k]: ', ql_mean_profile)
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
@@ -554,7 +565,7 @@ cdef class CloudClosure:
                 # print('times profile', n1, n2, time_profile[n1], time_profile[n2])
                 print('')
                 print('CF from Cloud Closure Scheme: ', cf_comp)
-                print('CF from ql fields: ', cf_field)
+                print('CF from ql fields: ', cf_field[k])
                 print('error: '+str(error_cf[k,count_ncomp]))
                 print('rel error: ', rel_error_cf[k,count_ncomp])
                 print('')
@@ -571,7 +582,7 @@ cdef class CloudClosure:
 
                 # plotting
                 plot_PDF(data_all, data_all_norm, 'thl', 'qt', nvar, clf_thl_norm, scaler, ncomp, error_ql[k,count_ncomp], iz*dz, path_out)
-                plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 plot_hist(ql, path_out)
                 print('')
@@ -579,8 +590,8 @@ cdef class CloudClosure:
 
                 del data_all, data_all_norm
             count_ncomp += 1
-            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_range, krange, dz, path_out)
-            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field, ncomp_range, krange, dz, path_out)
+            plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_range, krange, dz, path_out)
+            plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, path_out)
         time2 = time.clock()
 
 
@@ -589,8 +600,12 @@ cdef class CloudClosure:
 
 
         '''(6) Save Gaussian Mixture PDFs '''
+        print('')
+        print('Dumping files')
         dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
         dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'covariances', covariance_, 'qtT', ncomp, nvar, nk)
+        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'error', error_ql, 'error_ql', ncomp, nvar, nk)
+        # dump_variable(os.path.join(path_out, 'CloudClosure', nc_file_name_out), 'error', error_cf, 'error_cf', ncomp, nvar, nk)
 
 
         return
@@ -1110,6 +1125,25 @@ cdef Kernel_density_estimate(data, var_name1, var_name2, time_, z, fullpath_out)
 
 
 #----------------------------------------------------------------------
+def read_in_netcdf(var_name, group_name, path):
+    print('read in netcdf'+ var_name + ': ' +path)
+    rootgrp = nc.Dataset(path, 'r')
+    grp = rootgrp.groups[group_name]
+    if group_name == 'reference' or group_name == 'timeseries':
+        var = grp.variables[var_name][:]
+        rootgrp.close()
+        return var[:]
+    elif group_name == 'profiles':
+        var = grp.variables[var_name][:,:]
+        rootgrp.close()
+        return var[:,:]
+    elif group_name == 'fields':
+        var = grp.variables[var_name][:,:,:]
+        rootgrp.close()
+        return var[:,:,:]
+
+
+
 def read_in_fields(group_name, var_list, path):
     rootgrp = nc.Dataset(path, 'r')
     grp = rootgrp.groups[group_name]
@@ -1128,26 +1162,6 @@ def read_in_fields(group_name, var_list, path):
     return var1, var2, var3, var4
 
 
-def read_in_netcdf(var_name, group_name, path):
-    print('read in '+ var_name + ': ' +path)
-    rootgrp = nc.Dataset(path, 'r')
-    grp = rootgrp.groups[group_name]
-    if group_name == 'reference' or group_name == 'timeseries':
-        var = grp.variables[var_name][:]
-        rootgrp.close()
-        return var[:]
-    elif group_name == 'profiles':
-        var = grp.variables[var_name][:,:]
-        rootgrp.close()
-        return var[:,:]
-    elif group_name == 'fields':
-        var = grp.variables[var_name][:,:,:]
-        rootgrp.close()
-        return var[:,:,:]
-
-
-
-
 
 #----------------------------------------------------------------------
 
@@ -1162,27 +1176,49 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
                 for k in range(nvar):
                     data[i,j,k] = data_[i,j,k]
         write_mean(path, group_name, data, var_name)
-#
-#     elif group_name == 'covariances':
-#         add_covariance(path, var_name, ncomp, nvar)
-#         data = np.empty((nz_, ncomp, nvar, nvar), dtype=np.double, order='c')
-#         for i in range(nz_):
-#             for j in range(ncomp):
-#                 for k1 in range(nvar):
-#                     for k2 in range(nvar):
-#                         data[i, j, k1, k2] = data_[i, j, k1, k2]
-#         write_covar(path, group_name, data, var_name)
-#
-#     elif group_name == 'weights':
-#         add_weights(path, var_name, ncomp, nvar)
-#         data = np.empty((nz_, ncomp), dtype=np.double, order='c')
-#         for i in range(nz_):
-#             for j in range(ncomp):
-#                 data[i, j] = data_[i, j]
-#         write_weights(path, group_name, data, var_name)
-#
-#     # write_field(path, group_name, data, var_name)
-#     # print('--------')
+
+    elif group_name == 'covariances':
+        add_covariance(path, var_name, ncomp, nvar)
+        data = np.empty((nz_, ncomp, nvar, nvar), dtype=np.double, order='c')
+        for i in range(nz_):
+            for j in range(ncomp):
+                for k1 in range(nvar):
+                    for k2 in range(nvar):
+                        data[i, j, k1, k2] = data_[i, j, k1, k2]
+        write_covar(path, group_name, data, var_name)
+
+    elif group_name == 'weights':
+        add_weights(path, var_name, ncomp, nvar)
+        data = np.empty((nz_, ncomp), dtype=np.double, order='c')
+        for i in range(nz_):
+            for j in range(ncomp):
+                data[i, j] = data_[i, j]
+        write_weights(path, group_name, data, var_name)
+
+    elif group_name == 'error':
+        print('add error')
+        rootgrp = nc.Dataset(path, 'r+')
+        group = rootgrp.groups['error']
+        var = group.createVariable('error_ql', 'f8', ('nz', 'ncomp'))
+        data = np.empty((nz_, ncomp), dtype=np.double, order='c')
+        for i in range(nz_):
+            for j in range(ncomp):
+                data[i, j] = data_[i, j]
+        # write_weights(path, group_name, data, var_name)
+        var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
+        var[:, :] = data[:,:]
+        var = group.createVariable('error_cf', 'f8', ('nz', 'ncomp'))
+        data = np.empty((nz_, ncomp), dtype=np.double, order='c')
+        for i in range(nz_):
+            for j in range(ncomp):
+                data[i, j] = data_[i, j]
+        # write_weights(path, group_name, data, var_name)
+        var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
+        var[:, :] = data[:,:]
+        rootgrp.close()
+
+    # write_field(path, group_name, data, var_name)
+    # print('--------')
     return
 
 def add_means(path, var_name, ncomp, nvar):
@@ -1211,7 +1247,6 @@ def add_weights(path, var_name, ncomp, nvar):
     var = group.createVariable(var_name, 'f8', ('nz', 'EM2'))
     rootgrp.close()
     return
-
 
 def write_mean(path, group_name, data, var_name):
     print('write mean:', path, var_name, data.shape)

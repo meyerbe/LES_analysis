@@ -29,21 +29,22 @@ def plot_PDF(data, data_norm, var_name1, var_name2, nvar, clf, scaler, ncomp, er
     n_sample = np.int(1e2)
     x_ = np.linspace(xmin, xmax, n_sample)
     y_ = np.linspace(ymin, ymax, n_sample)
-    XX_ = np.ndarray(shape=(n_sample**nvar,nvar))
+    XX_ = np.ndarray(shape=(n_sample ** nvar, nvar))
 
     # (1) print PDF computed by GMM
     delta_i = n_sample
     for i in range(n_sample):
         for j in range(n_sample):
-            shift = i*delta_i + j
+            shift = i * delta_i + j
             XX_[shift, 0] = x_[i]
             XX_[shift, 1] = y_[j]
     ZZ_ = clf.score_samples(XX_)
-    ZZ = np.ndarray(shape=(n_sample,n_sample))
-    for j in range(n_sample**nvar):
-        jshift = np.mod(j,delta_i)
-        ishift = (j - jshift)/delta_i
-        ZZ[ishift,jshift] = ZZ_[j]
+    ZZ = np.ndarray(shape=(n_sample, n_sample))
+    for j in range(n_sample ** nvar):
+        jshift = np.mod(j, delta_i)
+        ishift = (j - jshift) / delta_i
+        ZZ[ishift, jshift] = ZZ_[j]
+
 
     # XXii = np.zeros(shape=XX_.shape)
     # print('XX before: ', ZZ.shape, XX_.shape)
@@ -68,7 +69,7 @@ def plot_PDF(data, data_norm, var_name1, var_name2, nvar, clf, scaler, ncomp, er
     plt.subplot(1,4,1)
     plt.scatter(data[:,0], data[:,1], s=5, alpha=0.2)
     plt.title('data')
-    labeling(var_name1,var_name2,1,1)
+    labeling(var_name1, var_name2, 1, 1)
     plt.xlim(np.amin(data[:,0]), np.amax(data[:,0]))
     plt.ylim(np.amin(data[:,1]), np.amax(data[:,1]))
 
@@ -165,12 +166,12 @@ def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2,
     labeling(var_name1, var_name2, 0, 0)
 
     plt.subplot(2, 2, 3)
-    print('color arr: ', data.shape, data_ql.shape)
     try:
         ax = plt.scatter(data[:, 0], data[:, 1], c=data_ql[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
         if np.amax(data_ql[:]) > 0.0:
             plt.colorbar(ax, shrink=0.6)
     except:
+        print('except data - color arr: ', data.shape, data_ql.shape)
         # traceback.print_exc()
         color_arr = np.zeros(shape=np.size(data_ql))
         for i in range(np.size(data_ql)):
@@ -294,7 +295,7 @@ def plot_hist(data_ql, path):
     return
 
 
-def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ncomp_array, krange, dz, path):
     # error_array = (nk x ncomp):   array for relative errors
     # ncomp_array
     nk, n_ncomp = np.shape(error_ql)
@@ -311,14 +312,15 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_array, krange, dz, path
     plt.legend(loc=4)
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in <ql>')
-    plt.title('Relative Error in domain mean liquid water')
+    plt.title('Relative Error domain mean liquid water (n_sample: '+str(n_sample)+')')
+
     plt.subplot(1, 2, 2)
     for k in range(nk):
         plt.plot(ncomp_array, error_ql[k, :], '-o', label='z=' + str(krange[k] * dz))
-    plt.legend(loc=4)
+    plt.legend(loc='best')
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in <ql>')
-    plt.title('Absolute Error in domain mean liquid water')
+    plt.title('Absolute Error domain mean liquid water')
     savename = 'error_figure_ql.png'
     plt.savefig(
         os.path.join(path, 'CloudClosure_figures', savename))
@@ -330,26 +332,26 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, ncomp_array, krange, dz, path
     return
 
 
-def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, cf_field_rel, ncomp_array, krange, dz, path):
+def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field_rel, ncomp_array, krange, dz, path):
     plt.figure(figsize=(12, 6))
     nk = np.shape(error_cf)[0]
     plt.subplot(1, 2, 1)
     for k in range(nk):
         plt.plot(ncomp_array, rel_error_cf[k, :], '-o', label='z=' + str(krange[k] * dz))
-    plt.legend(loc=4)
+    plt.legend(loc='best')
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('relative error in CF')
-    plt.title('Relative Error in Cloud Fraction')
+    plt.title('Relative Error Cloud Fraction (n_sample: '+str(n_sample)+')')
     plt.subplot(1, 2, 2)
     for k in range(nk):
         plt.plot(ncomp_array, error_cf[k, :], '-o', label='z=' + str(krange[k] * dz)+
                                                           ', CF='+str(np.round(cf_field_rel[k],3)))
         # arr = cf_field_rel[k] * np.ones(shape=len(ncomp_array))
         # plt.plot(ncomp_array, arr, label='CF field ('+str(np.round(cf_field_rel,7))+')')
-    plt.legend()
+    plt.legend(loc='best')
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel('absolute error in CF')
-    plt.title('Absolute Error in Cloud Fraction')
+    plt.title('Absolute Error Cloud Fraction')
     savename = 'error_figure_cf.png'
     plt.savefig(
         os.path.join(path, 'CloudClosure_figures', savename))
