@@ -60,6 +60,7 @@ def main():
     #  Bomex 170314_weno7
     # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
     # files_cum = [5*hour, np.int(5.5*hour), 6*hour]
+    # levels = [400, 500, 600, 720, 800, 900, 1000]
 
     #  Rico
     # files_ = [0, 2 * hour, 4 * hour, 6 * hour, 8 * hour, 10 * hour, 12 * hour,
@@ -70,6 +71,7 @@ def main():
     # files_ = ['1800.nc','3600.nc', '7200.nc']
     # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour]
     # files_cum = ['10800.nc', '12600.nc', '14400.nc']
+    # time_prof = [1 * hour, 2 * hour, 3 * hour, 4 * hour]
 
     # DYCOMS RF02
     # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
@@ -77,7 +79,7 @@ def main():
     # files_cum = ['18000.nc', '19800.nc', '21600.nc']
 
     # ZGILS S6
-    # files_ = files
+    # files_ = files[0:44:10]
     # files_cum = files[0:44:2]
 
     # ZGILS S12
@@ -101,12 +103,15 @@ def main():
     print('')
     print('zrange: ', zrange)
 
+
+    plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
+
     # plot_ql_n_all(files_, zrange, path, prof=False)
     # plot_mean('ql', files_, zrange, path)
     # plot_mean('s', files_, zrange, path)
     # plot_mean('thetali', files_, zrange, path)
-    plot_mean_levels('qt', files_, zrange, levels, path)
-    plot_mean_levels('ql', files_, zrange, levels, path)
+    plot_mean_levels('qt', files_, zrange, path)
+    plot_mean_levels('ql', files_, zrange, path)
 
     # plot_mean('qt', files_, zrange, levels, path)
     # plot_mean('ql', files_, zrange, levels, path)
@@ -124,6 +129,46 @@ def main():
 
 
 
+
+
+def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
+    global dt_stats
+    # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
+    time = read_in_netcdf('t', 'timeseries', path_ref)
+    if var_name == 'cloud_fraction':
+        var = read_in_netcdf(var_name, 'profiles', path_ref)
+    else:
+        var_name = var_name + '_mean'
+        var = read_in_netcdf(var_name, 'profiles', path_ref)
+
+    print('')
+    print(var.shape, time.shape, zrange.shape, dt_stats)
+    print('')
+    plt.figure(figsize=(9,6))
+    # for t in range(time.shape[0]):
+    #     if time[t]>=3600.0 and np.mod(time[t], 100*dt_stats) == 0.0:
+    #         print('timetimetime', time[t], 20*dt_stats)
+    #         plt.plot(var[t,:], zrange, label='t='+str(time[t]))
+    t_ini = 0
+    count_t = 0
+    for t in time_range:
+        for t_ in range(t_ini, time.shape[0]):
+            if np.abs(time[t_] - time_range[count_t]) < dt_stats:
+                plt.plot(var[t_, :], zrange, label='t=' + str(time[t_]))
+                t_ini = t_
+                continue
+        count_t += 1
+
+    plt.legend()
+    plt.xlabel('mean ' + var_name)
+    plt.ylabel('height z [m]')
+    plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
+    plt.savefig(
+        os.path.join(path, 'figs_stats', var_name + '_fromprofile.pdf'))
+    plt.show()
+    # plt.close()
+
+    return
 
 
 def plot_mean_cumulated(var_name, files_cum, zrange, path):
@@ -406,7 +451,8 @@ def plot_mean(var_name, files_, zrange, levels, path):
     return
 
 
-def plot_mean_levels(var_name, files_, zrange, levels, path):
+def plot_mean_levels(var_name, files_, zrange, path, profile=False):
+    print('')
     print('plotting mean levels')
     global case_name
     global nx, ny, nz, dz, dt_stats
@@ -441,8 +487,12 @@ def plot_mean_levels(var_name, files_, zrange, levels, path):
 
         tt = np.int((np.double(it)-time[0]) / np.double(dt_stats))
         # print('tt', tt, 'dt_stats', dt_stats, 'it', it, 'time[0]', time[0])
-        mini = np.min([np.amin(var_mean[tt, :]), np.amin(var_mean_field)])
-        maxi = np.max([np.amax(var_mean[tt, :]), np.amax(var_mean_field)])
+        try:
+            mini = np.min([np.amin(var_mean[tt, :]), np.amin(var_mean_field)])
+            maxi = np.max([np.amax(var_mean[tt, :]), np.amax(var_mean_field)])
+        except:
+            mini = np.amin(var_mean_field)
+            maxi = np.amax(var_mean_field)
 
         if var_name == 'ql':
             location = 4
@@ -454,24 +504,28 @@ def plot_mean_levels(var_name, files_, zrange, levels, path):
                     ql = np.append(ql, var_mean_field[k])
                     z_ = np.append(z_, zrange[k])
                     k_ = np.append(k_, k)
-            for l in z_:
-                if np.mod(l, 50) == 0:
-                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.5, label=str(l) + 'm')
-                else:
-                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=0.5)
+            # if count_color == len(files_)-1:
+            if count_color == 0:
+                for l in z_:
+                    if np.mod(l, 50) == 0:
+                        plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.5, label=str(l) + 'm')
+                    else:
+                        plt.plot([mini, maxi], [l, l], color='0.5', linewidth=0.5)
             plt.plot(ql[:], z_, color=cm1(count_color / len(files_)),
                          label='t=' + str(it) + 's (from field)')
             # plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color / len(files_)),
             #              label='t=' + str(tt * dt_stats) + 's (from Stats)')
         else:
             location = 3
-            for l in zrange:
-                if np.mod(l,100) == 0:
-                    plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.0, label=str(l)+'m')
-                elif np.mod(l,10*dz) == 0:
-                    plt.plot([mini, maxi], [l, l], color='0.2', linewidth=0.2)
+            if count_color == 0.0:
+                for l in zrange:
+                    if np.mod(l,100) == 0:
+                        plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.0, label=str(l)+'m')
+                    elif np.mod(l,10*dz) == 0:
+                        plt.plot([mini, maxi], [l, l], color='0.2', linewidth=0.2)
             plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label='t=' + str(it) + 's (from field)')
-            plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color/len(files_)), label='t=' + str(tt * dt_stats) + 's (from Stats)')
+            if profile:
+                plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color/len(files_)), label='t=' + str(tt * dt_stats) + 's (from Stats)')
         count_color += 1.0
 
 
@@ -481,7 +535,7 @@ def plot_mean_levels(var_name, files_, zrange, levels, path):
     plt.title('mean '+var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ', dz='+str(dz)+')')
 
     plt.savefig(
-        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_levels.png'))
+        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_levels.pdf'))
     # plt.show()
     plt.close()
     return
