@@ -176,13 +176,8 @@ cdef class CloudClosure:
                 iz = krange[k]
                 print('')
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
-                # thl_allz = np.ndarray(shape=(0))     # data averaged over all levels at one time step
-                # qt_allz = np.ndarray(shape=(0))      # data averaged over all levels at one time step
-                # thl_aux = np.ndarray(shape=(0))     # data averaged over all levels at one time step
-                # qt_aux = np.ndarray(shape=(0))      # data averaged over all levels at one time step
                 ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                 data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                # ql_mean_field[k] = 0.0
 
                 for d in files:
                     print('time: d='+str(d))
@@ -201,22 +196,24 @@ cdef class CloudClosure:
                             for j in range(ny):
                                 ij = i*ishift + j
                                 Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-                                # qt_aux[ij] = qt_[i,j,iz+k_]
 
                                 theta_l[k_*nx*ny+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                #qt[ij,k] = qt_[i,j,iz+k_]
-                                #ql[ij,k] = ql_[i,j,iz+k_]
                                 qt[k_*nx*ny+ij,k] = qt_[i,j,iz+k_]
                                 ql[k_*nx*ny+ij,k] = ql_[i,j,iz+k_]
                                 ql_mean_field[k] += ql_[i,j,iz+k_]
                                 if ql_[i,j,iz+k_] > 0.0:
                                     cf_field[k] += 1.0
+
+                                # # test test test test
+                                # theta_l[k_*nx*ny+ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
+                                # qt[k_*nx*ny+ij,k] = qt_[i,j,iz]
+                                # ql[k_*nx*ny+ij,k] = ql_[i,j,iz]
+                                # ql_mean_field[k] += ql_[i,j,iz]
+                                # if ql_[i,j,iz] > 0.0:
+                                #     cf_field[k] += 1.0
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
                         # print('')
-
-                        #qt_allz = np.append(qt_allz, qt[:,k], axis=0)
-                        #thl_allz = np.append(thl_allz, theta_l[:,k], axis=0)
 
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]

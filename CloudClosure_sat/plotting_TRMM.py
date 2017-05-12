@@ -5,7 +5,7 @@ import sys
 
 sys.path.append("..")
 from parameters import *
-
+from io_read_in_files import read_in_netcdf
 from thermodynamic_functions import CC_Magnus, theta_c
 
 label_size = 8
@@ -15,19 +15,30 @@ plt.rcParams['lines.linewidth'] = 2
 plt.rcParams['legend.fontsize'] = 8
 plt.rcParams['figure.titlesize'] = 15
 
+# from check_ql_file import plot_mean_profile
+
 
 def main():
-    nml = {}
+    case_name = 'TRMM_LBA'
 
+    nml = {}
     nml['grid'] = {}
     nml['grid']['nx'] = 20
     nml['grid']['ny'] = 20
     nml['grid']['nz'] = 200
 
-
     InitTRMM_LBA(nml)
 
+    path = '/Volumes/Data/ClimatePhysics/LES/output/TRMM_LBA'
+    path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
     # out_path = '/Volumes'
+
+    global dt_stats, k_hours, zrange
+    dt_stats, k_hours, time_prof = get_dt_stats(path, path_ref)
+    zrange = get_zrange(path, path_ref)
+    plot_profile('qt', time_prof, path_ref, path)
+    plot_profile('ql', time_prof, path_ref, path)
+    plot_profile('qi', time_prof, path_ref, path)
     return
 
 
@@ -163,6 +174,7 @@ def InitTRMM_LBA(nml):
     plt.suptitle('Initial Thermodynamic Soundings')
     save_name = 'initial_thermod'
     plt.savefig(os.path.join('../TRMM_figs_stats', save_name + '.pdf'))
+    plt.close()
 
     plt.figure(figsize=(15, 8))
     plt.subplot(1, 3, 1)
@@ -186,6 +198,7 @@ def InitTRMM_LBA(nml):
     plt.suptitle('Initial Pressure Soundings')
     save_name = 'initial_pressure'
     plt.savefig(os.path.join('../TRMM_figs_stats', save_name + '.pdf'))
+    plt.close()
 
     plt.figure(figsize=(9, 6))
     plt.subplot(1, 3, 1)
@@ -201,9 +214,9 @@ def InitTRMM_LBA(nml):
     save_name = 'initial_uv'
 
     plt.savefig(os.path.join('../TRMM_figs_stats', save_name+'.pdf'))
+    plt.close()
 
     return
-
 
 
 
@@ -280,6 +293,69 @@ def interpolate(nml):
     #                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T[k], qt[k], 0.0, 0.0)
 
     return
+
+
+
+def get_dt_stats(path, path_ref):
+    time_prof = read_in_netcdf('t', 'timeseries', path_ref)
+    dt_stats = time_prof[1] - time_prof[0]
+
+    k_hours = np.ndarray(shape=(0), dtype=np.int)
+    for t in range(time_prof.shape[0]):
+        if np.abs(np.mod(time_prof[t], 3600)) < dt_stats:
+            k_hours = np.append(k_hours, np.int(t))
+
+    plt.figure()
+    plt.plot(time_prof, '-x')
+    plt.title('stats time (dt = ' + str(dt_stats) + 's)')
+    plt.savefig(os.path.join(path,'figs_stats','time_stats.pdf'))
+    plt.close()
+    return dt_stats, k_hours, time_prof
+
+
+def get_zrange(path, path_ref):
+    zrange = read_in_netcdf('z', 'reference', path_ref)
+    plt.figure()
+    plt.plot(zrange, '-x')
+    plt.title('z-profile')
+    plt.savefig(os.path.join(path,'figs_stats','z_stats.pdf'))
+    plt.close()
+    return zrange
+
+
+def plot_profile(var_name, time, path_ref, path):
+    global dt_stats, k_hours, zrange
+
+    var_mean = read_in_netcdf(var_name+'_mean', 'profiles', path_ref)
+    var_mean2 = read_in_netcdf(var_name + '_mean2', 'profiles', path_ref)
+    var_variance = var_mean2 - var_mean**2
+    var_max = read_in_netcdf(var_name+'_max', 'profiles', path_ref)
+
+    plt.figure(figsize=(16,6))
+    plt.subplot(1, 3, 1)
+    for k in k_hours:
+        plt.plot(var_mean[k,:], zrange, label='t='+str(time[k]/3600)+'h')
+    plt.xlabel('E[' + var_name + ']')
+    plt.ylabel('height z [m]')
+    plt.legend(loc='best')
+    plt.title('E['+var_name+']')
+    plt.subplot(1, 3, 2)
+    for k in k_hours:
+        plt.plot(var_variance[k, :], zrange, label='t='+str(time[k]/3600)+'h')
+    plt.xlabel('Var['+var_name+']')
+    plt.ylabel('height z [m]')
+    plt.legend(loc='best')
+    plt.title('Var[' + var_name + ']')
+    plt.subplot(1, 3, 3)
+    for k in k_hours:
+        plt.plot(var_max[k, :], zrange, label='t=' + str(time[k] / 3600) + 'h')
+    plt.xlabel('max(' + var_name + '[:,:,k])')
+    plt.ylabel('height z [m]')
+    plt.legend(loc='best')
+    plt.title('max(' + var_name + ')')
+    plt.savefig(os.path.join(path,'figs_stats', var_name+'_mean_var.pdf'))
+    return
+
 
 if __name__ == '__main__':
     main()

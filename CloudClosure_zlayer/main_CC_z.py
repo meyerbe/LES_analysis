@@ -24,8 +24,9 @@ def main():
 
 
     files = os.listdir(os.path.join(path, 'fields'))
+    print('Found the follwing files: ' + str(files))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    # ncomp_range = [1, 2]
+    # ncomp_range = [1, 2, 3, 4, 5]
     dk_range = 2        # number of layers below and above added to data
 
     # ZGILS 6
@@ -41,9 +42,9 @@ def main():
     # krange = np.asarray([140, 150, 160, 166, 180])
     # files = ['3600.nc']
     # DYCOMS RF01
-    # krange = np.asarray([140,150,160,166,180])
+    krange = np.asarray([140,150,160,166,180])
     # files = ['10800.nc', '12600.nc', '14400.nc']
-    # files = ['14400.nc']
+    files = ['14400.nc']
     # DYCOMS RF02
     # krange = np.asarray([120, 170])
     # krange = np.asarray([120, 140, 160, 170, 200])
@@ -52,13 +53,15 @@ def main():
     # Bomex large, kyle
     # krange = np.asarray([27, 91])
     # Bomex 170314_weno7
-    # krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
-    # files = ['18000.nc', '19800.nc', '21600.nc']
+    ## krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
+    # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
+    ## files = ['18000.nc', '19800.nc', '21600.nc']
     # files = ['21600.nc']
     # Bomex test
-    files = ['21600.nc']
+    # files = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20, 50])
+    # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
+    # krange = np.asarray([20, 50])
     # krange = np.asarray([18,30,38])
     # TRMM
     # files = ['1012600.nc', '1014400.nc', '1016200.nc']
@@ -67,7 +70,7 @@ def main():
 
     krange = np.asarray(krange, dtype=np.int32)
     N = len(files)
-    print('Found the following directories', files, N)
+    print('Use the following files', files, N)
     print('zrange: ' + str(krange * dz))
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
@@ -76,8 +79,8 @@ def main():
     print('')
 
     ClCl.initialize(krange, path, case_name)
-    n_sample = 1e6
-    for dk_range in [0, 1, 2, 3]:
+    n_sample = 1e7
+    for dk_range in [0, 1, 2, 3, 4]:
     # for dk_range in [0, 1]:
         ClCl.predict_pdf(files, path, n_sample, ncomp_range, dk_range, krange, nml)
 

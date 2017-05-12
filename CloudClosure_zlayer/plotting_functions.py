@@ -16,7 +16,7 @@ plt.rcParams['axes.labelsize'] = 10
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 8
-# plt.rcParams['title.fontsize'] = 15
+plt.rcParams['figure.titlesize'] = 15
 plt.rcParams['lines.linewidth'] = 3
 
 
@@ -101,7 +101,6 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
     return
 
 
-
 def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, save_name):
     print('Plot PDF: ', os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '.png'))
 
@@ -125,6 +124,7 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
     return
 
 
+
 def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_array, krange, dz, dk, path):
     cmap = cm.get_cmap('jet')
     nk = error_ql.shape[0]
@@ -134,26 +134,26 @@ def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_arra
         col = cmap(np.double(k)/nk)
 
         plt.subplot(1,2,1)
-        ql_ref = ql_mean_ref[k] * np.ones(len(ncomp_array))
+        # ql_ref = ql_mean_ref[k] * np.ones(len(ncomp_array))
         plt.plot(ncomp_array, np.abs(error_ql[k,:]), '-o', color=col, label=r'$\epsilon(q_l)$, z='+str(krange[k]*dz))
-        plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$=' + str(ql_mean_ref[k]))
+        # plt.plot(ncomp_array, ql_ref, '-', color=col, linewidth=1, label=r'<ql>$_{field}$=' + str(ql_mean_ref[k]))
 
         plt.subplot(1,2,2)
-        ref = cf_ref[k] * np.ones(len(ncomp_array))
-        plt.plot(ncomp_array, np.abs(error_cf[k, :]), '-o', color=col, label=r'$\epsilon$(CF), z=' + str(krange[k] * dz))
-        plt.plot(ncomp_array, ref, '-', color=col, linewidth=1, label=r'CF$_{field}$=' + str(cf_ref[k]))
+        # ref = cf_ref[k] * np.ones(len(ncomp_array))
+        plt.plot(ncomp_array, np.abs(error_cf[k, :]), '-o', color=col, label=r'$\epsilon$(CF), z=' + str(np.round(krange[k] * dz,4)))
+        # plt.plot(ncomp_array, ref, '-', color=col, linewidth=1, label=r'CF$_{field}$=' + str(cf_ref[k]))
 
     plt.subplot(1, 2, 1)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
     plt.ylabel(r'abs(<ql>$_PDF$-<ql>$_{field}$)')
-    plt.title('Relative Error domain mean liquid water (n_sample: ' + str(n_sample) + ')')
+    plt.title('Absolute Error domain mean liquid water (n_sample: ' + str(n_sample) + ')')
 
     plt.subplot(1, 2, 2)
     plt.legend(loc='best', bbox_to_anchor=(0, 1))
     plt.xlabel('# Gaussian components in PDF')
-    plt.ylabel(r'abs(CF$_PDF$-CF$_{field}$)')
-    plt.title('Absolute Error domain mean liquid water')
+    plt.ylabel(r'abs(CF$_{PDF}$-CF$_{field}$)')
+    plt.title('Absolute Error cloud fraction')
 
     save_name = 'error_figure_abs_dz'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
@@ -166,7 +166,7 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mea
     cmap = cm.get_cmap('jet')
     nk = error_ql.shape[0]
 
-    plt.figure(figsize=(18,6))
+    plt.figure(figsize=(18,9))
     for k in range(nk):
         col = cmap(np.double(k)/nk)
 
@@ -207,7 +207,6 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array
     ncomp = len(ncomp_array)
     plt.figure(figsize=(12, 6))
     for k in range(nk):
-        print(cf_ref[k]*np.ones(len(ncomp_array)))
         col = cmap(np.double(k) / nk)
 
         plt.subplot(1, 2, 1)
@@ -245,10 +244,7 @@ def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, dk, path):
     # covariance_ = (nk, ncomp, nvar, nvar)
     # weights_ = (nk, ncomp)
 
-    print('')
-    print('ncomp', ncomp, means_.shape, covars_.shape, weights_.shape)
-
-    plt.figure()
+    plt.figure(figsize=(12,8))
     # for ncomp in ncomp_range:
     for n in range(ncomp):
         plt.subplot(2, 3, 1)
