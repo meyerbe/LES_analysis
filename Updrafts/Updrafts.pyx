@@ -14,7 +14,9 @@ from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 from plotting_functions import plot_labels
 
-
+# NEW:
+#   - no more accumlation over times (files) or levels for PDF model
+#   - no more looping over components
 
 # class Updrafts:
 # (1) PDF model
@@ -95,6 +97,7 @@ cdef class Updrafts:
         # (A) read in 3D fields for one time step and one level
         cdef:
             int nvar = 2
+            int ncomp = 2
             int nx = nml['grid']['nx']
             int ny = nml['grid']['ny']
             int nz = nml['grid']['nz']
@@ -113,15 +116,19 @@ cdef class Updrafts:
 
 
 
-        # (B) PDF Model
-        #
-        labels_pdf = self.predict_PDF(files, path, ncomp_range, dz_range, krange, nml)
+            # (B) PDF Model
+            if d[-1] == 'c':
+                tt = d[0][0:-3]
+            else:
+                tt = np.int(d)
+            print('ttttt', type(tt), tt)
+            labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
 
-        # (C) Tracer Model
-        type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
-        for type in type_list:
-            labels_tr = self.read_in_updrafts_colleen(type, path_tr)
-            plot_labels(labels_pdf, labels_tr, type, path)
+            # (C) Tracer Model
+            type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
+            for up_type in type_list:
+                labels_tr = self.read_in_updrafts_colleen(up_type, path_tr)
+                plot_labels(qt_, ql_, labels_pdf, labels_tr, up_type, path)
 
 
         return
@@ -133,9 +140,9 @@ cdef class Updrafts:
     # ----------------------------------------------------------------------
     #               PDF Model
     # ----------------------------------------------------------------------
-    cpdef predict_PDF(self, files, path, ncomp_range, dz_range_, krange_, nml):
+    cpdef predict_PDF(self, s_, qt_, T_, ql_, path, int ncomp, dz_range_, krange_, tt, nml):
         # input:
-        #     -
+        #     - 3D fields at given time tt
         # output:
         #     - labels = (nx,ny,nz):      3D array with labels from PDF clustering
         #
@@ -162,7 +169,7 @@ cdef class Updrafts:
         # ________________________________________________________________________________________
         '''(A) Set up files etc.'''
         cdef:
-            int ncomp
+            # int ncomp
             int nvar = 2
             int [:] krange = krange_
             int nk = len(krange)
@@ -205,120 +212,96 @@ cdef class Updrafts:
         cdef:
             int i, j, ij
             int ishift = ny
-            double [:,:,:] s_
-            double [:,:,:] T_
-            double [:,:,:] qt_
             double [:,:] qt = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:,:,:] ql_
             double [:,:] ql = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:] ql_all = np.ndarray(shape=(0))
             double qi_ = 0.0
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            double [:,:] data_all
             double Lv
 
-        # for PDF sampling
-        cdef:
-            int n_sample = np.int(1e6)
-            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-            double [:] alpha_comp_thl = np.zeros(n_sample)
+        # # for PDF sampling
+        # cdef:
+        #     int n_sample = np.int(1e6)
+        #     double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+        #     double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+        #     double [:] alpha_comp_thl = np.zeros(n_sample)
 
         # for Error Computation
         cdef:
-            double ql_mean_field
-            double ql_mean = 0.0
+            double [:] ql_mean_field = np.zeros(shape=(nk))
+        #     double ql_mean = 0.0
             double [:] cf_field = np.zeros(shape=(nk))
-            double cf_comp = 0.0
-            int count_ncomp = 0
-            double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
+        #     double cf_comp = 0.0
+        #     double [:] error_ql = np.zeros(shape=(nk))
+        #     double [:] rel_error_ql = np.zeros(shape=(nk))
+        #     double [:] error_cf = np.zeros(shape=(nk))
+        #     double [:] rel_error_cf = np.zeros(shape=(nk))
 
         # for Labeling
         # cdef:
         #     double [:,:,:] labels = np.zeros(shape=(nx, ny, nk))
         labels = np.zeros(shape=(nx, ny, nk))
 
-
-        var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
-        for ncomp in ncomp_range:
-            means_ = np.ndarray(shape=(nk, ncomp, nvar))
-            covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
-            weights_ = np.zeros(shape=(nk, ncomp))
-            '''(1) Statistics File'''
-            tt = files[0][0:-3]
-            nc_file_name_CC = 'CC_updrafts_time'+str(tt)+'.nc'
-            self.create_statistics_file(self.path_out, nc_file_name_CC, tt, ncomp, nvar, nk)
-            nc_file_name_labels = 'Labeling_time'+str(tt)+'.nc'
-            self.create_updrafts_file(self.path_out, nc_file_name_labels, tt, ncomp, nvar, nk, nml)
+        means_ = np.ndarray(shape=(nk, ncomp, nvar))
+        covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+        weights_ = np.zeros(shape=(nk, ncomp))
 
-            for k in range(nk):
-                iz = krange[k]
-                print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
-                data_all = np.ndarray(shape=(0, nvar))
-                ql_all = np.ndarray(shape=(0))
-                ql_mean_field = 0.0
+        '''(1) Statistics File'''
+        nc_file_name_CC = 'CC_updrafts_time'+str(tt)+'.nc'
+        self.create_statistics_file(self.path_out, nc_file_name_CC, tt, ncomp, nvar, nk)
+        nc_file_name_labels = 'Labeling_time'+str(tt)+'.nc'
+        self.create_updrafts_file(self.path_out, nc_file_name_labels, tt, ncomp, nvar, nk, nml)
 
-                for d in files:
-                    nc_file_name = d
-                    path_fields = os.path.join(path, 'fields', nc_file_name)
-                    # print('fields: ', path_fields)
-                    s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
-                    '''(2) Compute liquid potential temperature from temperature and moisture'''
-                    for i in range(nx):
-                        for j in range(ny):
-                            ij = i*ishift + j
-                            Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
-                            theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
-                            qt[ij,k] = qt_[i,j,iz]
-                            ql[ij,k] = ql_[i,j,iz]
-                            ql_mean_field += ql_[i,j,iz]
-                            if ql[ij,k] > 0.0:
-                                cf_field[k] += 1.0
-                    del s_, ql_, qt_, T_
-                    data[:, 0] = theta_l[:, k]
-                    data[:, 1] = qt[:, k]
-                    data_all = np.append(data_all, data, axis=0)
-                    ql_all = np.append(ql_all, ql[:,k], axis=0)
+        for k in range(nk):
+            iz = krange[k]
+            print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
+            '''(2) Compute liquid potential temperature from temperature and moisture'''
+            for i in range(nx):
+                for j in range(ny):
+                    ij = i*ishift + j
+                    Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
+                    theta_l[ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
+                    qt[ij,k] = qt_[i,j,iz]
+                    ql[ij,k] = ql_[i,j,iz]
+                    ql_mean_field[k] += ql_[i,j,iz]
+                    if ql[ij,k] > 0.0:
+                        cf_field[k] += 1.0
+            data[:, 0] = theta_l[:, k]
+            data[:, 1] = qt[:, k]
 
-                ql_mean_field /= len(files)*(nx*ny)
-                cf_field[k] /= len(files)*(nx*ny)
+            ql_mean_field[k] /= (nx*ny)
+            cf_field[k] /= (nx*ny)
 
-                '''(3) Normalise Data'''
-                scaler = StandardScaler()
-                data_all_norm = scaler.fit_transform(data_all)
+            '''(3) Normalise Data'''
+            scaler = StandardScaler()
+            data_norm = scaler.fit_transform(data)
 
-                '''(4) Compute bivariate PDF'''
-                #   (a) for (s,qt)
-                #           ...
-                #   (b) for (th_l,qt)
-                # clf_thl_norm = Gaussian_bivariate(ncomp, data_all_norm, 'T', 'qt', np.int(d[0:-3]), iz * dz, path)
-                clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
-                clf_thl_norm.fit(data_all_norm)
-                means_[k, :, :] = clf_thl_norm.means_[:, :]
-                covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
-                weights_[k,:] = clf_thl_norm.weights_[:]
+            '''(4) Compute bivariate PDF'''
+            #   (a) for (s,qt)
+            #   (b) for (th_l,qt)
+            clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
+            clf_thl_norm.fit(data_norm)
+            means_[k, :, :] = clf_thl_norm.means_[:, :]
+            covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+            weights_[k,:] = clf_thl_norm.weights_[:]
 
 
-                '''(5) Sort and look for labels'''
-                labels_ = clf_thl_norm.predict(data_all_norm)
-                # labels_ = np.int(clf_thl_norm.predict(data_all_norm))
-                # print('LABELS: ', type(labels))
-                print('')
-                print('Labels: ', np.count_nonzero(labels_), labels_.shape, data_all_norm.shape)
-                # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
-                means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_, clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
-                print('Labels new: ', np.count_nonzero(labels_new))
+            '''(5) Find Labels, sort and rearrange'''
+            labels_ = clf_thl_norm.predict(data_norm)
+            # labels_ = np.int(clf_thl_norm.predict(data_all_norm))
+            # print('LABELS: ', type(labels))
+            print('')
+            print('Labels: ', np.count_nonzero(labels_), labels_.shape, data_norm.shape)
+            # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
+            means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_, clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
+            print('Labels new: ', np.count_nonzero(labels_new))
 
-                # rearrange into 2D array (for only one data file)
-                for i in range(nx):
-                    for j in range(ny):
-                        ij = i*ishift + j
-                        labels[i,j,k] = labels_new[ij]
-            #     '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
+            # rearrange into 2D array (for only one data file)
+            for i in range(nx):
+                for j in range(ny):
+                    ij = i*ishift + j
+                    labels[i,j,k] = labels_new[ij]
+                #     '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
             #     #       1. sample (th_l, qt) from PDF (Monte Carlo ???
             #     #       2. compute ql for samples
             #     #       3. consider ensemble average <ql> = domain mean representation???
@@ -337,25 +320,25 @@ cdef class Updrafts:
             #     ql_mean = ql_mean / n_sample
             #     cf_comp = cf_comp / n_sample
             #
-            #     error_ql[k,count_ncomp] = ql_mean - ql_mean_field
-            #     error_cf[k,count_ncomp] = cf_comp - cf_field[k]
+            #     error_ql[k] = ql_mean - ql_mean_field
+            #     error_cf[k] = cf_comp - cf_field[k]
             #     if ql_mean_field > 0.0:
-            #         rel_error_ql[k,count_ncomp] = (ql_mean - ql_mean_field) / ql_mean_field
+            #         rel_error_ql[k] = (ql_mean - ql_mean_field) / ql_mean_field
             #     if cf_field[k] > 0.0:
-            #         rel_error_cf[k,count_ncomp] = (cf_comp - cf_field[k]) / cf_field[k]
+            #         rel_error_cf[k] = (cf_comp - cf_field[k]) / cf_field[k]
             #
             #     print('<ql> from CloudClosure Scheme: ', ql_mean)
             #     print('<ql> from ql fields: ', ql_mean_field)
-            #     print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
-            #     print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
+            #     print('error (<ql>_CC - <ql>_field): '+str(error_ql[k]))
+            #     print('rel err: '+ str(rel_error_ql[k]))
             #
-            # count_ncomp += 1
 
             # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
             # means, covars, weight, labels = self.sort_PDF(means_, covariance_, weights_, labels_)
 
             # self.write_updrafts_field(self.path_out, nc_file_name_labels, labels)
-            self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
+
+        self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
 
         return labels
 
@@ -479,12 +462,12 @@ cdef class Updrafts:
             var[k] = self.zrange[k]
         # var[:] = self.zrange[:]
 
-        # field_grp = rootgrp.createGroup('fields')
-        # field_grp.createDimension('nx', nml['grid']['nx'])
-        # field_grp.createDimension('ny', nml['grid']['ny'])
-        # # field_grp.createDimension('nz', nml['grid']['nz'])
-        # field_grp.createDimension('nz', nk)
-        # labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz',))
+        field_grp = rootgrp.createGroup('fields')
+        field_grp.createDimension('nx', nml['grid']['nx'])
+        field_grp.createDimension('ny', nml['grid']['ny'])
+        # field_grp.createDimension('nz', nml['grid']['nz'])
+        field_grp.createDimension('nz', nk)
+        labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz',))
         # labels.units = ' '
         return
 
@@ -499,14 +482,8 @@ cdef class Updrafts:
     cpdef write_updrafts_field(self, path, file_name, data, nml):
         print('write updrafts: ' + os.path.join(path, file_name))
         root = nc.Dataset(os.path.join(path, file_name), 'r+', format='NETCDF4')
-        field_grp = root.createGroup('fields')
         nk = len(self.zrange)
-        field_grp.createDimension('nx', nml['grid']['nx'])
-        field_grp.createDimension('ny', nml['grid']['ny'])
-        # field_grp.createDimension('nz', nml['grid']['nz'])
-        field_grp.createDimension('nz', nk)
-        labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz',))
-        labels.units = ' '
+        labels = root.groups['fields'].variables['labels']
         labels[:,:,:] = data
         # # field_grp = root.groups['fields']
         # # var = field_grp.variables['labels']
@@ -535,7 +512,7 @@ cdef class Updrafts:
         weights_grp.createDimension('nz', nz_)
         weights_grp.createDimension('EM2', 2)
         ts_grp = rootgrp.createGroup('time')
-        ts_grp.createDimension('nt',len(time)-1)
+        ts_grp.createDimension('nt',len(time))
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]

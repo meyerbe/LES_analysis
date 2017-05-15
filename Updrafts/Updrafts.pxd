@@ -21,7 +21,8 @@ cdef class Updrafts:
     # ----------------------------------------------------------------------
     #               PDF Model
     # ----------------------------------------------------------------------
-    cpdef predict_PDF(self, files, path, ncomp_range, dz_range_, krange_, nml)
+    cpdef predict_PDF(self, s_, qt_, T_, ql_, path, int ncomp, dz_range_, krange_, time, nml)
+
     # cpdef sort_PDF(self, clf):
     cpdef sort_PDF(self, means_, covariance_, weights_, labels_)
     cpdef sort_PDF_allk(self, means_, covariance_, weights_, labels_)
