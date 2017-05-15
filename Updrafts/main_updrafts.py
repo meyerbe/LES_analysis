@@ -25,7 +25,7 @@ def main():
     # Bomex test
     files_3d = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20], dtype=np.int32)
+    krange = np.asarray([20, 25], dtype=np.int32)
     # krange = np.asarray([20, 25])
     # krange = np.asarray([18,30,38])
     print('...', type(krange), type(krange[0]))
@@ -44,7 +44,7 @@ def main():
     Up = Updrafts.Updrafts()
     Up.initialize(krange, path, case_name)
     # Up.predict_pdf(files_3d, path, ncomp_range, dz_range, krange, nml)
-    Up.update(path, path_tr)
+    Up.update(files_3d, ncomp_range, dz_range, krange, nml, path, path_tr)
 
     Up.read_in_updrafts_colleen('Couvreux', path_tr)
     return

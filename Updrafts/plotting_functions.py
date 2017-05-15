@@ -19,19 +19,55 @@ plt.rcParams['legend.fontsize'] = 8
 plt.rcParams['figure.titlesize'] = 15
 plt.rcParams['lines.linewidth'] = 3
 
+
+
+
+def plot_labels_pdf(qt, ql, w, labels_pdf, time, krange, dz, path):
+    for k in range(len(krange)):
+        iz = krange[k]
+
+        plt.figure(figsize=(12, 3))
+
+        plt.subplot(2, 3, 1)
+        plt.imshow(labels_pdf[:, :, k])
+        plt.colorbar()
+        plt.title('PDF Labels')
+
+        plt.subplot(2, 3, 4)
+        plt.imshow(qt[:, :, iz])
+        plt.contour(labels_pdf[:, :, k])
+        plt.colorbar()
+        plt.title(r'$q_t$')
+
+        plt.subplot(2, 3, 5)
+        plt.imshow(ql[:, :, iz])
+        plt.contour(labels_pdf[:, :, k])
+        plt.colorbar()
+        plt.title(r'$q_l$')
+
+        plt.subplot(2, 3, 6)
+        plt.imshow(w[:, :, iz])
+        plt.contour(labels_pdf[:, :, k])
+        plt.colorbar()
+        plt.title('w')
+
+        plt.savefig(os.path.join(path, 'Updrafts_figures', 'Labels_PDF' + '_t' + str(time) + '_z' + str(iz) + 'm.pdf'))
+        # plt.show()
+        plt.close()
+    return
+
+
+
 # def plot_labels(data, labels_pdf, labels_tr, path):
-def plot_labels(labels_pdf, labels_tr, type, path):
+def plot_labels(qt, ql, labels_pdf, labels_tr, type, time, krange, dz, path):
     print('')
-    print('PLOTTING: '+type)
+    print('PLOTTING: '+ type)
     [nx_pdf, ny_pdf, nz_pdf] = labels_pdf.shape
     [nx_tr, ny_tr, nz_tr] = labels_tr.shape
     print('')
-    print('!!!')
-    print(labels_pdf.shape, labels_tr.shape)
     # x_pdf = np.arange(0,nx_pdf)
     # y_pdf = np.arange(0,ny_pdf)
     # X, Y = np.meshgrid(x_, y_)
-    #
     #
     #
     # # (1) make samples
@@ -51,24 +87,37 @@ def plot_labels(labels_pdf, labels_tr, type, path):
     #         Y_[i, j] = y_[i]
     # print('')
 
-    plt.figure(figsize=(12,3))
+    for k in range(len(krange)):
+        iz = krange[k]
 
-    plt.subplot(1,3,1)
-    # plt.scatter(labels_pdf[:, :, 0], labels_pdf[:, :, 1], s=5, alpha=0.2)
-    # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
-    # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
-    plt.imshow(labels_pdf[:,:,0])
-    plt.colorbar()
-    plt.title('PDF Labels')
+        plt.figure(figsize=(12,3))
 
-    plt.subplot(1,3,2)
-    plt.imshow(labels_tr[:,:,20])
-    plt.colorbar()
-    plt.title('Tracer Labels: '+type)
-    # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
+        plt.subplot(1, 4, 1)
+        plt.imshow(qt[:,:,iz])
+        plt.colorbar()
+        plt.title(r'$q_t$')
+
+        plt.subplot(1, 4, 2)
+        plt.imshow(ql[:,:,iz])
+        plt.colorbar()
+        plt.title(r'$q_l$')
+
+        plt.subplot(1, 4, 3)
+        # plt.scatter(labels_pdf[:, :, 0], labels_pdf[:, :, 1], s=5, alpha=0.2)
+        # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
+        # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
+        plt.imshow(labels_pdf[:,:,k])
+        plt.colorbar()
+        plt.title('PDF Labels')
+
+        plt.subplot(1, 4, 4)
+        plt.imshow(labels_tr[:,:,iz])
+        plt.colorbar()
+        plt.title('Tracer Labels: '+type)
+        # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
 
 
-    plt.savefig(os.path.join(path, 'Updrafts_figures', type+'.pdf'))
-    # plt.show()
-    plt.close()
+        plt.savefig(os.path.join(path, 'Updrafts_figures', type+'_t'+str(time)+'_z'+str(iz)+'m.pdf'))
+        # plt.show()
+        plt.close()
     return

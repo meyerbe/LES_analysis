@@ -12,7 +12,7 @@ import pickle
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
-from plotting_functions import plot_labels
+from plotting_functions import plot_labels, plot_labels_pdf
 
 # NEW:
 #   - no more accumlation over times (files) or levels for PDF model
@@ -51,6 +51,8 @@ cdef class Updrafts:
         self.times_tracers = None
         return
 
+
+
     cpdef initialize(self, krange, path, case_name):
         print('----- Updraft Clustering: initialize -----')
 
@@ -76,11 +78,8 @@ cdef class Updrafts:
         self.zrange = krange * dz
         # print('zrange', self.zrange.shape, krange.shape, type(krange), type(self.zrange))
 
-        # self.ttt = [1, 2, 3]
-        # a = [1, 2, 3]
-        # print('.....', type(a))
+
         # (B) Tracer Model
-        # self.times_tracers = np.asarray(['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600'])
         self.times_tracers = np.asarray([10800, 11700, 12600, 13500, 14400, 15300, 16200, 17100, 18000, 18900, 19800, 20700, 21600], dtype=np.int32)
         self.krange = np.array(krange, dtype=np.int32)
 
@@ -101,6 +100,7 @@ cdef class Updrafts:
             int nx = nml['grid']['nx']
             int ny = nml['grid']['ny']
             int nz = nml['grid']['nz']
+            int dz = nml['grid']['dz']
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
@@ -113,6 +113,7 @@ cdef class Updrafts:
             nc_file_name = d
             path_fields = os.path.join(path, 'fields', nc_file_name)
             s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+            w_ = read_in_netcdf('w', 'fields', path_fields)
 
 
 
@@ -123,12 +124,13 @@ cdef class Updrafts:
                 tt = np.int(d)
             print('ttttt', type(tt), tt)
             labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
+            plot_labels_pdf(qt_, ql_, w_, labels_pdf, tt, krange, dz, path)
 
             # (C) Tracer Model
             type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
             for up_type in type_list:
                 labels_tr = self.read_in_updrafts_colleen(up_type, path_tr)
-                plot_labels(qt_, ql_, labels_pdf, labels_tr, up_type, path)
+                plot_labels(qt_, ql_, labels_pdf, labels_tr, up_type, tt, krange, dz, path)
 
 
         return
@@ -249,7 +251,7 @@ cdef class Updrafts:
         '''(1) Statistics File'''
         nc_file_name_CC = 'CC_updrafts_time'+str(tt)+'.nc'
         self.create_statistics_file(self.path_out, nc_file_name_CC, tt, ncomp, nvar, nk)
-        nc_file_name_labels = 'Labeling_time'+str(tt)+'.nc'
+        nc_file_name_labels = 'Labeling_t'+str(tt)+'.nc'
         self.create_updrafts_file(self.path_out, nc_file_name_labels, tt, ncomp, nvar, nk, nml)
 
         for k in range(nk):
@@ -457,7 +459,6 @@ cdef class Updrafts:
         nk = len(self.zrange)
         z_grp.createDimension('nz', nk)
         var = z_grp.createVariable('z', 'f8', 'nz')
-        # print('....', self.zrange.shape, type(self.zrange), type(self.zrange[:]))
         for k in range(nk):
             var[k] = self.zrange[k]
         # var[:] = self.zrange[:]
@@ -467,8 +468,9 @@ cdef class Updrafts:
         field_grp.createDimension('ny', nml['grid']['ny'])
         # field_grp.createDimension('nz', nml['grid']['nz'])
         field_grp.createDimension('nz', nk)
-        labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz',))
-        # labels.units = ' '
+        labels = field_grp.createVariable('labels', 'f8', ('nx','ny','nz'))
+        labels.units = ' '
+        rootgrp.close()
         return
 
     # cpdef add_field(self, name):
@@ -485,12 +487,12 @@ cdef class Updrafts:
         nk = len(self.zrange)
         labels = root.groups['fields'].variables['labels']
         labels[:,:,:] = data
+        root.close()
         # # field_grp = root.groups['fields']
         # # var = field_grp.variables['labels']
         # # var = root.groups['fields'].variables['labels']
         # # var = fieldgrp.variables[name]
         # # var[:,:,:] = np.array(data)
-        # root.close()
         return
 
 
