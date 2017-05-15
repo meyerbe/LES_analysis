@@ -27,12 +27,28 @@ import netCDF4 as nc
 import numpy as np
 from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
+import pickle
 
 
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
+
+
+# class Updrafts:
+# (1) PDF model
+#   (a) read in fields, compute PDF, label points
+#       self.predict_PDF(...) --> output: clf (PDF) & labels (2D array for all data points); error for <ql> and CF
+#           calls:
+#           self.sort_PDF(...) --> output: sorted PDF parameters and labels
+#           create_updrafts_file(), write_updrafts_file(), create_statistics_file() --> output of PDF parameters and labels
+#   (b) read in labelled fields directly
+#
+# (2) Tracer model: read in pkl-files from Colleen
+#       self.read_in_updrafts_colleen(...) --> output: python arrays with labels
+#
+# (3) scatter plot (a) PDF-labelling, (b) Colleen labeling (4 types), (c) compare labels --> green if both, red if only PDF, blue if only Colleen (separately for each label)
 
 
 cdef class Updrafts:
@@ -44,6 +60,8 @@ cdef class Updrafts:
 
     cpdef initialize(self, krange, path, case_name):
         print('--- Updraft Clustering ---')
+
+        # (A) PDF Model
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
         cdef:
             int nz = nml['grid']['nz']
@@ -65,12 +83,37 @@ cdef class Updrafts:
         self.zrange = krange * dz
         # print('zrange', self.zrange.shape, krange.shape, type(krange), type(self.zrange))
 
+
+        # (B) Tracer Model
+        # self.times_tracers = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
+        # self.times_tracers = np.asarray(['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600'])
+        # self.times_tracers = np.int(np.asarray([10800, 11700, 12600, 13500, 14400, 15300, 16200, 17100, 18000, 18900, 19800, 20700, 21600]))
+
+        return
+
+
+
+    cpdef update(self, path, path_tr):
+        print('')
+        print('Update Updrafts')
+        # (A) PDF Model
+        # self.predict_PDF(files, path, ncomp_range, dz_range, krange, nml) --> output: clf
+        # self.sort_PDF_allk(self, means_, covariance_, weights_, labels_)
+
+        # (B) Tracer Model
+        self.read_in_updrafts_colleen('Couvreux', path_tr)
+
+
         return
 
 
 
 
-    cpdef predict_pdf(self, files, path, ncomp_range, dz_range_, krange_, nml):
+
+    # ----------------------------------------------------------------------
+    #               PDF Model
+    # ----------------------------------------------------------------------
+    cpdef predict_PDF(self, files, path, ncomp_range, dz_range_, krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
@@ -238,8 +281,6 @@ cdef class Updrafts:
                     for j in range(ny):
                         ij = i*ishift + j
                         labels[i,j,k] = labels_new[ij]
-
-
             #     '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
             #     #       1. sample (th_l, qt) from PDF (Monte Carlo ???
             #     #       2. compute ql for samples
@@ -471,7 +512,99 @@ cdef class Updrafts:
         return
 
 
-# ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    #                Tracer Model
+    # ----------------------------------------------------------------------
+    cpdef read_in_updrafts_colleen(self, str type, path_):
+        import pickle
+        print('')
+        print('read in updrafts Colleen')
+
+        # path = os.path.join(path_, 'updrafts_colleen')
+        path = path_
+        files = os.listdir(path)
+        times = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
+        print(path_)
+        print('times: ', times)
+        # print(files)
+        print('')
+
+
+        if type == 'Cloud':
+            root = 'Bomex_Cloud_'
+        elif type == 'Coherent':
+            root = 'Bomex_Coherent_'
+        elif type == 'Couvreux':
+            root = 'Bomex_Couvreux_'
+        elif type == 'Core':
+            root = 'Bomex_Core_'
+        print(root)
+
+        print('')
+        path = os.path.join(path_, root + 'updraft.pkl')
+        data = pickle.load(open(path))
+        print(path)
+        print(data.keys())
+        # print(type(data))
+        # print(data.items())
+        # dict.items(): Return a copy of the dictionary’s list of (key, value) pairs.
+
+        print('')
+        path = os.path.join(path_, root + 'environment.pkl')
+        data = pickle.load(open(path))
+        # print(path+': ', type(data))
+        print(path)
+        print(data.keys())
+
+
+        for t in times:
+            path = os.path.join(path_, root + 'time_' + t + '_Grid.pkl')
+            print(path)
+            # data = pickle.load(open(path))
+
+
+        # # (a)
+        # root1 = 'Bomex_Cloud_'
+        # print('')
+        # for t in times:
+        #     path = os.path.join(path_, root1 + 'time_' + t + '_Grid.pkl')
+        #     # data = pickle.load(open(path))
+        #     print(path)
+        # path = os.path.join(path_, root1 + 'updraft.pkl')
+        # path = os.path.join(path_, root1 + 'environment.pkl')
+        #
+        # # (b)
+        # root2 = 'Bomex_Coherent_'
+        # print('')
+        # for t in times:
+        #     path = os.path.join(path_, root2 + 'time_' + t + '_Grid.pkl')
+        #     # data = pickle.load(open(path))
+        #     print(path)
+        # path = os.path.join(path_, root2 + 'updraft.pkl')
+        # path = os.path.join(path_, root2 + 'environment.pkl')
+        #
+        # # (c)
+        # root3 = 'Bomex_Couvreux_'
+        # print('')
+        # for t in times:
+        #     path = os.path.join(path_, root3 + 'time_' + t + '_Grid.pkl')
+        #     # data = pickle.load(open(path))
+        #     print(path)
+        # path = os.path.join(path_, root3 + 'updraft.pkl')
+        # path = os.path.join(path_, root3 + 'environment.pkl')
+        #
+        # # (d)
+        # root4 = 'Bomex_Core_'
+        # print('')
+        # for t in times:
+        #     path = os.path.join(path_, root4 + 'time_' + t + '_Grid.pkl')
+        #     # data = pickle.load(open(path))
+        #     print(path)
+
+        return
+
+
+
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
