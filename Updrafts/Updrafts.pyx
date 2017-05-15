@@ -1,25 +1,3 @@
-# (1)   a) read in 3D output files from LES
-#
-#       b) compute double-Gaussian PDF from 3D output file per level
-#           - for given level make 1D array out of 2D array
-#           -
-# (2) find label (to which cluster each data point belongs) for each data point
-#           Attribute: clf.predict(X[, y]), X.shape = (# data, # features)
-#           - returns array with 0/1 of size #data
-#           --> return into 2D array
-#           --> sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
-# (3) read in Colleens output data (HDF5-data with 0/1 encoding of updraft or environment)
-# (4) compare both clustering algorithms:
-#       - plotting: coloring scheme
-#           blue = environment in both
-#           green = updraft in both
-#           red = differences (could be further distinguised into which algorithm classifies it as an updraft point)
-#       - compute conditional statistics, e.g. cloud fraction and compare
-
-
-# Option: read in fields and PDF parameters from Cloud Closure and use clf.predict(field_data) for producing labels
-
-
 import os
 import json as simplejson
 import time
@@ -72,7 +50,7 @@ cdef class Updrafts:
         return
 
     cpdef initialize(self, krange, path, case_name):
-        print('--- Updraft Clustering: initialize ---')
+        print('----- Updraft Clustering: initialize -----')
 
         # (A) PDF Model
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
@@ -112,11 +90,34 @@ cdef class Updrafts:
 
     cpdef update(self, files, ncomp_range, dz_range, krange, nml, path, path_tr):
         print('')
-        print('Update Updrafts')
-        # (A) PDF Model
+        print('----- Updraft Clustering: update -----')
+
+        # (A) read in 3D fields for one time step and one level
+        cdef:
+            int nvar = 2
+            int nx = nml['grid']['nx']
+            int ny = nml['grid']['ny']
+            int nz = nml['grid']['nz']
+            double [:,:,:] s_
+            double [:,:,:] T_
+            double [:,:,:] qt_
+            double [:,:,:] ql_
+
+        var_list = ['s', 'qt', 'temperature', 'ql']
+        data = np.ndarray(shape=((nx * ny), nvar))
+        for d in files:
+            print('- time: d='+str(d) + ' -')
+            nc_file_name = d
+            path_fields = os.path.join(path, 'fields', nc_file_name)
+            s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+
+
+
+        # (B) PDF Model
+        #
         labels_pdf = self.predict_PDF(files, path, ncomp_range, dz_range, krange, nml)
 
-        # (B) Tracer Model
+        # (C) Tracer Model
         type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
         for type in type_list:
             labels_tr = self.read_in_updrafts_colleen(type, path_tr)
@@ -133,13 +134,30 @@ cdef class Updrafts:
     #               PDF Model
     # ----------------------------------------------------------------------
     cpdef predict_PDF(self, files, path, ncomp_range, dz_range_, krange_, nml):
+        # input:
+        #     -
+        # output:
+        #     - labels = (nx,ny,nz):      3D array with labels from PDF clustering
+        #
+
+        # (A) Set up files
+        # (B) Initialize Latent Heat and Clausius Clapeyron
+        # (C) Compute PDF
+        #       - read in fields (and accumulate over several time steps)
+        #       for each k...
+        #           - normalise data
+        #           - compute PDF for two components
+        #           - compute labels
+        #           - sort labels according to <qt>
+        #           - rearrange labels into 3D array
+
+
+
         print('')
         print('--- PDF Prediction ---')
         print('')
         cdef extern from "thermodynamic_functions.h":
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-
-        time1 = time.clock()
 
         # ________________________________________________________________________________________
         '''(A) Set up files etc.'''
@@ -340,6 +358,7 @@ cdef class Updrafts:
             self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
 
         return labels
+
 
 
     cpdef sort_PDF(self, means_, covariances_, weights_, labels_):
