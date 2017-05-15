@@ -1,7 +1,8 @@
 
 # cdef class CloudClosure:
 #     cpdef initialize(self)
-
+import numpy as np
+cimport numpy as np
 
 cdef class Updrafts:
     cdef:
@@ -9,11 +10,14 @@ cdef class Updrafts:
         str path_out
         double [:] p_ref
         double [:] z_ref
+        int [:] krange
         int [:] zrange
+        int [:] range
         int [:] times_tracers
 
     cpdef initialize(self, krange, path, case_name)
-    cpdef update(self, path, path_tr)
+    # cpdef update(self, path, path_tr)
+    cpdef update(self, files, ncomp_range, dz_range, krange, nml, path, path_tr)
     # ----------------------------------------------------------------------
     #               PDF Model
     # ----------------------------------------------------------------------

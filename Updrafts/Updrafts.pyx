@@ -25,6 +25,7 @@ import json as simplejson
 import time
 import netCDF4 as nc
 import numpy as np
+cimport numpy as np
 from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
 import pickle
@@ -33,6 +34,7 @@ import pickle
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
+from plotting_functions import plot_labels
 
 
 
@@ -51,15 +53,26 @@ from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 # (3) scatter plot (a) PDF-labelling, (b) Colleen labeling (4 types), (c) compare labels --> green if both, red if only PDF, blue if only Colleen (separately for each label)
 
 
+# TODO:
+# - read in z-profile from Colleens files (..._updrafts.pkl)
+# - find same z-value as in PDF_labels
+# - send this 2d section to plotting
+# - !!!! need same data for mine and for Colleens sampling!! (her data = 192x192, 3-times as large iin horizontal)
+
+
 cdef class Updrafts:
     def __init__(self):
         self.path_ref = ' '
         self.p_ref = None
         self.z_ref = None
+
+        self.krange = None
+        self.zrange = None
+        self.times_tracers = None
         return
 
     cpdef initialize(self, krange, path, case_name):
-        print('--- Updraft Clustering ---')
+        print('--- Updraft Clustering: initialize ---')
 
         # (A) PDF Model
         nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
@@ -83,25 +96,31 @@ cdef class Updrafts:
         self.zrange = krange * dz
         # print('zrange', self.zrange.shape, krange.shape, type(krange), type(self.zrange))
 
-
+        # self.ttt = [1, 2, 3]
+        # a = [1, 2, 3]
+        # print('.....', type(a))
         # (B) Tracer Model
-        # self.times_tracers = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
         # self.times_tracers = np.asarray(['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600'])
-        # self.times_tracers = np.int(np.asarray([10800, 11700, 12600, 13500, 14400, 15300, 16200, 17100, 18000, 18900, 19800, 20700, 21600]))
+        self.times_tracers = np.asarray([10800, 11700, 12600, 13500, 14400, 15300, 16200, 17100, 18000, 18900, 19800, 20700, 21600], dtype=np.int32)
+        self.krange = np.array(krange, dtype=np.int32)
+
+        # self.data =
 
         return
 
 
 
-    cpdef update(self, path, path_tr):
+    cpdef update(self, files, ncomp_range, dz_range, krange, nml, path, path_tr):
         print('')
         print('Update Updrafts')
         # (A) PDF Model
-        # self.predict_PDF(files, path, ncomp_range, dz_range, krange, nml) --> output: clf
-        # self.sort_PDF_allk(self, means_, covariance_, weights_, labels_)
+        labels_pdf = self.predict_PDF(files, path, ncomp_range, dz_range, krange, nml)
 
         # (B) Tracer Model
-        self.read_in_updrafts_colleen('Couvreux', path_tr)
+        type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
+        for type in type_list:
+            labels_tr = self.read_in_updrafts_colleen(type, path_tr)
+            plot_labels(labels_pdf, labels_tr, type, path)
 
 
         return
@@ -320,8 +339,7 @@ cdef class Updrafts:
             # self.write_updrafts_field(self.path_out, nc_file_name_labels, labels)
             self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
 
-        return
-
+        return labels
 
 
     cpdef sort_PDF(self, means_, covariances_, weights_, labels_):
@@ -368,7 +386,6 @@ cdef class Updrafts:
             # # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # print('')
         return means, covars, weights, labels
-
 
 
 
@@ -516,14 +533,16 @@ cdef class Updrafts:
     #                Tracer Model
     # ----------------------------------------------------------------------
     cpdef read_in_updrafts_colleen(self, str type, path_):
+        print('')
+        print('--- Updraft Colleen: read in ---')
         import pickle
         print('')
-        print('read in updrafts Colleen')
 
         # path = os.path.join(path_, 'updrafts_colleen')
         path = path_
         files = os.listdir(path)
-        times = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
+        # times = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
+        times = ['10800']
         print(path_)
         print('times: ', times)
         # print(files)
@@ -540,6 +559,8 @@ cdef class Updrafts:
             root = 'Bomex_Core_'
         print(root)
 
+
+
         print('')
         path = os.path.join(path_, root + 'updraft.pkl')
         data = pickle.load(open(path))
@@ -555,11 +576,13 @@ cdef class Updrafts:
         # print(path+': ', type(data))
         print(path)
         print(data.keys())
+        # print(data[])
 
 
         for t in times:
             path = os.path.join(path_, root + 'time_' + t + '_Grid.pkl')
             print(path)
+            labels = pickle.load(open(path))
             # data = pickle.load(open(path))
 
 
@@ -601,10 +624,18 @@ cdef class Updrafts:
         #     # data = pickle.load(open(path))
         #     print(path)
 
-        return
+        return labels
+
+
+    # ----------------------------------------------------------------------
+    #                Comparison
+    # ----------------------------------------------------------------------
+    # cpdef read_in_data()
 
 
 
+
+# ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
     print('io_read_in_files: read in netcdf', variable_name, group_name, fullpath_in)
     rootgrp = nc.Dataset(fullpath_in, 'r')
