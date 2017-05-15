@@ -2,6 +2,7 @@ import numpy as np
 import pylab as plt
 import os
 import sys
+import netCDF4 as nc
 
 sys.path.append("..")
 from parameters import *
@@ -26,6 +27,8 @@ def main():
     nml['grid']['nx'] = 20
     nml['grid']['ny'] = 20
     nml['grid']['nz'] = 200
+    print(case_name+ ': nz='+str(nml['grid']['nz']))
+    print('')
 
     InitTRMM_LBA(nml)
 
@@ -36,9 +39,34 @@ def main():
     global dt_stats, k_hours, zrange
     dt_stats, k_hours, time_prof = get_dt_stats(path, path_ref)
     zrange = get_zrange(path, path_ref)
-    plot_profile('qt', time_prof, path_ref, path)
-    plot_profile('ql', time_prof, path_ref, path)
-    plot_profile('qi', time_prof, path_ref, path)
+    plot_profile_mean_variance('qt', time_prof, zrange, path_ref, path)
+    plot_profile_mean_variance('ql', time_prof, zrange, path_ref, path)
+    plot_profile_mean_variance('qi', time_prof, zrange, path_ref, path)
+    # plot_profile_mean_variance('thetali', time_prof, zrange, path_ref, path)
+    # plot_profile_mean_variance('temperature', time_prof, zrange, path_ref, path)
+    # plot_profile_mean_variance('u', time_prof, zrange, path_ref, path)
+    # plot_profile_mean_variance('v', time_prof, zrange, path_ref, path)
+    # plot_profile_mean_variance('w', time_prof, zrange, path_ref, path)
+
+    z_max = 125
+    # plot_profile_mean_variance('qt', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('ql', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('qi', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('thetali', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('temperature', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('u', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('v', time_prof, zrange, path_ref, path, z_max, True)
+    # plot_profile_mean_variance('w', time_prof, zrange, path_ref, path, z_max, True)
+
+    plot_profile('qr_sedimentation_flux', time_prof, zrange, path_ref, path, z_max, True)
+    plot_profile('nr_sedimentation_flux', time_prof, zrange, path_ref, path, z_max, True)
+    plot_profile('qr_autoconversion', time_prof, zrange, path_ref, path, z_max, True)
+    plot_profile('plot_profile', time_prof, zrange, path_ref, path, z_max, True)
+    plot_profile('qr_selfcollection', time_prof, zrange, path_ref, path, z_max, True)
+    plot_profile('nr_selfcollection', time_prof, zrange, path_ref, path, z_max, True)
+
+    plot_profile_cloudfraction(time_prof, zrange, path_ref, path)
+    plot_profile_cloudfraction(time_prof, zrange, path_ref, path, z_max, True)
     return
 
 
@@ -103,10 +131,10 @@ def InitTRMM_LBA(nml):
                       0.19,  -2.20,  -3.60,   0.56,   6.68,   9.41,   7.03,
                       5.32,   1.14,  -0.65,   5.27,   5.27])
 
-    print('')
-    print('nz='+str(v_in.shape), nml['grid']['nz'])
-    print(z_in.shape)
-    print(T_in.shape)
+    # print('')
+    # print('nz='+str(v_in.shape), nml['grid']['nz'])
+    # print(z_in.shape)
+    # print(T_in.shape)
 
     # compute qt, ql from RH and reference density profile?!
     # RH = pv / pv*
@@ -314,46 +342,143 @@ def get_dt_stats(path, path_ref):
 
 
 def get_zrange(path, path_ref):
-    zrange = read_in_netcdf('z', 'reference', path_ref)
+    zrange_ref = read_in_netcdf('z', 'reference', path_ref)
+    zrange = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z'][:]
+    zrange_half = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z_half'][:]
     plt.figure()
+    plt.subplot(1,2,1)
+    plt.plot(zrange_ref, '-x')
+    plt.title('z-ref')
+    plt.subplot(1, 2, 2)
     plt.plot(zrange, '-x')
+    plt.plot(zrange_half, '0.75')
     plt.title('z-profile')
     plt.savefig(os.path.join(path,'figs_stats','z_stats.pdf'))
     plt.close()
     return zrange
 
 
-def plot_profile(var_name, time, path_ref, path):
-    global dt_stats, k_hours, zrange
+def plot_profile_cloudfraction(time, zrange_, path_ref, path, BL_height = 0, BL=False):
+    global dt_stats, k_hours
 
-    var_mean = read_in_netcdf(var_name+'_mean', 'profiles', path_ref)
-    var_mean2 = read_in_netcdf(var_name + '_mean2', 'profiles', path_ref)
-    var_variance = var_mean2 - var_mean**2
-    var_max = read_in_netcdf(var_name+'_max', 'profiles', path_ref)
+    cf = read_in_netcdf('cloud_fraction', 'profiles', path_ref)
+    cloud = read_in_netcdf('fraction_cloud', 'profiles', path_ref)
+    core = read_in_netcdf('fraction_core', 'profiles', path_ref)
 
-    plt.figure(figsize=(16,6))
+    if BL:
+        zrange = zrange_[0:BL_height]
+    else:
+        zrange = zrange_
+        BL_height = zrange.shape[0]
+
+    plt.figure(figsize=(16, 6))
+
     plt.subplot(1, 3, 1)
     for k in k_hours:
-        plt.plot(var_mean[k,:], zrange, label='t='+str(time[k]/3600)+'h')
-    plt.xlabel('E[' + var_name + ']')
+        plt.plot(cf[k,0:BL_height], zrange, label='t='+str(time[k]/3600)+'h')
+    plt.xlabel('cloud fraction')
     plt.ylabel('height z [m]')
     plt.legend(loc='best')
-    plt.title('E['+var_name+']')
+    plt.title('cloud fraction')
     plt.subplot(1, 3, 2)
     for k in k_hours:
-        plt.plot(var_variance[k, :], zrange, label='t='+str(time[k]/3600)+'h')
-    plt.xlabel('Var['+var_name+']')
+        plt.plot(cloud[k,0:BL_height], zrange, label='t='+str(time[k]/3600)+'h')
+    plt.xlabel('fraction cloud')
     plt.ylabel('height z [m]')
     plt.legend(loc='best')
-    plt.title('Var[' + var_name + ']')
+    plt.title('fraction cloud')
     plt.subplot(1, 3, 3)
     for k in k_hours:
-        plt.plot(var_max[k, :], zrange, label='t=' + str(time[k] / 3600) + 'h')
-    plt.xlabel('max(' + var_name + '[:,:,k])')
+        plt.plot(core[k,0:BL_height], zrange, label='t=' + str(time[k] / 3600) + 'h')
+    plt.xlabel('fraction core')
     plt.ylabel('height z [m]')
     plt.legend(loc='best')
-    plt.title('max(' + var_name + ')')
-    plt.savefig(os.path.join(path,'figs_stats', var_name+'_mean_var.pdf'))
+    plt.title('fraction core')
+
+    if BL:
+        plt.savefig(os.path.join(path, 'figs_stats', 'cf_mean_var_BL.pdf'))
+    else:
+        plt.savefig(os.path.join(path, 'figs_stats', 'cf_mean_var.pdf'))
+    return
+
+def plot_profile(var_name, time, zrange_, path_ref, path, BL_height = 0, BL=False):
+    global dt_stats, k_hours
+
+    var = read_in_netcdf(var_name, 'profiles', path_ref)
+
+    if BL:
+        zrange = zrange_[0:BL_height]
+    else:
+        zrange = zrange_
+        BL_height = zrange.shape[0]
+
+    plt.figure(figsize=(16, 6))
+
+    plt.subplot(1, 3, 1)
+    for k in k_hours:
+        plt.plot(cf[k,0:BL_height], zrange, label='t='+str(time[k]/3600)+'h')
+    plt.xlabel(var_name)
+    plt.ylabel('height z [m]')
+    plt.legend(loc='best')
+    plt.title(var_name)
+    plt.subplot(1, 3, 2)
+
+    plt.subplot(1, 3, 3)
+
+    if BL:
+        plt.savefig(os.path.join(path, 'figs_stats', var_name+'_BL.pdf'))
+    else:
+        plt.savefig(os.path.join(path, 'figs_stats', var_name+'.pdf'))
+    return
+
+
+def plot_profile_mean_variance(var_name, time, zrange_, path_ref, path, BL_height = 0, BL=False):
+    global dt_stats, k_hours
+
+    if var_name != 'cloud_fraction':
+        var_mean = read_in_netcdf(var_name+'_mean', 'profiles', path_ref)
+        var_mean2 = read_in_netcdf(var_name + '_mean2', 'profiles', path_ref)
+        var_variance = var_mean2 - var_mean**2
+        var_max = read_in_netcdf(var_name+'_max', 'profiles', path_ref)
+
+        if BL:
+            zrange = zrange_[0:BL_height]
+        else:
+            zrange = zrange_
+            BL_height = zrange.shape[0]
+
+        plt.figure(figsize=(16, 6))
+
+        plt.subplot(1, 3, 1)
+        for k in k_hours:
+            plt.plot(var_mean[k,0:BL_height], zrange, label='t='+str(time[k]/3600)+'h')
+        plt.xlabel('E[' + var_name + ']')
+        plt.ylabel('height z [m]')
+        plt.legend(loc='best')
+        plt.title('E['+var_name+']')
+        plt.subplot(1, 3, 2)
+        for k in k_hours:
+            plt.plot(var_variance[k,0:BL_height], zrange, label='t='+str(time[k]/3600)+'h')
+        plt.xlabel('Var['+var_name+']')
+        plt.ylabel('height z [m]')
+        plt.legend(loc='best')
+        plt.title('Var[' + var_name + ']')
+        plt.subplot(1, 3, 3)
+        for k in k_hours:
+            plt.plot(var_max[k,0:BL_height], zrange, label='t=' + str(time[k] / 3600) + 'h')
+        plt.xlabel('max(' + var_name + '[:,:,k])')
+        plt.ylabel('height z [m]')
+        plt.legend(loc='best')
+        plt.title('max(' + var_name + ')')
+
+        if BL:
+            plt.savefig(os.path.join(path, 'figs_stats', var_name + '_mean_var_BL.pdf'))
+        else:
+            plt.savefig(os.path.join(path, 'figs_stats', var_name + '_mean_var.pdf'))
+    else:
+        print('mean / var / max of '+var_name + ' not available!')
+
+
     return
 
 
