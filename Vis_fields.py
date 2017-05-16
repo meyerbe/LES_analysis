@@ -16,46 +16,63 @@ import pylab as plt
 
 
 def main():
-    global case
+    global case_name
+    parser = argparse.ArgumentParser(prog='PyCLES')
+    parser.add_argument("path")
+    parser.add_argument("casename")
+    parser.add_argument("--var_name")
+    args = parser.parse_args()
+    path = args.path
+    case_name = args.casename
+    print('..', args.var_name)
+    if args.var_name:
+        var_list = [args.var_name]
+    else:
+        var_list = ['w', 's', 'potential_temperature', 'temperature', 'ql', 'qt', 'u', 'v']
+
+    var_list_corr = ['wphi','uphi', 'vphi', 'uphi_div', 'vphi_div', 'wphi_div']
+
+
+
     global nx0, ny0, nz0
     global fullpath_out
     global time
     # -----------
-    case = 'DCBLSoares'
-    path = 'test_field/'
-    fullpath_out = os.path.join(path,'corr/')
+    fullpath_out = os.path.join(path,'fields_figures/')
     print(fullpath_out)
-    T = [1800,3600,5400]
+    # T = [1800,3600,5400]
 
-    path_to_fields = os.path.join(path,'fields/')
-    var_list_corr = ['wphi','uphi', 'vphi', 'uphi_div', 'vphi_div', 'wphi_div']
-    var_list = ['w']
+    path_fields = os.path.join(path,'fields/')
+    files = os.listdir(path_fields)  # type = list
+    print('Found the following fields: ', str(files))
+    print('')
+
     # -----------
 
 
     # (0) import Namelist --> to chose right mean profile, fitting with time
-    nml = simplejson.loads(open(os.path.join(path,case + '.in')).read())
+    nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     dt = nml['stats_io']['frequency']
     dz = nml['grid']['dz']
-    #print('dt:', dt, 'dz:', dz)
-    
+    print('dt:', dt, 'dz:', dz)
+
     # (1) Read in Test field
-    field = read_in_netcdf_fields('wphi',os.path.join(path,'correlations_1800.nc'))
+    field = read_in_netcdf_fields('w',os.path.join(path_fields,files[0]))
     #print('field: ', field.shape)
-#    for var_name in var_list:
-#        field = read_in_netcdf_fields(var_name,'test_field/eddy_fields_1800.nc')
-#        print('field: ', field.shape)
 
     # (2) read in grid dimensions
-    ni_ = np.zeros((3,))
+    #       ni:                   field dimensions
+    #       nx0, ny0, nz0:        coordinates of center
     global n, ntot
-    n = np.zeros((3,))
-    n = n.astype(int)
+    ni_ = np.zeros((3,))
+    n = np.zeros((3), dtype=np.int16)
+    # n = n.astype(int)
     ni_[0] = nml['grid']['nx']
     ni_[1] = nml['grid']['ny']
     ni_[2] = nml['grid']['nz']
     for i in range(3):
         n[i] = field.shape[i]
+        print(',,,', i, n[i], field.shape[i])
         if n[i] != ni_[i]:
             print('Dimensions do not fit!')
             sys.exit()
@@ -63,80 +80,123 @@ def main():
     ny0 = np.int(n[1]/2)
     nz0 = np.int(n[2]/2)
     ntot = n[0]*n[1]*n[2]
-    print('x0,y0,z0', nx0, ny0, nz0)
+    print('x0,y0,z0', nx0, ny0, nz0, n[:])
 
 
-    # (4) Visualize Correlations + Passive Scalar Contours
-    for time in T:
-        path_to_correlations = os.path.join(path,'correlations_'+np.str(time)+'.nc')
-        print(path_to_correlations)
-        path_to_fields = os.path.join(path,'fields',np.str(time)+'.nc')
-        print(path_to_fields)
-        for field_name in var_list_corr:
-            field_data = read_in_netcdf_fields(field_name,path_to_correlations)
-            cont_name = 'phi'
-            cont_data = read_in_netcdf_fields(cont_name,path_to_fields)
-            for ny0 in np.linspace(1,n[2],10):
-                file_name = field_name + '_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
-                plot_corrfield_phicont(field_name, field_data[:,np.int(ny0),0:60],cont_name,
-                                                cont_data[:,np.int(ny0),0:60], file_name)
+    # (3) Visualize Fields
+    print('')
+    print('--- plot crosssections with contours ---')
+    for file_name in files:
+        if file_name[-3:] == '.nc':
+            tt = np.int(file_name[0:-3])
+            for var_name in var_list:
+                print('')
+                print(var_name+ ', path: ' + os.path.join(path_fields, file_name))
+                try:
+                    field_data = read_in_netcdf_fields(var_name, os.path.join(path_fields, file_name))
+                except:
+                    print('!! Problem reading in '+var_name + ' in '+os.path.join(path_fields, file_name))
+                    print " "
+                    continue
 
-            for nz0 in [10,15,20]:
-                file_name = field_name + '_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
-                plot_corrfield_phicont(field_name, field_data[:,:,np.int(nz0)],cont_name,
-                                                  cont_data[:,:,np.int(nz0)], file_name)
+                levels = np.linspace(np.amin(field), np.amax(field), 100)
 
-        # (5)  Visualize Fields + Passive Scalar Contours
-        for field_name in var_list:
-            field_data = read_in_netcdf_fields(field_name,path_to_fields)
-            cont_name = 'phi'
-            cont_data = read_in_netcdf_fields(cont_name,path_to_fields)
-            for ny0 in np.linspace(1,n[2],10):
-                file_name = field_name + '_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
-                plot_corrfield_phicont(field_name, field_data[:,np.int(ny0),0:60],cont_name,
-                                                cont_data[:,np.int(ny0),0:60], file_name)
-
-            for nz0 in [10,15]:
-                file_name = field_name + '_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
-                plot_corrfield_phicont(field_name, field_data[:,:,np.int(nz0)],cont_name,
-                                                cont_data[:,:,np.int(nz0)], file_name)
-
-        # (6)  Visualize Fields + Passive Scalar Contours + w Contours
-        for field_name in var_list:
-            field_data = read_in_netcdf_fields(field_name,path_to_fields)
-            cont_name1 = 'phi'
-            cont_data1 = read_in_netcdf_fields(cont_name1,path_to_fields)
-            cont_name2 = 'w'
-            cont_data2 = read_in_netcdf_fields(cont_name2,path_to_fields)
-            for ny0 in np.linspace(1,n[1]-1,10):
-                file_name = field_name + '_w-cont_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
-                plot_corrfield_wcont_phicont_vertical(field_name,field_data[:,np.int(ny0),0:60],cont_name1,cont_data1[:,np.int(ny0),0:60],cont_name2,cont_data2[:,np.int(ny0),0:60], file_name)
-
-            for nz0 in [10,15,20]:
-                file_name = field_name + '_w-cont_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
-                plot_corrfield_wcont_phicont_vertical(field_name,field_data[:,:,np.int(nz0)],cont_name1,
-                            cont_data1[:,:,np.int(nz0)],cont_name2,cont_data2[:,:,np.int(nz0)], file_name)
+                print('')
+                cont_name = 'phi'
+                cont_name = 'qt'
+                zrange = np.asarray(np.linspace(1, n[2]-1, 10),dtype=np.int16)
+                yrange = np.asarray(np.linspace(1, n[1] - 1, 10), dtype=np.int16)
+                # if 1 == 1:
+                try:
+                    cont_data = read_in_netcdf_fields(cont_name, os.path.join(path_fields, file_name))
+                    print('Contour variable: ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
+                    for k in zrange:
+                        file_name = var_name + '_' + cont_name + '-cont_' + np.str(tt) + '_z' + np.str(np.int(k))
+                        plot_field_cont(var_name, field_data[:, :, k], cont_name,
+                                               cont_data[:, :, k], file_name)
+                    for k in yrange:
+                        file_name = var_name + '_' + cont_name + '-cont_' + np.str(tt) + '_y' + np.str(np.int(k))
+                        plot_field_cont(var_name, field_data[:, k, :], cont_name,
+                                        cont_data[:, k, :], file_name)
+                except:
+                    print('-- Problem reading in contour variable ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
+                    print " "
 
 
 
 
 
-#        for corr_name in var_list_corr:
-#            field = read_in_netcdf_fields(corr_name,path_to_correlations)
-#            print(corr_name, ': max = ', np.amax(np.abs(field)))
-#            file_name = corr_name + '_' + np.str(time)
-#            plot_data_vertical(field[:,ny0,:], corr_name, file_name)
-#
-##        for var_name in var_list:
-##            field = read_in_netcdf_fields(var_name,path_to_fields)
-##            #field = read_in_netcdf_fields(var_name,'test_field/fields/1800.nc')
-##            print(var_name, ': max = ', np.amax(np.abs(field)))
-##            file_name = var_name + '_' + np.str(time)
-##            if var_name == 'phi':
-##                levels = np.linspace(0,1.1,11)
-##                plot_data_vertical_levels(field[:,ny0,:], var_name, file_name, levels)
-##            else:
-##                plot_data_vertical(field[:,ny0,:], var_name, file_name)
+            #     # (4) Visualize Correlations + Passive Scalar Contours
+            #     for time in T:
+            #         path_to_correlations = os.path.join(path,'correlations_'+np.str(time)+'.nc')
+            #         print(path_to_correlations)
+            #         path_to_fields = os.path.join(path,'fields',np.str(time)+'.nc')
+            #         print(path_to_fields)
+            #         for field_name in var_list_corr:
+            #             field_data = read_in_netcdf_fields(field_name,path_to_correlations)
+            #             cont_name = 'phi'
+            #             cont_data = read_in_netcdf_fields(cont_name,path_to_fields)
+            #             for ny0 in np.linspace(1,n[2],10):
+            #                 file_name = field_name + '_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
+            #                 plot_corrfield_phicont(field_name, field_data[:,np.int(ny0),0:60],cont_name,
+            #                                                 cont_data[:,np.int(ny0),0:60], file_name)
+            #
+            #             for nz0 in [10,15,20]:
+            #                 file_name = field_name + '_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
+            #                 plot_corrfield_phicont(field_name, field_data[:,:,np.int(nz0)],cont_name,
+            #                                                   cont_data[:,:,np.int(nz0)], file_name)
+            #
+            # (5)  Visualize Fields + Passive Scalar Contours
+            # for var_name in var_list:
+            # field_data = read_in_netcdf_fields(var_name, os.path.join(path_fields, file_name))
+            # cont_name = 'phi'
+            # cont_data = read_in_netcdf_fields(cont_name,path_fields)
+            #             for ny0 in np.linspace(1,n[2],10):
+            #                 file_name = field_name + '_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
+            #                 plot_corrfield_phicont(field_name, field_data[:,np.int(ny0),0:60],cont_name,
+            #                                                 cont_data[:,np.int(ny0),0:60], file_name)
+            #
+            #             for nz0 in [10,15]:
+            #                 file_name = field_name + '_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
+            #                 plot_corrfield_phicont(field_name, field_data[:,:,np.int(nz0)],cont_name,
+            #                                                 cont_data[:,:,np.int(nz0)], file_name)
+            #
+            #         # (6)  Visualize Fields + Passive Scalar Contours + w Contours
+            #         for field_name in var_list:
+            #             field_data = read_in_netcdf_fields(field_name,path_to_fields)
+            #             cont_name1 = 'phi'
+            #             cont_data1 = read_in_netcdf_fields(cont_name1,path_to_fields)
+            #             cont_name2 = 'w'
+            #             cont_data2 = read_in_netcdf_fields(cont_name2,path_to_fields)
+            #             for ny0 in np.linspace(1,n[1]-1,10):
+            #                 file_name = field_name + '_w-cont_phi-cont_' + np.str(time) + '_y' + np.str(np.int(ny0))
+            #                 plot_corrfield_wcont_phicont_vertical(field_name,field_data[:,np.int(ny0),0:60],cont_name1,cont_data1[:,np.int(ny0),0:60],cont_name2,cont_data2[:,np.int(ny0),0:60], file_name)
+            #
+            #             for nz0 in [10,15,20]:
+            #                 file_name = field_name + '_w-cont_phi-cont_' + np.str(time) + '_z' + np.str(np.int(nz0))
+            #                 plot_corrfield_wcont_phicont_vertical(field_name,field_data[:,:,np.int(nz0)],cont_name1,
+            #                             cont_data1[:,:,np.int(nz0)],cont_name2,cont_data2[:,:,np.int(nz0)], file_name)
+            #
+            #
+            #
+            #
+            #
+            # #        for corr_name in var_list_corr:
+            # #            field = read_in_netcdf_fields(corr_name,path_to_correlations)
+            # #            print(corr_name, ': max = ', np.amax(np.abs(field)))
+            # #            file_name = corr_name + '_' + np.str(time)
+            # #            plot_data_vertical(field[:,ny0,:], corr_name, file_name)
+            # #
+            # ##        for var_name in var_list:
+            # ##            field = read_in_netcdf_fields(var_name,path_to_fields)
+            # ##            #field = read_in_netcdf_fields(var_name,'test_field/fields/1800.nc')
+            # ##            print(var_name, ': max = ', np.amax(np.abs(field)))
+            # ##            file_name = var_name + '_' + np.str(time)
+            # ##            if var_name == 'phi':
+            # ##                levels = np.linspace(0,1.1,11)
+            # ##                plot_data_vertical_levels(field[:,ny0,:], var_name, file_name, levels)
+            # ##            else:
+            # ##                plot_data_vertical(field[:,ny0,:], var_name, file_name)
 
 
 
@@ -147,8 +207,8 @@ def main():
 
 
 # ----------------------------------
-def plot_corrfield_phicont(field_name, field_data,cont_name,cont_data, file_name):
-    print('plot corr/cont: ', field_name, field_data.shape)
+def plot_field_cont(field_name, field_data,cont_name,cont_data, file_name):
+    # print('plot field/cont: ', field_name, field_data.shape)
     plt.figure(figsize=(15,10))
     ax1 = plt.contourf(field_data.T)
     cont = np.linspace(1.0,1.1,11)
@@ -162,6 +222,7 @@ def plot_corrfield_phicont(field_name, field_data,cont_name,cont_data, file_name
     plt.ylabel('z')
     plt.savefig(fullpath_out + file_name + '.png')
     plt.close()
+    return
 
 
 
@@ -258,14 +319,18 @@ def plot_data_horizontal_levels(data, var_name, level):
 
 # ----------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
-    #print('.....', fullpath_in, variable_name)
+    # print('.....', fullpath_in, variable_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
-    var = rootgrp.groups['fields'].variables[variable_name]
-    shape = var.shape
-    data = np.ndarray(shape = var.shape)
-    data = var[:,:,:]
+    var = rootgrp.groups['fields'].variables[variable_name][:, :, :]
     rootgrp.close()
-    return data
+    return var
+    # var = rootgrp.groups['fields'].variables[variable_name]
+    # shape = var.shape
+    # data = np.ndarray(shape = var.shape)
+    # data = var[:,:,:]
+    # rootgrp.close()
+    # return data
+
 
 
 def read_in_netcdf_profile_all(variable_name, group_name, fullpath_in):

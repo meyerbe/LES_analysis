@@ -41,8 +41,9 @@ def main():
     if args.var_name:
         var_list = [args.var_name]
     else:
-        var_list = ['w', 's', 'potential_temperature', 'ql', 'qt', 'u', 'v']
-
+        var_list = ['w', 's', 'potential_temperature', 'temperature', 'ql', 'qt', 'u', 'v']
+    print(var_list)
+    print(' ')
 
     global fullpath_out, file_name
     global t, dt, dx, dz
@@ -92,7 +93,6 @@ def main():
         for file_name in files:
             if file_name[-4:] == '.pkl':
                 t = np.int(file_name[0:-4])
-                print('file_name, t', file_name, t)
                 fullpath_in = fullpath_out + file_name
 
                 f = open(fullpath_in)
@@ -101,26 +101,30 @@ def main():
                     print(var_name+ ', fullpath_in: ' + fullpath_in)
                     try:
                         var = data[var_name]
-
-                        if var_name == 'phi':
-                            levels = np.linspace(-1e-9, 1 + 1e-9, 250)
-                        elif var_name == 'w':
-                            levels = np.linspace(-10, 10, 100)
-                        elif var_name == 'potential_temperature':
-                            levels = np.linspace(-10, 10, 100)
-                        elif var_name == 's':
-                            levels = np.linspace(-1e-6, 1, 100)
-                        elif var_name == 'ql':
-                            levels = np.linspace(-1e-6, 1, 100)
-                        elif var_name == 'qt':
-                            levels = np.linspace(0.0, 0.02, 100)
-                        else:
-                            levels = np.linspace(-10, 10, 100)
-                        # plot_data_levels(var, var_name, levels)
-                        plot_data(var, var_name, t)
                     except:
-                        print("No variable "+var_name)
-                        print " "
+                        print("No variable " + var_name)
+                        print('')
+                        continue
+
+                        # if var_name == 'phi':
+                        #     levels = np.linspace(-1e-9, 1 + 1e-9, 250)
+                        # elif var_name == 'w':
+                        #     levels = np.linspace(-10, 10, 100)
+                        # elif var_name == 'potential_temperature':
+                        #     levels = np.linspace(-10, 10, 100)
+                        # elif var_name == 's':
+                        #     levels = np.linspace(-1e-6, 1, 100)
+                        # elif var_name == 'ql':
+                        #     levels = np.linspace(-1e-6, 1, 100)
+                        # elif var_name == 'qt':
+                        #     levels = np.linspace(0.0, 0.02, 100)
+                        # else:
+                        #     levels = np.linspace(-10, 10, 100)
+                    levels = np.linspace(np.amin(var), np.amax(var), 100)
+
+                    plot_data_levels(var, var_name, t, levels)
+                    plot_data(var, var_name, t)
+
 
 
             # # ----------------------------------------------
@@ -224,6 +228,45 @@ def read_in(variable_name, group_name, fullpath_in):
 
 
 # ----------------------------------------------------------------------
+def plot_data(data, var_name, t):
+    # print(data.shape)
+    plt.figure()
+    if var_name == 'w':
+        plt.contourf(data.T,cmap = cm.bwr)
+    else:
+        plt.contourf(data.T)
+    # plt.show()
+    plt.colorbar()
+    plt.title(var_name + ', (t=' + np.str(t) + 's)')
+    plt.xlabel('x (dx=' + np.str(dx) + 'm)')
+    plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
+    plt.savefig(os.path.join(fullpath_out, 'pdf', var_name + '_' + str(t) + '.pdf'))
+    plt.savefig(fullpath_out + var_name + '_' + str(t) + '.png')
+    plt.close()
+    return
+
+
+def plot_data_levels(data, var_name, t, levels_):
+    # print(data.shape)
+    plt.figure()
+    if var_name == 'w':
+        # print('bwr')
+        # plt.contourf(data.T, levels=levels_, cmap=plt.cm.bwr)
+        plt.contourf(data.T, cmap=cm.bwr, levels=levels_)
+    else:
+        plt.contourf(data.T, levels=levels_)
+    # plt.contourf(data.T)
+    # plt.show()
+    plt.title(var_name + ', (t=' + np.str(t) + 's)')
+    plt.xlabel('x (dx=' + np.str(dx) + 'm)')
+    plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
+    plt.colorbar()
+    plt.savefig(os.path.join(fullpath_out, 'pdf', 'levels_' + var_name + '_' + str(t) + '.pdf'))
+    plt.savefig(fullpath_out + 'levels_' + var_name + '_' + str(t) + '_levels.png')
+    plt.close()
+    return
+
+
 
 def plot_data_levels_cont(var_field,var_name_field,levels_field,var_cont,var_name_cont,levels_cont):
     print('cont print')
@@ -246,45 +289,13 @@ def plot_data_levels_cont(var_field,var_name_field,levels_field,var_cont,var_nam
     print('hohioi')
     print('out: ', fullpath_out + var_name_field + '_cont_' + file_name + '.png')
     plt.savefig(fullpath_out + var_name_field + '_cont_' + file_name + '.png')
-    plt.title(var_name)
-
-
-def plot_data(data, var_name, t):
-    # print(data.shape)
-    plt.figure()
-    if var_name == 'w':
-        plt.contourf(data.T,cmap = cm.bwr)
-    else:
-        plt.contourf(data.T)
-    # plt.show()
-    plt.colorbar()
-    plt.title(var_name + ', (t=' + np.str(t) + 's)')
-    plt.xlabel('x (dx=' + np.str(dx) + 'm)')
-    plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
-    plt.savefig(fullpath_out + var_name + '_' + str(t) + '.pdf')
-    plt.savefig(fullpath_out + var_name + '_' + str(t) + '.png')
-    plt.title(var_name)
-
-
-def plot_data_levels(data, var_name, t, levels_):
-    # print(data.shape)
-    plt.figure()
-    if var_name == 'w':
-        print('bwr')
-        # plt.contourf(data.T, levels=levels_, cmap=plt.cm.bwr)
-        plt.contourf(data.T, cmap=cm.bwr, levels=levels_)
-    else:
-        plt.contourf(data.T, levels=levels_)
-    # plt.contourf(data.T)
-    # plt.show()
-    plt.colorbar()
-    plt.savefig(fullpath_out + var_name + '_' + str(t) + '_levels.pdf')
-    plt.savefig(fullpath_out + var_name + '_' + str(t) + '_levels.png')
-    plt.title(var_name)
+    plt.close()
 
 
 def output(fullpath_in, fullpath_out, file_name, var_name):
     print('out')
+
+
 
 # ----------------------------------------------------------------------
 
