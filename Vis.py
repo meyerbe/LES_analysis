@@ -41,7 +41,7 @@ def main():
     if args.var_name:
         var_list = [args.var_name]
     else:
-        var_list = ['w', 's']
+        var_list = ['w', 's', 'potential_temperature', 'ql', 'qt', 'u', 'v']
 
 
     global fullpath_out, file_name
@@ -61,7 +61,6 @@ def main():
         # print(namelist_files)
         # for namelist in namelist_files:
         #     nml = simplejson.loads(open(namelist).read())
-        # dt = nml['stats_io']['frequency']
         dt = nml['visualization']['frequency']
         dx = nml['grid']['dx']
         dz = nml['grid']['dz']
@@ -100,24 +99,28 @@ def main():
                 data = pickle.load(f)
                 for var_name in var_list:
                     print(var_name+ ', fullpath_in: ' + fullpath_in)
-                    var = data[var_name]
+                    try:
+                        var = data[var_name]
 
-                    if var_name == 'phi':
-                        levels = np.linspace(-1e-9, 1 + 1e-9, 250)
-                    elif var_name == 'w':
-                        levels = np.linspace(-10, 10, 100)
-                    elif var_name == 'potential_temperature':
-                        levels = np.linspace(-10, 10, 100)
-                    elif var_name == 's':
-                        levels = np.linspace(-1e-6, 1, 100)
-                    elif var_name == 'ql':
-                        levels = np.linspace(-1e-6, 1, 100)
-                    elif var_name == 'qt':
-                        levels = np.linspace(0.0, 0.02, 100)
-                    else:
-                        levels = np.linspace(-10, 10, 100)
-                    # plot_data_levels(var, var_name, levels)
-                    plot_data(var, var_name, t)
+                        if var_name == 'phi':
+                            levels = np.linspace(-1e-9, 1 + 1e-9, 250)
+                        elif var_name == 'w':
+                            levels = np.linspace(-10, 10, 100)
+                        elif var_name == 'potential_temperature':
+                            levels = np.linspace(-10, 10, 100)
+                        elif var_name == 's':
+                            levels = np.linspace(-1e-6, 1, 100)
+                        elif var_name == 'ql':
+                            levels = np.linspace(-1e-6, 1, 100)
+                        elif var_name == 'qt':
+                            levels = np.linspace(0.0, 0.02, 100)
+                        else:
+                            levels = np.linspace(-10, 10, 100)
+                        # plot_data_levels(var, var_name, levels)
+                        plot_data(var, var_name, t)
+                    except:
+                        print("No variable "+var_name)
+                        print " "
 
 
             # # ----------------------------------------------
@@ -258,12 +261,12 @@ def plot_data(data, var_name, t):
     plt.title(var_name + ', (t=' + np.str(t) + 's)')
     plt.xlabel('x (dx=' + np.str(dx) + 'm)')
     plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
-    # plt.savefig(fullpath_out + 'phi/' + var_name + '_' + file_name + '.png')
+    plt.savefig(fullpath_out + var_name + '_' + str(t) + '.pdf')
     plt.savefig(fullpath_out + var_name + '_' + str(t) + '.png')
     plt.title(var_name)
 
 
-def plot_data_levels(data, var_name, levels_):
+def plot_data_levels(data, var_name, t, levels_):
     # print(data.shape)
     plt.figure()
     if var_name == 'w':
@@ -275,8 +278,8 @@ def plot_data_levels(data, var_name, levels_):
     # plt.contourf(data.T)
     # plt.show()
     plt.colorbar()
-    # plt.savefig(fullpath_out + 'phi/' + var_name + '_' + file_name + '.png')
-    plt.savefig(fullpath_out + var_name + '_a' + file_name + '.pdf')
+    plt.savefig(fullpath_out + var_name + '_' + str(t) + '_levels.pdf')
+    plt.savefig(fullpath_out + var_name + '_' + str(t) + '_levels.png')
     plt.title(var_name)
 
 
