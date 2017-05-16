@@ -5,6 +5,9 @@
 #
 #  Created by Meyer  Bettina on 01/04/16.
 #
+
+import argparse
+import os
 from h5py import File
 import h5py
 import numpy as np
@@ -28,18 +31,32 @@ from matplotlib.backends.backend_pdf import PdfPages
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------
 def main():
+    parser = argparse.ArgumentParser(prog='PyCLES')
+    parser.add_argument("path")
+    parser.add_argument("casename")
+    parser.add_argument("--var_name")
+    args = parser.parse_args()
+    path = args.path
+    case_name = args.casename
+    if args.var_name:
+        var_list = [args.var_name]
+    else:
+        var_list = ['w', 's']
+
+
     global fullpath_out, file_name
     global t, dt, dx, dz
-    case_name = 'Bomex'
+    # case_name = 'Bomex'
 
-    path_list = ['../bomex/161130_test/n24/2_full_old_EV12/']
+    # path_list = ['../bomex/161130_test/n24/2_full_old_EV12/']
     # path = '../bomex/161130_test/n24/2_QL_old_EV12/'
+    path_list = [path]
     for path in path_list:
-        fullpath_out = path + 'vis/'
+        fullpath_out = os.path.join(path,'vis/')
         print('fullpath_out', fullpath_out)
         scheme = 'QL, 2nd, TKE, CFL = 0.1'
 
-        nml = simplejson.loads(open(path + case_name + '.in').read())
+        nml = simplejson.loads(open(os.path.join(path,case_name + '.in')).read())
         # namelist_files = glob.glob(path +'*.in')
         # print(namelist_files)
         # for namelist in namelist_files:
@@ -48,100 +65,130 @@ def main():
         dt = nml['visualization']['frequency']
         dx = nml['grid']['dx']
         dz = nml['grid']['dz']
-        print('dt:', dt, dz)
+        print('vis dt:' + str(dt) +', dz: '+ str(dz))
 
-        T = np.linspace(0,2400,5)
-        print('T',T)
-        for t in T:
-            if t < 10:
-                file_name = np.str(1000000) + np.str(np.int(t))
-            elif t < 100:
-                file_name = np.str(100000) + np.str(np.int(t))
-            elif t < 1000:
-                file_name = np.str(10000) + np.str(np.int(t))
-            elif t < 10000:
-                file_name = np.str(1000) + np.str(np.int(t))
-            else:
-                file_name = np.str(100) + np.str(np.int(t))
-            print('name:', file_name)
-            fullpath_in = fullpath_out + file_name  + '.pkl'
-            print('fullpath_in',fullpath_in)
-            # ----------------------------------------------
-            # input = open(fullpath_in)
-            # pickle.load(fullpath_in,'r')
-            # import pickle
-            try:
-                with open(fullpath_in, 'rb') as f:
-                    restart_data = pickle.load(f)
+        # files = os.listdir(os.path.join(path, 'vis/*.pkl'))       # type = list
+        files = os.listdir(os.path.join(path, 'vis'))  # type = list
+        print('visualisation files: ', str(files))
+        print('')
+
+
+        # T = np.linspace(0,2400,5)
+        # print('T',T)
+        # for t in T:
+        #     if t < 10:
+        #         file_name = np.str(1000000) + np.str(np.int(t))
+        #     elif t < 100:
+        #         file_name = np.str(100000) + np.str(np.int(t))
+        #     elif t < 1000:
+        #         file_name = np.str(10000) + np.str(np.int(t))
+        #     elif t < 10000:
+        #         file_name = np.str(1000) + np.str(np.int(t))
+        #     else:
+        #         file_name = np.str(100) + np.str(np.int(t))
+        #     print('name:', file_name)
+        #     fullpath_in = fullpath_out + file_name  + '.pkl'
+        #     print('fullpath_in: ' + fullpath_in)
+
+        for file_name in files:
+            if file_name[-4:] == '.pkl':
+                t = np.int(file_name[0:-4])
+                print('file_name, t', file_name, t)
+                fullpath_in = fullpath_out + file_name
 
                 f = open(fullpath_in)
                 data = pickle.load(f)
+                for var_name in var_list:
+                    print(var_name+ ', fullpath_in: ' + fullpath_in)
+                    var = data[var_name]
 
-                var_name = 'phi'
-                var = data[var_name]
-                levels = np.linspace(-1e-9, 1+1e-9, 250)
-                # plot_data_levels(var, var_name, levels)
-                plot_data(var, var_name)
-
-                var_name = 'w'
-                f = open(fullpath_in)
-                data = pickle.load(f)
-                # print('data:', data[var_name].shape)
-                var = data[var_name]
-                levels = np.linspace(-10,10,100)
-                plot_data(var,var_name)
-
-                var_name = 'potential_temperature'
-                f = open(fullpath_in)
-                data = pickle.load(f)
-                # print('data:', data[var_name].shape)
-                var = data[var_name]
-                levels = np.linspace(-10, 10, 100)
-                plot_data(var, var_name)
-
-                var_name = 's'
-                f = open(fullpath_in)
-                data = pickle.load(f)
-                # print('data:', data[var_name].shape)
-                var = data[var_name]
-                levels = np.linspace(-1e-6, 1, 100)
-                # print('levels:', levels)
-                plot_data(var, var_name)
-
-                var_name = 'ql'
-                f = open(fullpath_in)
-                data = pickle.load(f)
-                # print('data:', data[var_name].shape)
-                var = data[var_name]
-                levels = np.linspace(-1e-6, 1, 100)
-                # print('levels:', levels)
-                plot_data(var, var_name)
-
-                # var_name = 'qt'
-                # print(var_name)
-                # # print('data:', data[var_name].shape)
-                # var = data[var_name]
-                # levels = np.linspace(0.0,0.02, 100)
-                # # print('levels:', levels)
-                # plot_data(var, var_name)
-                # plot_data_levels(var,var_name,levels)
-            except:
-                continue
+                    if var_name == 'phi':
+                        levels = np.linspace(-1e-9, 1 + 1e-9, 250)
+                    elif var_name == 'w':
+                        levels = np.linspace(-10, 10, 100)
+                    elif var_name == 'potential_temperature':
+                        levels = np.linspace(-10, 10, 100)
+                    elif var_name == 's':
+                        levels = np.linspace(-1e-6, 1, 100)
+                    elif var_name == 'ql':
+                        levels = np.linspace(-1e-6, 1, 100)
+                    elif var_name == 'qt':
+                        levels = np.linspace(0.0, 0.02, 100)
+                    else:
+                        levels = np.linspace(-10, 10, 100)
+                    # plot_data_levels(var, var_name, levels)
+                    plot_data(var, var_name, t)
 
 
+            # # ----------------------------------------------
+            # # input = open(fullpath_in)
+            # # pickle.load(fullpath_in,'r')
+            # # import pickle
+            # try:
+            #     # with open(fullpath_in, 'rb') as f:
+            #     #     restart_data = pickle.load(f)
+            #
+            #     f = open(fullpath_in)
+            #     data = pickle.load(f)
+            #
+            #     var_name = 'phi'
+            #     var = data[var_name]
+            #     levels = np.linspace(-1e-9, 1+1e-9, 250)
+            #     # plot_data_levels(var, var_name, levels)
+            #     plot_data(var, var_name)
+            #
+            #     var_name = 'w'
+            #     f = open(fullpath_in)
+            #     data = pickle.load(f)
+            #     # print('data:', data[var_name].shape)
+            #     var = data[var_name]
+            #     levels = np.linspace(-10,10,100)
+            #     plot_data(var,var_name)
+            #
+            #     var_name = 'potential_temperature'
+            #     f = open(fullpath_in)
+            #     data = pickle.load(f)
+            #     # print('data:', data[var_name].shape)
+            #     var = data[var_name]
+            #     levels = np.linspace(-10, 10, 100)
+            #     plot_data(var, var_name)
+            #
+            #     var_name = 's'
+            #     f = open(fullpath_in)
+            #     data = pickle.load(f)
+            #     # print('data:', data[var_name].shape)
+            #     var = data[var_name]
+            #     levels = np.linspace(-1e-6, 1, 100)
+            #     # print('levels:', levels)
+            #     plot_data(var, var_name)
+            #
+            #     var_name = 'ql'
+            #     f = open(fullpath_in)
+            #     data = pickle.load(f)
+            #     # print('data:', data[var_name].shape)
+            #     var = data[var_name]
+            #     levels = np.linspace(-1e-6, 1, 100)
+            #     # print('levels:', levels)
+            #     plot_data(var, var_name)
+            #
+            #     # var_name = 'qt'
+            #     # print(var_name)
+            #     # # print('data:', data[var_name].shape)
+            #     # var = data[var_name]
+            #     # levels = np.linspace(0.0,0.02, 100)
+            #     # # print('levels:', levels)
+            #     # plot_data(var, var_name)
+            #     # plot_data_levels(var,var_name,levels)
+            # except:
+            #     print('no file found')
+            #     print('')
+            #     continue
 
 
-
-    #data = (1.4,42)
-    #output = open('data.pkl', 'w')
-    #pickle.dump(data, output)
-    #output.close()
-
-
-    #list_of_names = ['u', 'v', 'w', 'specific_entropy']#['u', 'v', 'w']
-    #list_of_names = ['u']
-    #for name in list_of_names:
-    #    data = read_in(name, 'fields', fullpath_in)       # type == 'profiles', 'fields'
+    # #list_of_names = ['u', 'v', 'w', 'specific_entropy']#['u', 'v', 'w']
+    # #list_of_names = ['u']
+    # #for name in list_of_names:
+    # #    data = read_in(name, 'fields', fullpath_in)       # type == 'profiles', 'fields'
 
     print('Ende')
 
@@ -199,7 +246,7 @@ def plot_data_levels_cont(var_field,var_name_field,levels_field,var_cont,var_nam
     plt.title(var_name)
 
 
-def plot_data(data, var_name):
+def plot_data(data, var_name, t):
     # print(data.shape)
     plt.figure()
     if var_name == 'w':
@@ -212,7 +259,7 @@ def plot_data(data, var_name):
     plt.xlabel('x (dx=' + np.str(dx) + 'm)')
     plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
     # plt.savefig(fullpath_out + 'phi/' + var_name + '_' + file_name + '.png')
-    plt.savefig(fullpath_out + var_name + '_' + file_name + '.png')
+    plt.savefig(fullpath_out + var_name + '_' + str(t) + '.png')
     plt.title(var_name)
 
 
