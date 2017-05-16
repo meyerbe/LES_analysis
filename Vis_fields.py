@@ -22,7 +22,7 @@ plt.rcParams['axes.labelsize'] = 15
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = label_size
-plt.rcParams['figure.titlesize'] = 48
+plt.rcParams['figure.titlesize'] = 35
 plt.rcParams['lines.linewidth'] = 2
 
 
@@ -39,7 +39,10 @@ def main():
     if args.var_name:
         var_list = [args.var_name]
     else:
-        var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
+        if case_name == 'TRMM_LBA':
+            var_list = ['w', 's', 'temperature', 'ql', 'qt', 'qr', 'u', 'v']
+        else:
+            var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
 
     if args.cont_name:
         cont_list = [args.cont_name]
@@ -144,14 +147,14 @@ def main():
                         plot_field(var_name, field_data[:, :, k], k*dz, plot_name, 'hor')
                         if cont_name != var_name:
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_z' + np.str(np.int(k*dz)) + 'm'
-                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], plot_name, 'hor')
+                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, 'hor')
                     for k in yrange:
-                        plot_name = var_name + np.str(tt) + '_y' + np.str(np.int(k * dy)) + 'm'
+                        plot_name = var_name + '_t'+ np.str(tt) + '_y' + np.str(np.int(k * dy)) + 'm'
                         plot_field(var_name, field_data[:, k, :], k*dy, plot_name, 'vert')
                         if cont_name != var_name:
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_y' + np.str(np.int(k*dy)) + 'm'
                             plot_field_cont(var_name, field_data[:, k, :], cont_name,
-                                            cont_data[:, k, :], plot_name, 'vert')
+                                            cont_data[:, k, :], k*dz, plot_name, 'vert')
 
                 # (b) Visualize Fields plus 2 Contours
                 # cont_name1 = 'qt'
@@ -161,7 +164,7 @@ def main():
                 # for k in zrange:
                 #     plot_name = var_name + '_' + cont_name1 + '-cont_' + cont_name2 + '-cont_t' \
                 #                 + np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
-                #     plot_corrfield_cont1_cont2(var_name, field_data[:,:,k],
+                #     plot_field_cont1_cont2(var_name, field_data[:,:,k],
                 #                                cont_name1,cont_data1[:,:,k],cont_name2,cont_data2[:,:,k], plot_name)
 
 
@@ -180,7 +183,8 @@ def set_zrange(case_name):
         krange = np.asarray([25, 25, 40, 50, 60, 65], dtype=np.int32)
     elif case_name[0:9] == 'ZGILS_S12':
         # ZGILS S12
-        files = ['432000.nc']
+        # files = ['432000.nc']
+        files = ['86400.nc']
         # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
         krange = np.asarray([35,40,45])
     elif case_name == 'DYCOMS_RF01':
@@ -211,12 +215,15 @@ def set_zrange(case_name):
         # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
         # krange = np.asarray([20, 50])
         # krange = np.asarray([18,30,38])
-    elif case_name == 'TRMM':
+    elif case_name == 'TRMM_LBA':
         # TRMM
-        files = ['1012600.nc', '1014400.nc', '1016200.nc']
+        # files = ['1012600.nc', '1014400.nc', '1016200.nc']
+        files = ['1014400.nc']
         krange = np.asarray([10, 15, 20, 30, 40, 50, 60])
 
     return krange, files
+
+
 
 
 
@@ -249,19 +256,13 @@ def plot_field(field_name, field_data, level, file_name, type):
 
 
 
-def plot_field_cont(field_name, field_data,cont_name,cont_data, file_name, type):
+def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name, type):
     print('plot field & cont: ', field_name, cont_name)
     plt.figure(figsize=(15,10))
     if field_name == 'w':
-        try:
-            ax1 = plt.contourf(field_data.T, cmap=cm.bwr)
-        except:
-            pass
+        ax1 = plt.contourf(field_data.T, cmap=cm.bwr)
     else:
-        try:
-            ax1 = plt.contourf(field_data.T)
-        except:
-            pass
+        ax1 = plt.contourf(field_data.T, cmap=cm.viridis)
     # cont = np.linspace(1.0,1.1,11)
     max = np.amax(cont_data)
     min = np.amin(cont_data)
@@ -269,25 +270,21 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, file_name, type)
         cont = np.linspace(min, max, 11)
         ax2 = plt.contour(cont_data.T, cont, cmap=cm.Greys)
         plt.colorbar(ax2)
-
     plt.colorbar(ax1)
-    try:
-        max_field = np.amax(field_data)
-        max_data = np.amax(cont_data)
-        if type == 'hor':
-            plt.title(field_name + ', z=' + str(level) + 'm , (contours: '+cont_name+', max: '+"{0:.2f}".format(max_data)+')')
-            plt.xlabel('x')
-            plt.ylabel('y')
-        elif type == 'vert':
-            plt.title(field_name + ', y=' + str(level) + 'm  , (contours: '+cont_name+', max: '+"{0:.2f}".format(max_data)+')')
-            plt.xlabel('x')
-            plt.ylabel('z')
 
-        # plt.title(field_name+', max:'+"{0:.2f}".format(max_field)+', (contours: '+cont_name+', max: '+"{0:.2f}".format(max_data)+')')
-        # plt.xlabel('x')
-        # plt.ylabel('z')
-    except:
-        pass
+    max_field = np.amax(field_data)
+    max_data = np.amax(cont_data)
+    if type == 'hor':
+        plt.title(field_name + ', z=' + str(level) + 'm , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
+            max_data) + ')')
+        plt.xlabel('x')
+        plt.ylabel('y')
+    elif type == 'vert':
+        plt.title(field_name + ', y=' + str(level) + 'm  , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
+            max_data) + ')')
+        plt.xlabel('x')
+        plt.ylabel('z')
+
     # print('saving: ', fullpath_out + file_name + '.png')
     # print('')
     plt.savefig(fullpath_out + file_name + '.png')
@@ -297,7 +294,7 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, file_name, type)
 
 
 
-def plot_corrfield_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_name2, cont_data2, file_name):
+def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_name2, cont_data2, file_name):
     # print('plot corr/cont: ', field_name, field_data.shape)
     plt.figure(figsize=(19,10))
     if field_name == 'w':
