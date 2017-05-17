@@ -53,6 +53,11 @@ calling plotting functions
 Cython interfaces to thermodynamic functions from C-files, that are directly copied from PyCLES (in _Csrc_)
 - `plotting_functions.py`: plotting functions for Data scatterplot, sampling
 
+__CloudClosure_zlayer:__
+- based on `CloudClosure_sat`
+- additional accumulation of data points (LES fields as training data) over _several levels_ to take into account the
+box height of large-scale models
+
 __Repositories:__
 - _CloudClosure_: test version, in python
 - _CloudClosure_unsat_: test of unsaturated thermodynamics, to verify LES output
@@ -87,12 +92,21 @@ __Repositories:__
 
 
 # Visualization
-`Vis`: plot from Visualization outputs (pickle files)
+####Vis:
+plot from Visualization outputs (pickle files)
 
-`Vis_fields`:
-    - plot from LES output fields and profiles
-    - compute Correlations
-    - compute 
+####Vis_fields:
+   - plot from LES output fields and profiles
+   - plot contourf and contours
+
+INPUT: `path-to-fields case_name --var_name qt --cont_name ql`
+
+`var_name: ` optional, name of variable that should be plot by `contourf` in 2D plot
+
+`cont_name: ` optional, name of variable that should be plot by `contour`, overlaying the `var_name`-plot
+
+####Vis_correlations:
+   - compute and plot Correlations
 
 
 
