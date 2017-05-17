@@ -22,7 +22,7 @@ plt.rcParams['axes.labelsize'] = 15
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = label_size
-plt.rcParams['figure.titlesize'] = 35
+plt.rcParams['figure.titlesize'] = 70
 plt.rcParams['lines.linewidth'] = 2
 
 
@@ -41,6 +41,8 @@ def main():
     else:
         if case_name == 'TRMM_LBA':
             var_list = ['w', 's', 'temperature', 'ql', 'qt', 'qr', 'u', 'v']
+        elif case_name == 'DYCOMS_RF01':
+            var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
         else:
             var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
 
@@ -190,17 +192,18 @@ def set_zrange(case_name):
     elif case_name == 'DYCOMS_RF01':
         # DYCOMS RF01 large
         krange = np.asarray([140, 150, 160, 166, 180])
-        # files = ['3600.nc']
+        files = ['3600.nc']
         # DYCOMS RF01
         krange = np.asarray([140, 150, 160, 166, 180])
         # files = ['10800.nc', '12600.nc', '14400.nc']
-        files = ['14400.nc']
+        # files = ['14400.nc']
     elif case_name == 'DYCOMS_RF02':
         # DYCOMS RF02
         # krange = np.asarray([120, 170])
-        krange = np.asarray([120, 140, 160, 170, 200])
+        krange = np.asarray([120, 140, 150, 160, 170, 200])
         # files = ['18000.nc', '19800.nc', '21600.nc']
-        files = ['18000.nc']
+        # files = ['18000.nc']
+        files = ['14400.nc']
     elif case_name == 'Bomex':
         # Bomex large, kyle
         # krange = np.asarray([27, 91])
@@ -390,17 +393,11 @@ def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_
 
 # ----------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
-    print('.....', fullpath_in, variable_name)
+    # print('.....', fullpath_in, variable_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     var = rootgrp.groups['fields'].variables[variable_name][:, :, :]
     rootgrp.close()
     return var
-    # var = rootgrp.groups['fields'].variables[variable_name]
-    # shape = var.shape
-    # data = np.ndarray(shape = var.shape)
-    # data = var[:,:,:]
-    # rootgrp.close()
-    # return data
 
 
 

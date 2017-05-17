@@ -248,7 +248,7 @@ def plot_data(data, var_name, t):
     plt.title(var_name + ', (t=' + np.str(t) + 's)')
     plt.xlabel('x (dx=' + np.str(dx) + 'm)')
     plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
-    plt.savefig(os.path.join(fullpath_out, 'pdf', var_name + '_' + str(t) + '.pdf'))
+    plt.savefig(os.path.join(fullpath_out, 'pdf-pics', var_name + '_' + str(t) + '.pdf'))
     plt.savefig(fullpath_out + var_name + '_' + str(t) + '.png')
     plt.close()
     return
@@ -262,14 +262,14 @@ def plot_data_levels(data, var_name, t, levels_):
         # plt.contourf(data.T, levels=levels_, cmap=plt.cm.bwr)
         plt.contourf(data.T, cmap=cm.bwr, levels=levels_)
     else:
-        plt.contourf(data.T, levels=levels_)
+        plt.contourf(data.T, levels=levels_, cmap=cm.viridis)
     # plt.contourf(data.T)
     # plt.show()
     plt.title(var_name + ', (t=' + np.str(t) + 's)')
     plt.xlabel('x (dx=' + np.str(dx) + 'm)')
     plt.ylabel('height z (dz=' + np.str(dz) + 'm)')
     plt.colorbar()
-    plt.savefig(os.path.join(fullpath_out, 'pdf', 'levels_' + var_name + '_' + str(t) + '.pdf'))
+    plt.savefig(os.path.join(fullpath_out, 'pdf-pics', 'levels_' + var_name + '_' + str(t) + '.pdf'))
     plt.savefig(fullpath_out + 'levels_' + var_name + '_' + str(t) + '_levels.png')
     plt.close()
     return
