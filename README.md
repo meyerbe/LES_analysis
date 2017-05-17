@@ -63,6 +63,38 @@ __Repositories:__
 - _CloudClosure_unsat_: test of unsaturated thermodynamics, to verify LES output
 - ___CloudClosure_sat___: current version
 
+
+
+#  Updrafts
+###Concept:
+1. Initialize:
+case_name, ref.pressure and height
+
+2. Update:
+
+    (a) read in 3D files at time d: qt_, s_, ql_, T_
+
+    (b) PDF Model:
+
+            1. Initialize CC, Lv-Lookup Table
+            2. for n in ncomp_range:        # (no accumulation over several time steps or levels)
+                    for k in zrange:
+                        - <ql>[k], CF[k]
+                        - normalise data
+                        - clf[k]
+                        - labels
+                        - sort PDFs and labels
+                        - rearrange labels from 2D file (nx*ny,nz) into 3D file (nx,ny,nz)
+                        return labels
+     (c) Tracer Model:
+
+             for type in list:
+                    - read in 3D label array (pickel file)
+                    - plotting...
+
+
+
+
 # IO
 
 `io_read_in_files.py`: read in nc-files, Namelist files etc.

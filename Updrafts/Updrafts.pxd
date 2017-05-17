@@ -36,4 +36,5 @@ cdef class Updrafts:
     # ----------------------------------------------------------------------
     #                Tracer Model
     # ----------------------------------------------------------------------
-    cpdef read_in_updrafts_colleen(self, str type, path_)
+    cpdef read_in_updrafts_colleen(self, str type, t, path_)
+

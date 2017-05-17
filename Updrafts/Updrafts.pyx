@@ -12,7 +12,7 @@ import pickle
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
-from plotting_functions import plot_labels, plot_labels_pdf
+from plotting_functions import plot_labels_comparison, plot_labels, plot_labels_test
 
 # NEW:
 #   - no more accumlation over times (files) or levels for PDF model
@@ -109,7 +109,11 @@ cdef class Updrafts:
         var_list = ['s', 'qt', 'temperature', 'ql']
         data = np.ndarray(shape=((nx * ny), nvar))
         for d in files:
-            print('- time: d='+str(d) + ' -')
+            if d[-1] == 'c':
+                tt = d[0:-3]
+            else:
+                tt = np.int(d)
+            print('- time: d='+str(d) + ', t='+str(tt)+' -')
             nc_file_name = d
             path_fields = os.path.join(path, 'fields', nc_file_name)
             s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
@@ -118,19 +122,17 @@ cdef class Updrafts:
 
 
             # (B) PDF Model
-            if d[-1] == 'c':
-                tt = d[0][0:-3]
-            else:
-                tt = np.int(d)
-            print('ttttt', type(tt), tt)
             labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
-            plot_labels_pdf(qt_, ql_, w_, labels_pdf, tt, krange, dz, path)
+            up_type = 'PDF'
+            plot_labels(qt_, ql_, w_, labels_pdf, tt, krange, dz, up_type, path)
 
             # (C) Tracer Model
             type_list = ['Couvreux', 'Cloud', 'Coherent', 'Core']
             for up_type in type_list:
-                labels_tr = self.read_in_updrafts_colleen(up_type, path_tr)
-                plot_labels(qt_, ql_, labels_pdf, labels_tr, up_type, tt, krange, dz, path)
+                labels_tr = self.read_in_updrafts_colleen(up_type, tt, path_tr)
+                plot_labels(qt_, ql_, w_, labels_tr, tt, krange, dz, up_type, path)
+                plot_labels_test(qt_, ql_, w_, labels_tr, tt, krange, dz, up_type, path)
+                plot_labels_comparison(qt_, ql_, labels_pdf, labels_tr, up_type, tt, krange, dz, path)
 
 
         return
@@ -159,7 +161,6 @@ cdef class Updrafts:
         #           - compute labels
         #           - sort labels according to <qt>
         #           - rearrange labels into 3D array
-
 
 
         print('')
@@ -289,14 +290,16 @@ cdef class Updrafts:
 
 
             '''(5) Find Labels, sort and rearrange'''
-            labels_ = clf_thl_norm.predict(data_norm)
-            # labels_ = np.int(clf_thl_norm.predict(data_all_norm))
-            # print('LABELS: ', type(labels))
-            print('')
-            print('Labels: ', np.count_nonzero(labels_), labels_.shape, data_norm.shape)
             # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
-            means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_, clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
-            print('Labels new: ', np.count_nonzero(labels_new))
+            # Note: it is either (# of zeros in labels_new) = (# of zeros in labels_) or (# of zeros in labels_new) = (nx*ny - (# of zeros in labels_))
+            labels_ = clf_thl_norm.predict(data_norm)
+            means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_,
+                                                              clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
+            print('Labels: ', np.count_nonzero(labels_), np.count_nonzero(labels_new), labels_.shape[0]-np.count_nonzero(labels_))
+            if ( np.count_nonzero(labels_new) != labels_.shape[0]-np.count_nonzero(labels_)
+                 and np.count_nonzero(labels_new) != np.count_nonzero(labels_) ):
+                print('!!!!! Labels Problem !!!!')
+            print('')
 
             # rearrange into 2D array (for only one data file)
             for i in range(nx):
@@ -354,7 +357,6 @@ cdef class Updrafts:
         # covariances_ = (ncomp, nvar, nvar)
         # weights_ = (ncomp)
         # labels_ = (nx * ny)
-
         cdef:
             double [:,:] means = means_
             double [:,:,:] covars = covariances_
@@ -367,10 +369,10 @@ cdef class Updrafts:
 
         labels = np.zeros(shape = labels_.shape)
 
-        print(means.shape, covars.shape, weights.shape)
+        # print(means.shape, covars.shape, weights.shape)
         # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
         if means[0, 1] < means[1, 1]:
-            print('')
+            # print('')
             print('sorting')
             aux = weights[1]
             weights[1] = weights[0]
@@ -384,12 +386,14 @@ cdef class Updrafts:
                     covars[1, i1, i2] = covars[0, i1, i2]
                     covars[0, i1, i2] = aux
             labels = [int(not labels_[i]) for i in range(nij)]
-
+        else:
+            labels = labels_
             # # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # print('')
         return means, covars, weights, labels
+
 
 
 
@@ -530,7 +534,7 @@ cdef class Updrafts:
     # ----------------------------------------------------------------------
     #                Tracer Model
     # ----------------------------------------------------------------------
-    cpdef read_in_updrafts_colleen(self, str type, path_):
+    cpdef read_in_updrafts_colleen(self, str type, t, path_):
         print('')
         print('--- Updraft Colleen: read in ---')
         import pickle
@@ -540,9 +544,9 @@ cdef class Updrafts:
         path = path_
         files = os.listdir(path)
         # times = ['10800', '11700', '12600', '13500', '14400', '15300', '16200', '17100', '18000', '18900', '19800', '20700', '21600']
-        times = ['10800']
+        # times = ['10800']
         print(path_)
-        print('times: ', times)
+        print('time: ', t)
         # print(files)
         print('')
 
@@ -562,26 +566,21 @@ cdef class Updrafts:
         print('')
         path = os.path.join(path_, root + 'updraft.pkl')
         data = pickle.load(open(path))
-        print(path)
-        print(data.keys())
-        # print(type(data))
+        print(path +': ', data.keys())
         # print(data.items())
         # dict.items(): Return a copy of the dictionary’s list of (key, value) pairs.
 
         print('')
         path = os.path.join(path_, root + 'environment.pkl')
         data = pickle.load(open(path))
-        # print(path+': ', type(data))
-        print(path)
-        print(data.keys())
-        # print(data[])
+        print(path +': ', data.keys())
 
 
-        for t in times:
-            path = os.path.join(path_, root + 'time_' + t + '_Grid.pkl')
-            print(path)
-            labels = pickle.load(open(path))
-            # data = pickle.load(open(path))
+        print('')
+        path = os.path.join(path_, root + 'time_' + t + '_Grid.pkl')
+        labels = pickle.load(open(path))
+        # data = pickle.load(open(path))
+        print(path +': ', labels.shape)
 
 
         # # (a)

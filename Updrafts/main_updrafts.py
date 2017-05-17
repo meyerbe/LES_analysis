@@ -12,10 +12,13 @@ def main():
     parser.add_argument("casename")
     args = parser.parse_args()
     path = args.path
-    case_name = args.casename
+    # path_tr = '/Volumes/Data/ClimatePhysics/LES/updrafts_colleen/'
+    path_tr = os.path.join(path, 'tracer_fields')
 
+    case_name = args.casename
     nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     dz = nml['grid']['dz']
+    print('dz = '+str(dz))
 
     files_3d = os.listdir(os.path.join(path, 'fields'))
     # ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -25,7 +28,7 @@ def main():
     # Bomex test
     files_3d = ['21600.nc']
     # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20, 25], dtype=np.int32)
+    krange = np.asarray([20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=np.int32)
     # krange = np.asarray([20, 25])
     # krange = np.asarray([18,30,38])
     print('...', type(krange), type(krange[0]))
@@ -38,7 +41,7 @@ def main():
     print('')
 
 
-    path_tr = '/Volumes/Data/ClimatePhysics/LES/updrafts_colleen/'
+
 
     # Updrafts.CloudClosure()
     Up = Updrafts.Updrafts()
