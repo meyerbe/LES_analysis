@@ -49,7 +49,6 @@ def main():
     # Up.predict_pdf(files_3d, path, ncomp_range, dz_range, krange, nml)
     Up.update(files_3d, ncomp_range, dz_range, krange, nml, path, path_tr)
 
-    Up.read_in_updrafts_colleen('Couvreux', path_tr)
     return
 
 

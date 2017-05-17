@@ -351,7 +351,7 @@ cdef class Updrafts:
 
     cpdef sort_PDF(self, means_, covariances_, weights_, labels_):
         '''sort PDF components according to <qt>'''
-        # sort such that PDF-component 0 has larger mean qt than PDF-component 1, i.e. PDF-component 0 represents the updrafts
+        # sort such that PDF-component 1 has larger mean qt than PDF-component 0, i.e. PDF-component 1 represents the updrafts
 
         # means_ = (ncomp x nvar)
         # covariances_ = (ncomp, nvar, nvar)
@@ -385,9 +385,11 @@ cdef class Updrafts:
                     aux = covars[1, i1, i2]
                     covars[1, i1, i2] = covars[0, i1, i2]
                     covars[0, i1, i2] = aux
-            labels = [int(not labels_[i]) for i in range(nij)]
-        else:
+            # labels = [int(not labels_[i]) for i in range(nij)]
             labels = labels_
+        else:
+            # labels = labels_
+            labels = [int(not labels_[i]) for i in range(nij)]
             # # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
             # # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')

@@ -68,7 +68,6 @@ def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path):
 
 def plot_labels_test(qt, ql, w, labels_, time, krange, dz, type_, path):
     print('Plotting Test')
-    print('data size', qt.shape, 'labels size', labels_.shape)
     for k in range(len(krange)):
         iz = krange[k]
         if type_ == 'PDF':
@@ -120,99 +119,93 @@ def plot_labels_comparison(qt, ql, labels_pdf, labels_tr, type_, time, krange, d
     n_pdf = labels_pdf.shape
     n_tr = labels_tr.shape
     print('')
-    print('pdf model: ', labels_pdf.shape)
-    print('tracer model: ', labels_tr.shape)
-    print('')
-    # x_pdf = np.arange(0,nx_pdf)
-    # y_pdf = np.arange(0,ny_pdf)
-    # X, Y = np.meshgrid(x_, y_)
-    #
-    #
-    # # (1) make samples
-    # n_sample = 300
-    # x_ = np.linspace(np.amin(data[:, 0]), np.amax(data[:, 0]), n_sample)
-    # y_ = np.linspace(np.amin(data[:, 1]), np.amax(data[:, 1]), n_sample)
-    # XX_ = np.ndarray(shape=(n_sample ** nvar_, nvar_))
-    # X_ = np.ndarray(shape=(n_sample, n_sample))
-    # Y_ = np.ndarray(shape=(n_sample, n_sample))
-    # delta_i = n_sample
-    # for i in range(n_sample):
-    #     for j in range(n_sample):
-    #         shift = i * delta_i + j
-    #         XX_[shift, 0] = x_[i]
-    #         XX_[shift, 1] = y_[j]
-    #         X_[i, j] = x_[j]
-    #         Y_[i, j] = y_[i]
+    # print('pdf model: ', labels_pdf.shape)
+    # print('tracer model: ', labels_tr.shape)
     # print('')
 
     for k in range(len(krange)):
         iz = krange[k]
 
-        plt.figure(figsize=(12,8))
+        plt.figure(figsize=(12,6))
 
-        plt.subplot(2, 3, 1)
+        plt.subplot(2, 4, 1)
         plt.imshow(qt[:,:,iz])
         plt.colorbar(shrink=0.5)
+        plt.contour(labels_pdf[:,:,k], [0.9], colors='w')
         plt.title(r'$q_t$')
 
-        plt.subplot(2, 3, 4)
+        plt.subplot(2, 4, 2)
         plt.imshow(ql[:,:,iz])
         plt.colorbar(shrink=0.5)
+        plt.contour(labels_pdf[:, :, k], [0.9], colors='w')
         plt.title(r'$q_l$')
 
-        plt.subplot(2, 3, 2)
-        # plt.scatter(labels_pdf[:, :, 0], labels_pdf[:, :, 1], s=5, alpha=0.2)
+        plt.subplot(2, 4, 3)
         plt.imshow(labels_pdf[:,:,k])
-        print('')
-        # print('.........')
-        # plt.contour(ql[:,:,iz], [0.0], colors = 'w')
         plt.colorbar(shrink=0.5)
         plt.title('PDF Labels')
 
-        plt.subplot(2, 3, 3)
-        plt.imshow(labels_tr[:,:,iz])
+        plt.subplot(2, 4, 5)
+        plt.imshow(qt[:, :, iz])
         plt.colorbar(shrink=0.5)
-        plt.title('Tracer Labels: '+type_)
-        # plt.scatter(labels_pdf[:, :, 0], labels_tr[:, :, 1], s=5, alpha=0.2)
+        plt.contour(labels_tr[:, :, iz], [0.9], colors='w')
+        plt.title(r'$q_t$')
+
+        plt.subplot(2, 4, 6)
+        plt.imshow(ql[:, :, iz])
+        plt.colorbar(shrink=0.5)
+        plt.contour(labels_tr[:, :, iz], [0.9], colors='w')
+        plt.title(r'$q_l$')
+
+        plt.subplot(2, 4, 7)
+        plt.imshow(labels_tr[:, :, iz])
+        plt.colorbar(shrink=0.5)
+        plt.title('Tracer Labels: '+type_, fontsize=10)
 
         if nx_pdf == nx_tr and ny_pdf == ny_tr:
             arr = np.zeros(shape=labels_pdf.shape, dtype=np.int16)
             n_env = 0
             n_updr = 0
+            n_i = 0
+            n_j = 0
             for i in range(nx_pdf):
                 for j in range(ny_pdf):
                     if labels_pdf[i, j, k] == labels_tr[i, j, iz] and labels_pdf[i,j,k] == 0:
-                        arr[i,j,k] = 3
-                        n_env += 1
+                        arr[i,j,k] = 0
+                        n_env += 1.
                         # print('label 0')
                     elif labels_pdf[i, j, k] == labels_tr[i, j, iz] and labels_pdf[i,j,k] == 1:
-                        arr[i, j, k] = 2
-                        n_updr += 1
+                        arr[i, j, k] = 1
+                        n_updr += 1.
                         # print('label 1')
                     elif labels_pdf[i,j,k] == 1 and labels_tr[i,j,iz] == 0:
-                        arr[i,j,k] = 1
+                        arr[i,j,k] = 2
                         # print('label 2')
+                        n_i += 1.
                     elif labels_pdf[i, j, k] == 0 and labels_tr[i, j, iz] == 1:
-                        arr[i, j, k] = 0
+                        arr[i, j, k] = 3
                         # print('label 3')
+                        n_j += 1.
             n_env /= (nx_pdf*ny_pdf)
             n_updr /= (nx_pdf * ny_pdf)
-            plt.subplot(2,3,5)
-            plt.imshow(arr[:,:,k], interpolation="nearest")
-            plt.title('0: '+str(n_env*100)+'%, 1: '+str(n_updr*100)+'%', fontsize=12)
+            n_i /= (nx_pdf * ny_pdf)
+            n_j /= (nx_pdf * ny_pdf)
+            print('total (z='+str(iz*dz)+'): ', n_env, n_updr, n_i, n_j, n_env+n_updr+n_i+n_j)
+
+            plt.subplot(2,4,4)
+            plt.imshow(arr[:,:,k], clim=(0,3), interpolation="nearest")
+            plt.title('env both: '+str(np.round(n_env*100,1))+'%, updr both: '+str(np.round(n_updr*100,1))+'%', fontsize=10)
             plt.colorbar(shrink=0.5)
-            plt.subplot(2, 3, 6)
             aux = np.zeros((8,8))
             aux[2:4] = 1
             aux[4:6] = 2
             aux[6:8] = 3
+            plt.subplot(2, 4, 8)
             plt.imshow(aux, interpolation="nearest")
             plt.title('blue: good, yellow: PDF only, red: tracer only', fontsize=10)
             plt.colorbar(shrink=0.5)
         else:
             print('Dimensions do not agree')
-
-
 
         plt.savefig(os.path.join(path, 'Updrafts_figures', type_ +'_t'+str(time)+'_z'+str(iz*dz)+'m.pdf'))
         # plt.show()
