@@ -241,13 +241,13 @@ def plot_field(field_name, field_data, level, file_name, type):
     plt.colorbar(ax1)
 
     max_field = np.amax(field_data)
-    plt.title(field_name + ', max:' + "{0:.2f}".format(max_field), fontsize=48)
+    plt.title(field_name + ', max:' + "{0:.2f}".format(max_field), fontsize=35)
     if type == 'hor':
-        plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field))
+        plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field), fontsize=35)
         plt.xlabel('x')
         plt.ylabel('y')
     elif type == 'vert':
-        plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=48)
+        plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=35)
         plt.xlabel('x')
         plt.ylabel('z')
 
@@ -279,12 +279,12 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name
     max_data = np.amax(cont_data)
     if type == 'hor':
         plt.title(field_name + ', z=' + str(level) + 'm , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
-            max_data) + ')')
+            max_data) + ')', fontsize=35)
         plt.xlabel('x')
         plt.ylabel('y')
     elif type == 'vert':
         plt.title(field_name + ', y=' + str(level) + 'm  , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
-            max_data) + ')')
+            max_data) + ')', fontsize=35)
         plt.xlabel('x')
         plt.ylabel('z')
 
