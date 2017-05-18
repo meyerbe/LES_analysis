@@ -40,11 +40,12 @@ def main():
         var_list = [args.var_name]
     else:
         if case_name == 'TRMM_LBA':
-            var_list = ['w', 's', 'temperature', 'ql', 'qt', 'qr', 'u', 'v']
+            var_list = ['ql', 'qt', 'qr', 'w', 's', 'temperature', 'u', 'v']
         elif case_name == 'DYCOMS_RF01':
             var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
+            var_list = ['ql', 'qt', 'w', 's', 'temperature', 'u', 'v']
         else:
-            var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
+            var_list = ['ql', 'qt', 'w', 's', 'thetali', 'temperature', 'u', 'v']
 
     if args.cont_name:
         cont_list = [args.cont_name]
@@ -65,7 +66,7 @@ def main():
 
     path_fields = os.path.join(path,'fields/')
     files = os.listdir(path_fields)  # type = list
-    files = [files[1]]
+    # files = [files[1]]
     print('Found the following fields: ', str(files), type(files), type(files[0]), files[0], len(files))
     print('')
 
@@ -146,17 +147,17 @@ def main():
                     print('Contour variable: ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
                     for k in zrange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
-                        plot_field(var_name, field_data[:, :, k], k*dz, plot_name, 'hor')
+                        plot_field(var_name, field_data[:, :, k], k*dz, plot_name, tt, 'hor')
                         if cont_name != var_name:
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_z' + np.str(np.int(k*dz)) + 'm'
-                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, 'hor')
+                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, tt, 'hor')
                     for k in yrange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_y' + np.str(np.int(k * dy)) + 'm'
-                        plot_field(var_name, field_data[:, k, :], k*dy, plot_name, 'vert')
+                        plot_field(var_name, field_data[:, k, :], k*dy, plot_name, tt, 'vert')
                         if cont_name != var_name:
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_y' + np.str(np.int(k*dy)) + 'm'
                             plot_field_cont(var_name, field_data[:, k, :], cont_name,
-                                            cont_data[:, k, :], k*dz, plot_name, 'vert')
+                                            cont_data[:, k, :], k*dz, plot_name, tt, 'vert')
 
                 # (b) Visualize Fields plus 2 Contours
                 # cont_name1 = 'qt'
@@ -192,18 +193,18 @@ def set_zrange(case_name):
     elif case_name == 'DYCOMS_RF01':
         # DYCOMS RF01 large
         krange = np.asarray([140, 150, 160, 166, 180])
-        files = ['3600.nc']
+        # files = ['3600.nc']
         # DYCOMS RF01
         krange = np.asarray([140, 150, 160, 166, 180])
         # files = ['10800.nc', '12600.nc', '14400.nc']
-        # files = ['14400.nc']
+        files = ['10800.nc']
     elif case_name == 'DYCOMS_RF02':
         # DYCOMS RF02
         # krange = np.asarray([120, 170])
         krange = np.asarray([120, 140, 150, 160, 170, 200])
         # files = ['18000.nc', '19800.nc', '21600.nc']
-        # files = ['18000.nc']
-        files = ['14400.nc']
+        files = ['2400.nc']
+        files = ['3600.nc']
     elif case_name == 'Bomex':
         # Bomex large, kyle
         # krange = np.asarray([27, 91])
@@ -231,7 +232,7 @@ def set_zrange(case_name):
 
 
 # ----------------------------------
-def plot_field(field_name, field_data, level, file_name, type):
+def plot_field(field_name, field_data, level, file_name, tt, type):
     print('plot field: ', field_name)
     plt.figure(figsize=(12,10))
     if field_name == 'w':
@@ -243,11 +244,13 @@ def plot_field(field_name, field_data, level, file_name, type):
     max_field = np.amax(field_data)
     plt.title(field_name + ', max:' + "{0:.2f}".format(max_field), fontsize=35)
     if type == 'hor':
-        plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field), fontsize=35)
+        # plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field), fontsize=28)
+        plt.title(field_name + ', (z=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
         plt.xlabel('x')
         plt.ylabel('y')
     elif type == 'vert':
-        plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=35)
+        # plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=28)
+        plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
         plt.xlabel('x')
         plt.ylabel('z')
 
@@ -259,7 +262,7 @@ def plot_field(field_name, field_data, level, file_name, type):
 
 
 
-def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name, type):
+def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name, tt, type):
     print('plot field & cont: ', field_name, cont_name)
     plt.figure(figsize=(15,10))
     if field_name == 'w':
@@ -278,13 +281,15 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name
     max_field = np.amax(field_data)
     max_data = np.amax(cont_data)
     if type == 'hor':
-        plt.title(field_name + ', z=' + str(level) + 'm , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
-            max_data) + ')', fontsize=35)
+        plt.title(field_name + ', z=' + str(level) + 'm, t=' + str(tt) + 's (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
+            max_data) + ')', fontsize=28)
         plt.xlabel('x')
         plt.ylabel('y')
     elif type == 'vert':
-        plt.title(field_name + ', y=' + str(level) + 'm  , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
-            max_data) + ')', fontsize=35)
+        # plt.title(field_name + ', y=' + str(level) + 'm  , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
+        #     max_data) + ')', fontsize=35)
+        plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
+            max_data) + ')', fontsize=28)
         plt.xlabel('x')
         plt.ylabel('z')
 
@@ -393,7 +398,7 @@ def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_
 
 # ----------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
-    # print('.....', fullpath_in, variable_name)
+    print('.....', fullpath_in, variable_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     var = rootgrp.groups['fields'].variables[variable_name][:, :, :]
     rootgrp.close()
