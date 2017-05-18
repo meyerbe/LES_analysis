@@ -78,12 +78,19 @@ cdef class Updrafts:
         self.zrange = krange * dz
         # print('zrange', self.zrange.shape, krange.shape, type(krange), type(self.zrange))
 
+        '''Initialize Latent Heat and ClausiusClapeyron'''
+
+        self.LH = CC_thermodynamics_c.LatentHeat(nml)
+        self.CC = CC_thermodynamics_c.ClausiusClapeyron()
+        self.CC.initialize(nml, self.LH)
+
 
         # (B) Tracer Model
         self.times_tracers = np.asarray([10800, 11700, 12600, 13500, 14400, 15300, 16200, 17100, 18000, 18900, 19800, 20700, 21600], dtype=np.int32)
         self.krange = np.array(krange, dtype=np.int32)
 
-        # self.data =
+
+        print('')
 
         return
 
@@ -198,9 +205,11 @@ cdef class Updrafts:
 
         '''(B) Initialize Latent Heat and ClausiusClapeyron'''
         cdef:
-            LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
-            ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
-        CC.initialize(nml, LH)
+            # LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+            # ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
+            LatentHeat LH = self.LH
+            ClausiusClapeyron CC = self.CC
+        # CC.initialize(nml, LH)
         print('')
 
 

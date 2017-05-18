@@ -1,4 +1,6 @@
 
+from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
+
 # cdef class CloudClosure:
 #     cpdef initialize(self)
 import numpy as np
@@ -10,6 +12,8 @@ cdef class Updrafts:
         str path_out
         double [:] p_ref
         double [:] z_ref
+        LatentHeat LH
+        ClausiusClapeyron CC
         int [:] krange
         int [:] zrange
         int [:] range
