@@ -203,7 +203,6 @@ cdef class Updrafts:
 
         # N = len(files)
 
-        '''(B) Initialize Latent Heat and ClausiusClapeyron'''
         cdef:
             # LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
             # ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
@@ -214,7 +213,7 @@ cdef class Updrafts:
 
 
         # ________________________________________________________________________________________
-        '''(C) Compute PDF f(s,qt) from LES data'''
+        '''(B) Compute PDF f(s,qt) from LES data'''
         #       - read in fields
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)

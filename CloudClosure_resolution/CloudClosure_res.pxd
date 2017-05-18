@@ -9,16 +9,9 @@ cdef class CloudClosure:
         double [:] zrange
         LatentHeat LH
         ClausiusClapeyron CC
+        dict nml
 
     cpdef initialize(self, krange, path, case_name)
-    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, dk_range, int [:] krange_, nml)
+    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, Lx_, Ly_, dk_, int [:] krange_, nml)
 #     cpdef sample_pdf(self, data, clf, double ql_mean_ref, double cf_ref, double pref,
 #                      ClausiusClapeyron CC, LatentHeat LH, ncomp_range, n_sample, nml)
-#
-#
-#
-#
-#
-#
-#
-# cpdef Gaussian_bivariate(ncomp_, data, var_name1, var_name2, time, z, path)

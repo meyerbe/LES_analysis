@@ -19,6 +19,22 @@ plt.rcParams['legend.fontsize'] = 8
 plt.rcParams['figure.titlesize'] = 15
 plt.rcParams['lines.linewidth'] = 3
 
+# # INPUTS:
+    # - error_ql = (nk): array with absolute error in mean liquid water ql
+    # - ql_mean_ref = (nk): array with mean liquid water ql values from LES field
+    # - error_cf = (nk): array with absolute error in cloud fraction
+    # - cf_ref = (nk): array with cloud fraction from LES field
+    # - n_sample: # of samples in Monte Carlos simulation
+    # - ncomp_array: array with number of Gaussian components for which GMM is computed
+    # - krange: arrays with z-values at which the PDF model is computed
+    # - dz = nml['dz']
+    # - Lx: LES domain size for which PDF model is computed
+    # - dk: number of layers over which data are accumulated
+    # - path, where figures are saved
+    #
+    # - nk: length krange
+
+
 
 def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, path, save_name):
     print('Plot PDF: ', os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '.png'))
@@ -124,8 +140,7 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
     return
 
 
-
-def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_array, krange, dz, dk, path):
+def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_array, krange, dz, Lx, dk, path):
     cmap = cm.get_cmap('jet')
     nk = error_ql.shape[0]
 
@@ -155,14 +170,14 @@ def plot_abs_error(error_ql, ql_mean_ref, error_cf, cf_ref, n_sample, ncomp_arra
     plt.ylabel(r'abs(CF$_{PDF}$-CF$_{field}$)')
     plt.title('Absolute Error cloud fraction')
 
-    save_name = 'error_figure_abs_dz'+str(dk)
+    save_name = 'error_figure_abs_Lx' + str(Lx) + '_dk' + str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
     plt.close()
     return
 
 
 
-def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mean_comp, ncomp_array, krange, dz, dk, path):
+def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mean_comp, ncomp_array, krange, dz, Lx, dk, path):
     cmap = cm.get_cmap('jet')
     nk = error_ql.shape[0]
 
@@ -194,14 +209,14 @@ def plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_ref, ql_mea
     plt.ylabel('absolute error in <ql>')
     plt.title('Absolute Error domain mean liquid water')
 
-    save_name = 'error_figure_ql_dz'+str(dk)
+    save_name = 'error_figure_ql_Lx'+str(Lx)+'_dk'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
     plt.close()
     return
 
 
 
-def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array, krange, dz, dk, path):
+def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array, krange, dz, Lx, dk, path):
     cmap = cm.get_cmap('jet')
     nk = np.shape(error_cf)[0]
     ncomp = len(ncomp_array)
@@ -239,7 +254,7 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array
 
 
 
-def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, dk, path):
+def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, Lx, dk, path):
     # means_ = (nk, ncomp, nvar)
     # covariance_ = (nk, ncomp, nvar, nvar)
     # weights_ = (nk, ncomp)
@@ -277,7 +292,7 @@ def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, dk, path):
     plt.legend(loc='best')
 
 
-    save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_dk'+str(dk)
+    save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_Lx'+str(Lx)+'_dz'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
 
     return
