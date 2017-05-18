@@ -7,6 +7,8 @@ cdef class CloudClosure:
         double [:] p_ref
         double [:] z_ref
         double [:] zrange
+        LatentHeat LH
+        ClausiusClapeyron CC
 
     cpdef initialize(self, krange, path, case_name)
     cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, dk_range, int [:] krange_, nml)

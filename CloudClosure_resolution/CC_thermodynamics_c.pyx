@@ -123,8 +123,8 @@ cdef class ClausiusClapeyron:
         pv = np.append(pv_below_Tt,pv_above_Tt )
         self.LT.initialize(T,pv)
 
-        print(self.LT.lookup(298.0))
-        print(self.LT.lookup(296.0))
+        # print(self.LT.lookup(298.0))
+        # print(self.LT.lookup(296.0))
 
         return
 

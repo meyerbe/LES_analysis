@@ -64,6 +64,15 @@ cdef class CloudClosure:
         print('')
 
 
+        self.LH = CC_thermodynamics_c.LatentHeat(nml)
+        self.CC = CC_thermodynamics_c.ClausiusClapeyron()
+        # cdef:
+        #     LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+        #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
+        self.CC.initialize(nml, self.LH)
+        print('')
+
+
         return
 
 
@@ -106,11 +115,11 @@ cdef class CloudClosure:
 
 
         # '''(B) Initialize Latent Heat and ClausiusClapeyron'''
-        cdef:
-            LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
-            ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
-        CC.initialize(nml, LH)
-        print('')
+        # cdef:
+        #     LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+        #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
+        # CC.initialize(nml, LH)
+        # print('')
 
 #         # ________________________________________________________________________________________
 #         '''(C) Compute PDF f(s,qt) from LES data'''
