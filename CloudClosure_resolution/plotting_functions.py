@@ -246,7 +246,7 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array
     plt.ylabel('absolute error in CF')
     plt.title('Absolute Error Cloud Fraction')
 
-    save_name = 'error_figure_cf_dz'+str(dk)
+    save_name = 'error_figure_cf_Lx'+str(Lx)+'_dk'+str(dk)
     plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
     plt.close()
     return

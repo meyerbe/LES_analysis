@@ -81,7 +81,7 @@ cdef class CloudClosure:
 
 
 
-    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, Lx_, Ly_, dk_, int [:] krange_, nml):
+    cpdef predict_pdf(self, files, path, int n_sample_, ncomp_range, Lx_, Ly_, dk_, int [:] krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
@@ -108,17 +108,19 @@ cdef class CloudClosure:
             int nz = nml['grid']['nz']
             double [:] p_ref = np.zeros([nz],dtype=np.double,order='c')       # <type 'CloudClosure._memoryviewslice'>
 
+        ''' Compute horizontal length scale'''
         if Lx_ > nx*dx or Ly_ > ny*dy:
             print('!!! WARNING !!!: Lx or Ly larger than domain size!')
             print('Program exit')
             sys.exit()
-
-        ''' Compute horizontal length scale'''
         cdef:
             int nx_ = np.floor(Lx_ / dx)
             int ny_ = np.floor(Ly_ / dy)
         print('')
-        print('nx_, ny_', ny_, ny_, nx, ny, Lx_, Ly_, dx, dy)
+        print('Sampling domain size: ', Lx_, Ly_, '; nx_, ny_: ', nx_, ny_)
+        print('Total domain size: ', nx*dx, ny*dy, '; nx, ny, dx, dy: ', nx, ny, dx, dy)
+        print('Number of levels: ', dk_, dk)
+        print('')
 
         # time_profile = read_in_netcdf('t', 'timeseries', self.path_ref)
         # nt_stats = time_profile.shape[0]
@@ -144,22 +146,22 @@ cdef class CloudClosure:
         # for PDF construction
         cdef:
             int i, j, ij
-            int ishift = ny_
+            int k_shift
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
-            double [:,:] qt = np.zeros([nx_*ny_*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] qt = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
-            double [:,:] ql = np.zeros([nx_*ny_*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] ql = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_all
             double qi_ = 0.0
-            double [:,:] theta_l = np.zeros([nx_*ny_*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:,:] data_all
             double Lv
 
         # for PDF sampling
         cdef:
-            # int n_sample = np.int(1e6)
+            int n_sample = n_sample_
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
@@ -176,6 +178,7 @@ cdef class CloudClosure:
             double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
+
 
 
         '''(1) Read in Fields'''
@@ -207,16 +210,16 @@ cdef class CloudClosure:
                     '''(2) Compute liquid potential temperature from temperature and moisture'''
                     # for k_ in range(-dk+1,dk):
                     for k_ in range(0,dk):
-                        print('layer: k_='+str(k_), str(iz), str(iz+k_))
+                        k_shift = k_*nx_*ny_
+                        print('layer: k_='+str(k_), str(iz), str(iz+k_), 'dk:', dk, dk_,)
 
                         for i in range(nx_):
                             for j in range(ny_):
-                                ij = i*ishift + j
+                                ij = i*ny_ + j
                                 Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-
-                                theta_l[k_*nx_*ny_+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                qt[k_*nx_*ny_+ij,k] = qt_[i,j,iz+k_]
-                                ql[k_*nx_*ny_+ij,k] = ql_[i,j,iz+k_]
+                                theta_l[k_shift+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                                qt[k_shift+ij,k] = qt_[i,j,iz+k_]
+                                ql[k_shift+ij,k] = ql_[i,j,iz+k_]
                                 ql_mean_field[k] += ql_[i,j,iz+k_]
                                 if ql_[i,j,iz+k_] > 0.0:
                                     cf_field[k] += 1.0
@@ -231,7 +234,6 @@ cdef class CloudClosure:
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
                         # print('')
-
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]

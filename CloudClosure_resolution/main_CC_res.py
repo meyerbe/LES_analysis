@@ -3,7 +3,7 @@ import argparse
 import json as simplejson
 import numpy as np
 
-import CloudClosure_res
+import CloudClosure_res, CloudClosure_res_acc
 
 def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
@@ -17,10 +17,12 @@ def main():
     path_fields = os.path.join(path, 'fields')
 
     nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
-    # nz = nml['grid']['nz']
+    nz = nml['grid']['nz']
     dz = nml['grid']['dz']
+    nx = nml['grid']['nx']
+    dx = nml['grid']['dx']
 
-    ClCl = CloudClosure_res.CloudClosure()
+    ClCl = CloudClosure_res_acc.CloudClosure()
 
 
     files = os.listdir(os.path.join(path, 'fields'))
@@ -41,7 +43,7 @@ def main():
     n_sample = 1e6
     Lx = 5e3
     Ly = 5e3
-    print('Lx, Ly', Lx, Ly)
+    print('Lx, Ly', Lx, Ly, nx*dx)
     print('krange', type(krange), type(krange[0]))
 
     # dk_range: number of layers below and above added to data
