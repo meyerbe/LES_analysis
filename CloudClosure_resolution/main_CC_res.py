@@ -28,7 +28,7 @@ def main():
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    # ncomp_range = [1, 2, 3, 4, 5]
+    # ncomp_range = [1, 2, 3]
     krange, files = set_zrange(case_name)
     N = len(files)
     print('Use the following files', files, N)
@@ -41,14 +41,14 @@ def main():
 
     ClCl.initialize(krange, path, case_name)
     n_sample = 1e6
-    Lx = 5e3
-    Ly = 5e3
+    Lx = 10e3
+    Ly = 10e3
     print('Lx, Ly', Lx, Ly, nx*dx)
     print('krange', type(krange), type(krange[0]))
 
     # dk_range: number of layers below and above added to data
     # for dk_range in [0, 1, 2, 3, 4]:
-    for dk_range in [1]:
+    for dk_range in [0]:
         ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
 
     return
@@ -81,8 +81,8 @@ def set_zrange(case_name):
         # krange = np.asarray([120, 170])
         krange = np.asarray([120, 140, 150, 160, 170, 200], dtype=np.int32)
         # files = ['18000.nc', '19800.nc', '21600.nc']
-        files = ['2400.nc']
-        files = ['3600.nc']
+        files = ['7200.nc']
+        # files = ['3600.nc']
     elif case_name == 'Bomex':
         # Bomex large, kyle
         # krange = np.asarray([27, 91])

@@ -220,7 +220,7 @@ def plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_ref, ncomp_array
     cmap = cm.get_cmap('jet')
     nk = np.shape(error_cf)[0]
     ncomp = len(ncomp_array)
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(18, 9))
     for k in range(nk):
         col = cmap(np.double(k) / nk)
 

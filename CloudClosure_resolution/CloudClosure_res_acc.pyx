@@ -288,13 +288,13 @@ cdef class CloudClosure:
                 Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
 
                 '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-                print('ql_mean_comp[k], k', k, ql_mean_comp[k])
-                print('Th_l_norm[0]', np.amin(Th_l_norm[:,0]), np.amax(Th_l_norm[:,0]), 'Th_l_norm[1]', np.amin(Th_l_norm[:,1]), np.amax(Th_l_norm[:,1]))
-                print('Th_l[0]', np.amin(Th_l[:,0]), np.amax(Th_l[:,0]), 'Th_l[1]', np.amin(Th_l[:,1]), np.amax(Th_l[:,1]))
-                print('theta_l', np.amin(theta_l[:,k]), np.amax(theta_l[:,k]), 'qt', np.amin(qt[:,k]), np.amax(qt[:,k]))
-                print('data_all', np.amin(data_all[:,0]), np.amax(data_all[:,0]), np.amin(data_all[:,0]), np.amax(data_all[:,1]))
-                print('data_all_norm', np.amin(data_all_norm[:,0]), np.amax(data_all_norm[:,0]), np.amin(data_all_norm[:,0]), np.amax(data_all_norm[:,1]))
-                print('')
+                # print('ql_mean_comp[k], k', k, ql_mean_comp[k])
+                # print('Th_l_norm[0]', np.amin(Th_l_norm[:,0]), np.amax(Th_l_norm[:,0]), 'Th_l_norm[1]', np.amin(Th_l_norm[:,1]), np.amax(Th_l_norm[:,1]))
+                # print('Th_l[0]', np.amin(Th_l[:,0]), np.amax(Th_l[:,0]), 'Th_l[1]', np.amin(Th_l[:,1]), np.amax(Th_l[:,1]))
+                # print('theta_l', np.amin(theta_l[:,k]), np.amax(theta_l[:,k]), 'qt', np.amin(qt[:,k]), np.amax(qt[:,k]))
+                # print('data_all', np.amin(data_all[:,0]), np.amax(data_all[:,0]), np.amin(data_all[:,0]), np.amax(data_all[:,1]))
+                # print('data_all_norm', np.amin(data_all_norm[:,0]), np.amax(data_all_norm[:,0]), np.amin(data_all_norm[:,0]), np.amax(data_all_norm[:,1]))
+                # print('')
                 for i in range(n_sample-2):
                     # ??? ok to use same reference pressure for all ik+k_ points?
                     # T_comp_thl, ql_comp_thl, alpha_comp_thl = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
