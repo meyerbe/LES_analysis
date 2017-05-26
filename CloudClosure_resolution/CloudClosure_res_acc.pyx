@@ -365,11 +365,8 @@ cdef class CloudClosure:
         #                 np.ndarray(ql_mean_comp), np.ndarray(ql_mean_field), np.ndarray(ql_mean_domain),
         #                 np.ndarray(error_ql), np.ndarray(rel_error_ql),
         #                 np.ndarray(error_cf), np.ndarray(rel_error_cf))
-        print('')
-        print('profiles', type(ql_mean_comp), ql_mean_comp.shape,
-              type(np.asarray(ql_mean_comp)), np.asarray(ql_mean_comp).shape,
-              type(np.asarray(ql_mean_comp)), np.asarray(ql_mean_comp).shape)
-        self.dump_error_file(self.path_out, 'CC_res_error.nc', str(tt), ncomp_range, nvar, nk,
+        error_file_name = 'CC_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk-1)*dz)+'_time'+str(tt)+'.nc'
+        self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                         np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(ql_mean_domain),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
                         np.asarray(error_cf), np.asarray(rel_error_cf))
@@ -473,6 +470,8 @@ cdef class CloudClosure:
         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
         prof_grp = rootgrp.createGroup('profiles')
         prof_grp.createDimension('nz', nz_)
+        var = prof_grp.createVariable('zrange', 'f8', ('nz'))
+        var[:] = np.asarray(self.zrange)[:]
         # var1 = prof_grp.createVariable('ql_mean_pdf_', 'f8', ('nz'))
         # var2 = prof_grp.createVariable('ql_mean_fields_', 'f8', ('nz'))
         # var3 = prof_grp.createVariable('ql_mean_domain_', 'f8', ('nz'))[:]
