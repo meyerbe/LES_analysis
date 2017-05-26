@@ -177,6 +177,7 @@ cdef class CloudClosure:
         # for Error Computation / <ql> intercomparison
         cdef:
             double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
+            double [:] ql_mean_domain = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
             double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
             double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
             double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
@@ -197,7 +198,7 @@ cdef class CloudClosure:
             weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
             tt = files[0][0:-3]
-            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk-1)*dz)\
+            nc_file_name_out = 'CC_res_ncomp'+str(ncomp)+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk-1)*dz)\
                                +'_time'+str(tt)+'.nc'
             self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
@@ -248,14 +249,19 @@ cdef class CloudClosure:
                                             # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                                             # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
                                             # print('')
+                        for i in range(nx):
+                            for j in range(ny):
+                                ql_mean_domain[k] += ql_[i,j,iz+k_]
+
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
-                ql_mean_field[k] /= ( len(files)*(nx_*ny_)*dk )
-                cf_field[k] /= ( len(files)*(nx_*ny_)*dk )
+                ql_mean_field[k] /= ( len(files)*n_col_xy*dk*(nx_*ny_) )
+                cf_field[k] /= ( len(files)*n_col_xy*dk*(nx_*ny_) )
+                ql_mean_domain[k] /= ( len(files)*dk*(nx*ny) )
 
                 '''(3) Normalise Data'''
                 scaler = StandardScaler()
@@ -314,7 +320,8 @@ cdef class CloudClosure:
 
                 print('')
                 print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
-                print('<ql> from ql fields: ', ql_mean_field[k])
+                print('<ql> from ql fields, subdomains:   ', ql_mean_field[k])
+                print('<ql> from ql fields, whole domain: ', ql_mean_domain[k])
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
                 print('')
@@ -326,17 +333,46 @@ cdef class CloudClosure:
 
                 '''(E) Plotting'''
                 save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-                plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+                # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 # plot_hist(ql, path_out)
                 print('')
-            count_ncomp += 1
+
             plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
             plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
             plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
 
             plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
+
+
+            '''(F) Save Gaussian Mixture PDFs '''
+            print('')
+            print('Dumping files: '+ self.path_out)
+            print('ncomp', ncomp, ncomp_range)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
+            print('...', error_ql.shape, ncomp, count_ncomp)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
+            # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf[:,count_ncomp]), 'rel_error_cf', ncomp, nvar, nk)
+
+            count_ncomp += 1
+
+        # self.dump_error_file(self.path_out, 'CC_res_error.nc', str(tt), ncomp_range, nvar, nk,
+        #                 np.ndarray(ql_mean_comp), np.ndarray(ql_mean_field), np.ndarray(ql_mean_domain),
+        #                 np.ndarray(error_ql), np.ndarray(rel_error_ql),
+        #                 np.ndarray(error_cf), np.ndarray(rel_error_cf))
+        print('')
+        print('profiles', type(ql_mean_comp), ql_mean_comp.shape,
+              type(np.asarray(ql_mean_comp)), np.asarray(ql_mean_comp).shape,
+              type(np.asarray(ql_mean_comp)), np.asarray(ql_mean_comp).shape)
+        self.dump_error_file(self.path_out, 'CC_res_error.nc', str(tt), ncomp_range, nvar, nk,
+                        np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(ql_mean_domain),
+                        np.asarray(error_ql), np.asarray(rel_error_ql),
+                        np.asarray(error_cf), np.asarray(rel_error_cf))
         return
 
 
@@ -428,12 +464,54 @@ cdef class CloudClosure:
 
     #----------------------------------------------------------------------
     #----------------------------------------------------------------------
+
+    def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
+                        ql_mean_comp, ql_mean_field, ql_mean_domain,
+                        error_ql, rel_error_ql,
+                        error_cf, rel_error_cf):
+        print('---------- dump error ---------- ')
+        rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
+        prof_grp = rootgrp.createGroup('profiles')
+        prof_grp.createDimension('nz', nz_)
+        # var1 = prof_grp.createVariable('ql_mean_pdf_', 'f8', ('nz'))
+        # var2 = prof_grp.createVariable('ql_mean_fields_', 'f8', ('nz'))
+        # var3 = prof_grp.createVariable('ql_mean_domain_', 'f8', ('nz'))[:]
+        # for k in range(nz_):
+        #     var1[k] = ql_mean_comp[k]
+        #     var2[k] = ql_mean_field[k]
+        #     var3[k] = ql_mean_domain[k]
+
+        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))[:]
+        var[:] = ql_mean_comp[:]
+        var = prof_grp.createVariable('ql_mean_fields', 'f8', ('nz'))[:]
+        var[:] = ql_mean_field[:]
+        var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))[:]
+        var[:] = ql_mean_domain[:]
+        error_grp = rootgrp.createGroup('error')
+        error_grp.createDimension('nz', nz_)
+        N_comp = max(comp_range)
+        error_grp.createDimension('Ncomp', N_comp)
+        var = error_grp.createVariable('error_ql', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql[:,:]
+        var = error_grp.createVariable('rel_error_ql', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql[:,:]
+        var = error_grp.createVariable('error_cf', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf[:,:]
+        var = error_grp.createVariable('rel_error_cf', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf[:,:]
+
+        rootgrp.close()
+        return
+
+
     def create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
         print('create statistics file: '+ path+', '+ file_name)
         # ncomp: number of Gaussian components in EM
         # nvar: number of variables of multi-variate Gaussian components
         rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
         dimgrp = rootgrp.createGroup('dims')
+        ts_grp = rootgrp.createGroup('time')
+        ts_grp.createDimension('nt',len(time)-1)
         means_grp = rootgrp.createGroup('means')
         means_grp.createDimension('nz', nz_)
         means_grp.createDimension('ncomp', ncomp)
@@ -444,9 +522,10 @@ cdef class CloudClosure:
         cov_grp.createDimension('nvar', nvar)
         weights_grp = rootgrp.createGroup('weights')
         weights_grp.createDimension('nz', nz_)
-        weights_grp.createDimension('EM2', 2)
-        ts_grp = rootgrp.createGroup('time')
-        ts_grp.createDimension('nt',len(time)-1)
+        weights_grp.createDimension('ncomp', ncomp)
+        error_grp = rootgrp.createGroup('error')
+        error_grp.createDimension('nz', nz_)
+
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]
@@ -458,6 +537,37 @@ cdef class CloudClosure:
         rootgrp.close()
         return
 
+
+#----------------------------------------------------------------------
+
+def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
+    print('-------- dump variable --------', var_name, group_name, path)
+    # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
+    rootgrp = nc.Dataset(path, 'r+')
+    if group_name == 'means':
+        # rootgrp = nc.Dataset(path, 'r+')
+        var = rootgrp.groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+        # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+        # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))[:,:,:]
+        var[:,:,:] = data_[:,:,:]
+
+    elif group_name == 'covariances':
+        var = rootgrp.groups['covariances'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
+        var[:,:,:,:] = data_[:,:,:,:]
+
+    elif group_name == 'weights':
+        var = rootgrp.groups['weights'].createVariable(var_name, 'f8', ('nz', 'ncomp'))
+        var[:,:] = data_[:,:]
+
+    elif group_name == 'error':
+        var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
+        var[:] = data_[:]
+
+    # # write_field(path, group_name, data, var_name)
+    # # print('--------')
+    rootgrp.close()
+    print('')
+    return
 
 
 #----------------------------------------------------------------------

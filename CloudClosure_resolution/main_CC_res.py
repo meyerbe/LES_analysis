@@ -28,7 +28,7 @@ def main():
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    # ncomp_range = [1, 2, 3]
+    # ncomp_range = [1]
     krange, files = set_zrange(case_name)
     N = len(files)
     print('Use the following files', files, N)
@@ -41,8 +41,8 @@ def main():
 
     ClCl.initialize(krange, path, case_name)
     n_sample = 1e6
-    Lx = 10e3
-    Ly = 10e3
+    Lx = 20e3
+    Ly = 20e3
     print('Lx, Ly', Lx, Ly, nx*dx)
     print('krange', type(krange), type(krange[0]))
 
@@ -78,7 +78,8 @@ def set_zrange(case_name):
         files = ['10800.nc']
     elif case_name == 'DYCOMS_RF02':
         # DYCOMS RF02
-        # krange = np.asarray([120, 170])
+        # krange = np.asarray([140,150], dtype=np.int32)
+        # krange = np.asarray(150, dtype=np.int32)
         krange = np.asarray([120, 140, 150, 160, 170, 200], dtype=np.int32)
         # files = ['18000.nc', '19800.nc', '21600.nc']
         files = ['7200.nc']
