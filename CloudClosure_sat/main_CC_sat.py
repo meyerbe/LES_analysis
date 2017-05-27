@@ -60,15 +60,15 @@ def main():
     # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
     # krange = np.asarray([35,40,45])
     # DYCOMS RF01
-    krange = np.asarray([140,150,160,166,180])
+    # krange = np.asarray([140,150,160,166,180])
     # files = ['10800.nc', '12600.nc', '14400.nc']
-    files = ['14400.nc']
+    # files = ['14400.nc']
     # files = ['3600.nc']
     # DYCOMS RF02
     # krange = np.asarray([120, 170])
-    # krange = np.asarray([120, 140, 160, 170, 200])
+    krange = np.asarray([120, 140, 160, 170, 200])
     # files = ['18000.nc', '19800.nc', '21600.nc']
-    # files = ['18000.nc']
+    files = ['10800.nc']
     # Bomex large, kyle
     # krange = np.asarray([27, 91])
     # Bomex 170314_weno7

@@ -55,25 +55,29 @@ def main():
     print('zrange: ', zrange)
 
 
-    # plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
+    plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
 
     plot_ql_n_all(files_, zrange, path, prof=False)
-    # plot_mean('qt', files_, zrange, levels, path)
-    # plot_mean('ql', files_, zrange, levels, path)
-    # plot_mean('s', files_, zrange, levels, path)
-    # plot_mean('thetali', files_, zrange, levels, path)
-    # # plot_mean_levels('qt', files_, zrange, path)
-    # # plot_mean_levels('ql', files_, zrange, path)
-    #
-    # plot_mean_var('ql', files_, zrange, path)
-    # plot_mean_var('qt', files_, zrange, path)
-    # plot_mean_var('s', files_, zrange, path)
-    # plot_mean_var('thetali', files_, zrange, path)
-    #
-    # plot_mean_cumulated('ql', files_cum, zrange, path)
-    # plot_mean_cumulated('s', files_cum, zrange, path)
+    plot_mean('qt', files_, zrange, levels, path)
+    plot_mean('ql', files_, zrange, levels, path)
+    plot_mean('s', files_, zrange, levels, path)
+    try:
+        plot_mean('thetali', files_, zrange, levels, path)
+        plot_mean_var('thetali', files_, zrange, path)
+    except:
+        print('thetali not in variables')
+    # plot_mean_levels('qt', files_, zrange, path)
+    # plot_mean_levels('ql', files_, zrange, path)
 
-    # plot_max_var('ql', zrange, path)
+    plot_mean_var('ql', files_, zrange, path)
+    plot_mean_var('qt', files_, zrange, path)
+    plot_mean_var('s', files_, zrange, path)
+
+
+    plot_mean_cumulated('ql', files_cum, zrange, path)
+    plot_mean_cumulated('s', files_cum, zrange, path)
+
+    plot_max_var('ql', zrange, path)
 
     return
 
@@ -120,15 +124,19 @@ def set_levels(case_name, files, dz):
         files_cum = ['18000.nc', '19800.nc', '21600.nc']
         levels = dz*np.asarray([120, 140, 150, 160, 170, 200], dtype=np.int32)
     elif case_name == 'Bomex':
-        ## Bomex 170314_weno7
+        ## Bomex 170314_weno7 (dz=40)
+        # files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+        # # files_ = ['18000.nc', '19800.nc', '21600.nc']
+        # files_cum = [5*hour, np.int(5.5*hour), 6*hour]
+        # levels = [400, 500, 600, 720, 800, 900, 1000]
+        ## Bomex (dz=20)
         files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
-        # files_ = ['18000.nc', '19800.nc', '21600.nc']
-        files_cum = [5*hour, np.int(5.5*hour), 6*hour]
-        levels = [400, 500, 600, 720, 800, 900, 1000]
+        files_cum = [5 * hour, np.int(5.5 * hour), 6 * hour]
+        levels = [500, 600, 720, 800, 1000, 1200, 1500, 2000]
         ## Bomex test
-        levels = [400, 500, 600, 720, 800, 900, 1000]
-        files_ = ['21600.nc']
-        files_cum = files_
+        # levels = [400, 500, 600, 720, 800, 900, 1000]
+        # files_ = ['21600.nc']
+        # files_cum = files_
     elif case_name == 'TRMM_LBA':
         # files_ = ['1012600.nc', '1014400.nc', '1016200.nc']
         # files_ = ['1014400.nc']
@@ -185,7 +193,7 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
     plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
     plt.savefig(
         os.path.join(path, 'figs_stats', var_name + '_fromprofile.pdf'))
-    plt.show()
+    # plt.show()
     # plt.close()
 
     return
