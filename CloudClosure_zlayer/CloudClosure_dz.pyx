@@ -5,6 +5,7 @@ import time
 import pylab as plt
 import netCDF4 as nc
 import numpy as np
+cimport numpy as np
 
 from sklearn import mixture
 from sklearn.preprocessing import StandardScaler
@@ -46,6 +47,8 @@ cdef class CloudClosure:
             int dz = nml['grid']['dz']
         self.path_out = os.path.join(path, 'CloudClosure_z')
 
+
+        '''Initialize Reference Pressure'''
         if case_name[0:8] == 'ZGILS_S6':
             self.path_ref = os.path.join(path, 'Stats.ZGILS_S6_1xCO2_SST_FixSub.nc')
         else:
@@ -61,19 +64,25 @@ cdef class CloudClosure:
         self.zrange = np.double(krange) * dz
         print('')
         print('zrange', np.double(krange) * dz)
+        print('')
 
-        # plt.figure()
-        # plt.plot(self.p_ref)
-        # plt.title('p ref')
-        # plt.savefig(os.path.join(path,'CloudClosure_z_figures','p_ref.pdf'))
-        # plt.close()
+
+        '''Initialize Latent Heat and ClausiusClapeyron'''
+        self.LH = CC_thermodynamics_c.LatentHeat(self.nml)
+        self.CC = CC_thermodynamics_c.ClausiusClapeyron()
+        # cdef:
+        #     LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+        #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
+        self.CC.initialize(self.nml, self.LH)
+        print('')
+
+
         return
 
 
 
 
-    # cpdef predict_pdf(self, files, path, ncomp_range, dk_range_, int [:] krange_, nml):
-    cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, dk_, int [:] krange_, nml):
+    cpdef predict_pdf(self, files, path, int n_sample_, ncomp_range, dk_, int [:] krange_, nml):
         print('')
         print('--- PDF Prediction ---')
         print('')
@@ -109,15 +118,17 @@ cdef class CloudClosure:
             p_ref[k] = self.p_ref[k]
 
 
-        '''(B) Initialize Latent Heat and ClausiusClapeyron'''
+        # cdef:
+        #     LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
+        #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
+        # CC.initialize(nml, LH)
+        # print('')
         cdef:
-            LatentHeat LH = CC_thermodynamics_c.LatentHeat(nml)
-            ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
-        CC.initialize(nml, LH)
-        print('')
+            LatentHeat LH = self.LH
+            ClausiusClapeyron CC = self.CC
 
         # ________________________________________________________________________________________
-        '''(C) Compute PDF f(s,qt) from LES data'''
+        '''(B) Compute PDF f(s,qt) from LES data'''
         #       - read in fields
         #       - compute theta_l
         #       - compute PDFs f(s,qt), g(th_l, qt)
@@ -135,13 +146,13 @@ cdef class CloudClosure:
             double [:,:] ql = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_all
             double qi_ = 0.0
-            double [:,:] theta_l = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l = np.zeros([nx*ny*dk,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:,:] data_all
             double Lv
 
         # for PDF sampling
         cdef:
-            # int n_sample = np.int(1e6)
+            int n_sample = n_sample_
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
@@ -214,19 +225,16 @@ cdef class CloudClosure:
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
                         # print('')
-
                     del s_, ql_, qt_, T_
                     data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
-                    # data[:, 0] = thl_allz
-                    # data[:, 1] = qt_allz
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
-                ql_mean_field[k] /= ( len(files)*(nx*ny)*dk )
+                ql_mean_field[k] /= ( len(files)*dk*(nx*ny) )
                 print('CF field before division (dk='+str(dk-1)+'): ', cf_field[k]/(nx*ny*len(files)))
                 print('CF field after division (dk='+str(dk-1)+'): ', cf_field[k]/(len(files)*nx*ny*dk))
-                cf_field[k] /= ( len(files)*(nx*ny)*dk )
+                cf_field[k] /= ( len(files)*dk*(nx*ny) )
 
                 '''(3) Normalise Data'''
                 scaler = StandardScaler()
