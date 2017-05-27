@@ -47,11 +47,12 @@ def main():
         t_ref = np.int(t_ref + 1)
     print('t_ref: ', t_ref, time_ref.shape[0])
 
-    xlimits = [-9e-6,1e-6]
+    xlimits_ql = [-9e-6,1e-6]
+    xlimits_cf = [-5e-2, 1e-2]
     # plot_error_ql(case_name, path, file_name_err, xlimits, dz, Lx, delta_z, time_field, t_ref)
     for ncomp_max in [3,5]:
-        plot_error_ql_ncompmax(case_name, path, file_name_err, ncomp_max, xlimits, dz, Lx, delta_z, time_field, t_ref)
-    # plot_error_cf(fullpath, file_name_err, xlimits, dz, Lx, delta_z, time_field, t_ref)
+        plot_error_ql_ncompmax(case_name, path, file_name_err, ncomp_max, xlimits_ql, dz, Lx, delta_z, time_field, t_ref)
+        plot_error_cf_ncompmax(fullpath, file_name_err, ncomp_max, xlimits_cf, dz, Lx, delta_z, time_field, t_ref)
 
 
     return
@@ -83,13 +84,13 @@ def plot_error_ql_ncompmax(case_name, path, file_name, ncomp_max, xlimits, dz, L
     [nz, ncomp] = error_ql.shape
     print('zrange: '+str(zrange), ' nz '+ str(nz))
     print('ncomp ' + str(ncomp_max))
-    plt.figure(figsize=(18,9))
-    plt.subplot(1,2,1)
+    plt.figure(figsize=(18, 9))
+    plt.subplot(1, 2, 1)
     for nc in range(ncomp_max):
-        col = cm1(np.double(nc)/ncomp_max)
-        plt.plot(error_ql[:,nc], zrange[:], '-x', color=col, label='ncomp='+str(nc+1))
+        col = cm1(np.double(nc) / ncomp_max)
+        plt.plot(error_ql[:, nc], zrange[:], '-x', color=col, label='ncomp=' + str(nc + 1))
     plt.legend()
-    plt.title('error <ql> (Lx='+str(Lx)+', dz='+ str(delta_z) +'m, t=' + str(time)+')')
+    plt.title('error <ql> (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm, t=' + str(time) + ')')
     plt.xlabel(r'$\epsilon(<ql>)$')
     plt.ylabel('height z (m)')
     plt.subplot(1, 2, 2)
@@ -102,7 +103,7 @@ def plot_error_ql_ncompmax(case_name, path, file_name, ncomp_max, xlimits, dz, L
     plt.title('error <ql> (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm)')
     plt.xlabel(r'$\epsilon(<ql>)$')
     plt.ylabel('height z (m)')
-    save_name = 'error_ql_nc'+str(ncomp_max)+'_Lx'+str(Lx)+'_dz'+ str(delta_z) +'_time'+str(time) + '.pdf'
+    save_name = 'error_ql_nc' + str(ncomp_max) + '_Lx' + str(Lx) + '_dz' + str(delta_z) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, 'error', save_name))
     print(os.path.join(path_out, save_name))
 
@@ -186,7 +187,7 @@ def plot_error_ql(case_name, path, file_name, xlimits, dz, Lx, delta_z_, time, t
     print('')
     return
 
-def plot_error_cf(fullpath, file_name, xlimits, dz, Lx, delta_z_, time, t_ref):
+def plot_error_cf_ncompmax(fullpath, file_name, ncomp_max, xlimits, dz, Lx, delta_z_, time, t_ref):
     import netCDF4 as nc
     cm1 = plt.cm.get_cmap('viridis')
     cm2 = plt.cm.get_cmap('bone')
@@ -210,28 +211,30 @@ def plot_error_cf(fullpath, file_name, xlimits, dz, Lx, delta_z_, time, t_ref):
     print('ncomp ' + str(ncomp))
 
     plt.figure(figsize=(10,8))
-    for nc in range(ncomp):
-        col = cm1(np.double(nc) / 10)
+    for nc in range(ncomp_max):
+        col = cm1(np.double(nc) / ncomp_max)
         plt.plot(error_cf[:,nc], zrange[:], '-x', color=col, label='ncomp='+str(nc+1))
     plt.legend()
+    plt.xlim(xlimits)
     plt.title('error CF (Lx='+str(Lx)+', dz='+ str(delta_z) +'m, t=' + str(time)+')')
     plt.xlabel(r'$\epsilon(CF)$')
     plt.ylabel('height z (m)')
     # plt.show()
-    save_name = 'error_cf_Lx'+str(Lx)+'_dz'+ str(delta_z) +'_time'+str(time) + '.pdf'
+    save_name = 'error_cf_nc'+str(ncomp_max) + '_Lx'+str(Lx)+'_dz'+ str(delta_z) +'_time'+str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, 'error', save_name))
     # print(os.path.join(path_out, save_name))
 
     plt.figure()
-    for nc in range(ncomp):
-        col = cm1(np.double(nc) / 10)
+    for nc in range(ncomp_max):
+        col = cm1(np.double(nc) / ncomp_max)
         plt.plot(error_cf_rel[:, nc], zrange[:], '-x', color=col, label='ncomp=' + str(nc+1))
     plt.legend()
+    plt.xlim([-1,1e-2])
     plt.title('relative error CF (Lx='+str(Lx)+', dz='+ str(delta_z) +'m)')
     plt.xlabel(r'$\epsilon(CF)/CF$')
     plt.ylabel('height z (m)')
     # plt.show()
-    save_name = 'error_cf_rel_Lx' + str(Lx) + '_dz' + str(delta_z) + '_time' + str(time)  + '.pdf'
+    save_name = 'error_cf_rel_nc' + str(ncomp_max) + '_Lx' + str(Lx) + '_dz' + str(delta_z) + '_time' + str(time)  + '.pdf'
     plt.savefig(os.path.join(path_out, 'error', save_name))
 
     print('')
