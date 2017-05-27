@@ -74,10 +74,11 @@ def main():
 
 
     # (0) import Namelist --> to chose right mean profile, fitting with time
-    nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     global nx0, ny0, nz0
-    global time
+    global time, nml
+    nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     dt = nml['stats_io']['frequency']
+    dx = nml['grid']['dx']
     dy = nml['grid']['dy']
     dz = nml['grid']['dz']
     print('dt:', dt, 'dz:', dz)
@@ -203,16 +204,18 @@ def set_zrange(case_name):
         # krange = np.asarray([120, 170])
         krange = np.asarray([120, 140, 150, 160, 170, 200])
         # files = ['18000.nc', '19800.nc', '21600.nc']
-        files = ['2400.nc']
+        # files = ['10800.nc']
         files = ['3600.nc']
     elif case_name == 'Bomex':
         # Bomex large, kyle
         # krange = np.asarray([27, 91])
-        # Bomex 170314_weno7
-        ## krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
-        krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
-        ## files = ['18000.nc', '19800.nc', '21600.nc']
+        ## Bomex 170314_weno7 (dz=40)
+        # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
+        # files = ['21600.nc']
+        ## Bomex (dz=20)
+        krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
         files = ['21600.nc']
+        files = ['18000.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
@@ -234,6 +237,10 @@ def set_zrange(case_name):
 # ----------------------------------
 def plot_field(field_name, field_data, level, file_name, tt, type):
     print('plot field: ', field_name)
+    global nml
+    dx = nml['grid']['dx']
+    dy = nml['grid']['dy']
+    dz = nml['grid']['dz']
     plt.figure(figsize=(12,10))
     if field_name == 'w':
         ax1 = plt.contourf(field_data.T, cmap=cm.bwr)
@@ -246,13 +253,13 @@ def plot_field(field_name, field_data, level, file_name, tt, type):
     if type == 'hor':
         # plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field), fontsize=28)
         plt.title(field_name + ', (z=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
-        plt.xlabel('x')
-        plt.ylabel('y')
+        plt.xlabel(r'x ($\Delta $x='+str(dx)+'m)')
+        plt.ylabel(r'y ($\Delta $y='+str(dy)+'m)')
     elif type == 'vert':
         # plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=28)
         plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
         plt.xlabel('x')
-        plt.ylabel('z')
+        plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
 
     plt.savefig(fullpath_out + file_name + '.png')
     # # plt.show()
