@@ -6,12 +6,25 @@ import numpy as np
 import CloudClosure_res, CloudClosure_res_acc
 
 def main():
+    Lx = 10e3
+    Ly = 10e3
+    dk_range = 0
+
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
     parser.add_argument("casename")
+    parser.add_argument("--Lx")
+    # parser.add_argument("--Ly")
+    parser.add_argument("--dk")
     args = parser.parse_args()
     path = args.path
     case_name = args.casename
+    if args.Lx:
+        Lx = np.int(args.Lx)
+        Ly = Lx
+    if args.dk:
+        dk_range = np.int(args.dk)
+
 
     path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
     path_fields = os.path.join(path, 'fields')
@@ -24,7 +37,6 @@ def main():
 
     ClCl = CloudClosure_res_acc.CloudClosure()
 
-
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
     ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -33,23 +45,22 @@ def main():
     N = len(files)
     print('Use the following files', files, N)
     print('zrange: ' + str(krange * dz))
+    print('Lx, Ly', Lx, Ly, nx * dx)
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
+    print('krange', type(krange), type(krange[0]))
     print('')
     print(path)
     print('')
 
     ClCl.initialize(krange, path, case_name)
     n_sample = 1e6
-    Lx = 20e3
-    Ly = 20e3
-    print('Lx, Ly', Lx, Ly, nx*dx)
-    print('krange', type(krange), type(krange[0]))
 
     # dk_range: number of layers below and above added to data
     # for dk_range in [0, 1, 2, 3, 4]:
-    for dk_range in [0]:
-        ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
+    # for dk_range in [0]:
+    #     ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
+    ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
 
     return
 
@@ -70,7 +81,7 @@ def set_zrange(case_name):
         krange = np.asarray([35,40,45])
     elif case_name == 'DYCOMS_RF01':
         # DYCOMS RF01 large
-        krange = np.asarray([140, 150, 160, 166, 180], dtype=np.int32)
+        krange = np.asarray([135, 140, 145, 150, 155, 160, 166, 180], dtype=np.int32)
         # files = ['3600.nc']
         # DYCOMS RF01
         krange = np.asarray([140, 150, 160, 166, 180], dtype=np.int32)
@@ -85,12 +96,13 @@ def set_zrange(case_name):
         files = ['7200.nc']
         # files = ['3600.nc']
     elif case_name == 'Bomex':
-        # Bomex large, kyle
+        ## Bomex large, kyle
         # krange = np.asarray([27, 91])
-        # Bomex 170314_weno7
-        ## krange = np.asarray([15, 20, 25, 30, 35, 40, 45])
-        krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50], dtype=np.int32)
-        ## files = ['18000.nc', '19800.nc', '21600.nc']
+        ## Bomex 170314_weno7 (dz=40)
+        # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50], dtype=np.int32)
+        # files = ['21600.nc']
+        ## Bomex (dz=20)
+        krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
         files = ['21600.nc']
         # Bomex test
         # files = ['21600.nc']
@@ -102,7 +114,7 @@ def set_zrange(case_name):
         # TRMM
         # files = ['1012600.nc', '1014400.nc', '1016200.nc']
         files = ['1014400.nc']
-        krange = np.asarray([10, 15, 20, 30, 40, 50, 60], dtype=np.int32)
+        krange = np.asarray([10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], dtype=np.int32)
 
     return krange, files
 

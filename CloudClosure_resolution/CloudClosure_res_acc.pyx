@@ -111,6 +111,7 @@ cdef class CloudClosure:
         ''' Compute horizontal length scale'''
         if Lx_ > nx*dx or Ly_ > ny*dy:
             print('!!! WARNING !!!: Lx or Ly larger than domain size!')
+            print('Domain Size: ', nx*dx, ny*dy, ' Lx: ', Lx_, Ly_)
             print('Program exit')
             sys.exit()
         cdef:
@@ -333,7 +334,7 @@ cdef class CloudClosure:
 
                 '''(E) Plotting'''
                 save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-                # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+                plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 # plot_hist(ql, path_out)
@@ -352,7 +353,6 @@ cdef class CloudClosure:
             print('ncomp', ncomp, ncomp_range)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
-            print('...', error_ql.shape, ncomp, count_ncomp)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
             # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
@@ -472,20 +472,16 @@ cdef class CloudClosure:
         prof_grp.createDimension('nz', nz_)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
-        # var1 = prof_grp.createVariable('ql_mean_pdf_', 'f8', ('nz'))
-        # var2 = prof_grp.createVariable('ql_mean_fields_', 'f8', ('nz'))
-        # var3 = prof_grp.createVariable('ql_mean_domain_', 'f8', ('nz'))[:]
-        # for k in range(nz_):
-        #     var1[k] = ql_mean_comp[k]
-        #     var2[k] = ql_mean_field[k]
-        #     var3[k] = ql_mean_domain[k]
 
-        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))[:]
+        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
         var[:] = ql_mean_comp[:]
-        var = prof_grp.createVariable('ql_mean_fields', 'f8', ('nz'))[:]
+        var = prof_grp.createVariable('ql_mean_fields', 'f8', ('nz'))
         var[:] = ql_mean_field[:]
-        var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))[:]
+        var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))
         var[:] = ql_mean_domain[:]
+        print(type(ql_mean_comp), type(ql_mean_field), type(ql_mean_domain))
+        print(type(error_ql))
+
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
         N_comp = max(comp_range)
