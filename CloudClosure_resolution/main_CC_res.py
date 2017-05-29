@@ -35,7 +35,8 @@ def main():
     nx = nml['grid']['nx']
     dx = nml['grid']['dx']
 
-    ClCl = CloudClosure_res_acc.CloudClosure()
+    # ClCl = CloudClosure_res_acc.CloudClosure()
+    ClCl = CloudClosure_res.CloudClosure()
 
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
@@ -103,7 +104,7 @@ def set_zrange(case_name):
         # files = ['21600.nc']
         ## Bomex (dz=20)
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
-        files = ['21600.nc']
+        files = ['18000.nc', '19800.nc', '21600.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])

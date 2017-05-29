@@ -37,7 +37,7 @@ cdef class CloudClosure:
 
     cpdef initialize(self, krange, path, case_name):
         print('')
-        print('--- Cloud Closure Scheme ---')
+        print('--- Cloud Closure Scheme (accumulating) ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
         print('')
         self.nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())

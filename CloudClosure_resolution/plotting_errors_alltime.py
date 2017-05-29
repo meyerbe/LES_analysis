@@ -1,5 +1,5 @@
-import pylab as plt
 import numpy as np
+import pylab as plt
 import netCDF4 as nc
 import sys, os
 import json as simplejson
@@ -69,6 +69,9 @@ def main():
 
 
     return
+
+
+
 
 def plot_error_ql_ncompmax(case_name, path, file_name, ncomp_max, xlimits, dz, Lx, delta_z_, time, t_ref):
     import netCDF4 as nc
