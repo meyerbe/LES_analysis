@@ -20,11 +20,30 @@ from plotting_functions import plot_labels_comparison, plot_labels, plot_labels_
 
 # class Updrafts:
 # (1) PDF model
-#   (a) read in fields, compute PDF, label points
-#       self.predict_PDF(...) --> output: clf (PDF) & labels (2D array for all data points); error for <ql> and CF
+#   (a) Updrafts.update: read in fields, compute PDF, label points
+#       (i) read in 3D files
+#       (ii) self.predict_PDF(...) --> output: clf (PDF) & labels (2D array for all data points); error for <ql> and CF
+#               (A) Set up files
+#               (B) Compute PDF
+#                   - read in fields (and accumulate over several time steps)
+#                   for each k...
+#                       - normalise data
+#                       - compute PDF for two components
+#                       - compute labels
+#                       - sort labels and PDF parameters according to <qt>
+#                       - rearrange labels into 3D array
+#               (C) Compute Error
+#               (D) IO:
+#                       - output updrafts file (labels)
+#                       - output PDF parameters (sorted)
+#                       - output errors
 #           calls:
-#           self.sort_PDF(...) --> output: sorted PDF parameters and labels
-#           create_updrafts_file(), write_updrafts_file(), create_statistics_file() --> output of PDF parameters and labels
+#               self.sort_PDF(...)              --> sorts PDF parameters
+#               self.create_updrafts_file()
+#               self.write_updrafts_file()      --> output of labels
+#               self.create_statistics_file()   --> output of sorted PDF parameters
+#       (iii) plotting functions
+#
 #   (b) read in labelled fields directly
 #
 # (2) Tracer model: read in pkl-files from Colleen
@@ -157,10 +176,8 @@ cdef class Updrafts:
         # output:
         #     - labels = (nx,ny,nz):      3D array with labels from PDF clustering
         #
-
         # (A) Set up files
-        # (B) Initialize Latent Heat and Clausius Clapeyron
-        # (C) Compute PDF
+        # (B) Compute PDF
         #       - read in fields (and accumulate over several time steps)
         #       for each k...
         #           - normalise data
@@ -168,6 +185,11 @@ cdef class Updrafts:
         #           - compute labels
         #           - sort labels according to <qt>
         #           - rearrange labels into 3D array
+        # (C) Compute Error
+        # (D) IO:
+        #       - output updrafts file (labels)
+        #       - output PDF parameters (sorted)
+        #       - output errors
 
 
         print('')
@@ -351,7 +373,7 @@ cdef class Updrafts:
 
             # self.write_updrafts_field(self.path_out, nc_file_name_labels, labels)
 
-        self.write_updrafts_field(self.path_out, nc_file_name_labels, labels, nml)
+        self.write_updrafts_file(self.path_out, nc_file_name_labels, labels, nml)
 
         return labels
 
@@ -494,8 +516,7 @@ cdef class Updrafts:
     #     rootgrp.close()
     #     return
 
-    # cpdef write_updrafts_field(self, path, file_name, double[:,:,:] data):
-    cpdef write_updrafts_field(self, path, file_name, data, nml):
+    cpdef write_updrafts_file(self, path, file_name, data, nml):
         print('write updrafts: ' + os.path.join(path, file_name))
         root = nc.Dataset(os.path.join(path, file_name), 'r+', format='NETCDF4')
         nk = len(self.zrange)
