@@ -33,6 +33,7 @@ def main():
     parser.add_argument("casename")
     parser.add_argument("--var_name")
     parser.add_argument("--cont_name")
+    parser.add_argument("--files")
     args = parser.parse_args()
     path = args.path
     case_name = args.casename
@@ -101,10 +102,12 @@ def main():
         if n[i] != ni_[i]:
             print('Dimensions do not fit!')
             sys.exit()
+    print(n[0], n[1], n[2])
     nx0 = np.int(n[0]/2)
     ny0 = np.int(n[1]/2)
     nz0 = np.int(n[2]/2)
-    ntot = n[0]*n[1]*n[2]
+
+    # ntot = n[0]*n[1]*n[2]
     print('x0,y0,z0', nx0, ny0, nz0, n[:])
 
 
@@ -115,6 +118,9 @@ def main():
     yrange = np.asarray(np.linspace(1, n[1] - 1, 10), dtype=np.int16)
     # yrange = np.asarray([10])
     zrange, files = set_zrange(case_name)
+    if args.files:
+        files = ['']
+        files[0] = args.files + '.nc'
 
 
 
@@ -144,18 +150,19 @@ def main():
                     print('cont: ', cont_name+ ', path: ' + os.path.join(path_fields, file_name))
                     # cont_name = 'phi'
                     # cont_name = 'qt'
-                    cont_data = read_in_netcdf_fields(cont_name, os.path.join(path_fields, file_name))
+                    if cont_name != var_name and cont_name != ' ':
+                        cont_data = read_in_netcdf_fields(cont_name, os.path.join(path_fields, file_name))
                     print('Contour variable: ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
                     for k in zrange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
                         plot_field(var_name, field_data[:, :, k], k*dz, plot_name, tt, 'hor')
-                        if cont_name != var_name:
+                        if cont_name != var_name and cont_name != ' ':
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_z' + np.str(np.int(k*dz)) + 'm'
                             plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, tt, 'hor')
                     for k in yrange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_y' + np.str(np.int(k * dy)) + 'm'
                         plot_field(var_name, field_data[:, k, :], k*dy, plot_name, tt, 'vert')
-                        if cont_name != var_name:
+                        if cont_name != var_name and cont_name != ' ':
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_y' + np.str(np.int(k*dy)) + 'm'
                             plot_field_cont(var_name, field_data[:, k, :], cont_name,
                                             cont_data[:, k, :], k*dz, plot_name, tt, 'vert')
@@ -170,6 +177,9 @@ def main():
                 #                 + np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
                 #     plot_field_cont1_cont2(var_name, field_data[:,:,k],
                 #                                cont_name1,cont_data1[:,:,k],cont_name2,cont_data2[:,:,k], plot_name)
+
+        else:
+            print('!!!', file_name)
 
 
     return
@@ -216,6 +226,7 @@ def set_zrange(case_name):
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
         files = ['21600.nc']
         files = ['18000.nc']
+        files = ['19800.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
@@ -261,6 +272,7 @@ def plot_field(field_name, field_data, level, file_name, tt, type):
         plt.xlabel('x')
         plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
 
+    print('saving: ', fullpath_out + file_name+ '.png')
     plt.savefig(fullpath_out + file_name + '.png')
     # # plt.show()
     plt.close()

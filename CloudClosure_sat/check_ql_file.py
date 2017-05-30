@@ -18,6 +18,8 @@ def main():
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
     parser.add_argument("casename")
+    parser.add_argument("--files")
+    parser.add_argument("--files_cum")
     args = parser.parse_args()
     path = args.path
     global case_name
@@ -45,6 +47,12 @@ def main():
     # files_ = [0, 1 * day, 2 * day, 3 * day, 4 * day, 5 * day, 6*day, 7*day, 8*day]
     # files_ = [6*day, 7*day, 8*day, 9*day, 10*day, 11*day, 12*day, 13*day]
     levels, files_, files_cum, time_prof = set_levels(case_name, files, dz)
+    if args.files:
+        files_ = ['']
+        files_[0] = args.files + '.nc'
+    # if args.files_cum:
+    #     files_cum = ['']
+    #     files_cum[0] = args.files + '.nc'
     print('Selected Files: ', files_)
 
     # path_fields = os.path.join(path, 'fields', str(t)+'.nc')
@@ -119,6 +127,7 @@ def set_levels(case_name, files, dz):
         levels = dz*np.asarray([140, 150, 160, 166, 180], dtype=np.int32)
     elif case_name == 'DYCOMS_RF02':
         files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
+        files_ = [0, 1 * hour, 2 * hour]
         # files_ = ['7200.nc']
         # files_cum = ['10800.nc', '12600.nc', '14400.nc']
         files_cum = ['18000.nc', '19800.nc', '21600.nc']
