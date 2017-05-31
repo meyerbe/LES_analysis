@@ -35,15 +35,14 @@ def main():
     if args.dk:
         dk_range = args.dk
 
-
-    path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
+    path_ref = os.path.join(path, 'Stats.' + case_name + '.nc')
     path_fields = os.path.join(path, 'fields')
 
-    nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
-    nz = nml['grid']['nz']
-    dz = nml['grid']['dz']
+    nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     nx = nml['grid']['nx']
+    nz = nml['grid']['nz']
     dx = nml['grid']['dx']
+    dz = nml['grid']['dz']
 
     # ClCl = CloudClosure_res_acc.CloudClosure()
     ClCl = CloudClosure_res.CloudClosure()
@@ -56,7 +55,7 @@ def main():
     N = len(files)
     print('Use the following files', files, N)
     print('zrange: ' + str(krange * dz))
-    print('dkrange: '+ str(dk_range), type(dk_range), type(dk_range[0]))
+    print('dkrange: ' + str(dk_range), type(dk_range), type(dk_range[0]))
     print('Lx, Ly', Lx, Ly, nx * dx)
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
@@ -99,9 +98,9 @@ def set_zrange(case_name):
         krange = np.asarray([135, 140, 145, 150, 155, 160, 166, 180], dtype=np.int32)
         # files = ['3600.nc']
         # DYCOMS RF01
-        krange = np.asarray([140, 150, 160, 166, 180], dtype=np.int32)
-        # files = ['10800.nc', '12600.nc', '14400.nc']
-        files = ['10800.nc']
+        # krange = np.asarray([140, 150, 160, 166, 180], dtype=np.int32)
+        files = ['10800.nc', '14400.nc']
+        # files = ['10800.nc']
     elif case_name == 'DYCOMS_RF02':
         # DYCOMS RF02
         # krange = np.asarray([140,150], dtype=np.int32)
