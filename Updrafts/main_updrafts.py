@@ -27,10 +27,8 @@ def main():
 
     # Bomex test
     files_3d = ['21600.nc']
-    # krange = np.asarray([10, 17, 20, 25, 50])
-    krange = np.asarray([20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=np.int32)
-    # krange = np.asarray([20, 25])
-    # krange = np.asarray([18,30,38])
+    # krange = np.asarray([20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=np.int32)
+    krange = np.arange(0, 120, 1, dtype=np.int32)
     print('...', type(krange), type(krange[0]))
 
     N = len(files_3d)
