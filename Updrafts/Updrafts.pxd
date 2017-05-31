@@ -33,7 +33,7 @@ cdef class Updrafts:
 
     cpdef create_updrafts_file(self, path, file_name, time, ncomp, nvar, nz_, nml)
     # cpdef write_updrafts_field(self, path, file_name, double[:,:,:] data)
-    cpdef write_updrafts_field(self, path, file_name, data, nml)
+    cpdef write_updrafts_file(self, path, file_name, data, nml)
     cpdef create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_)
 
 
