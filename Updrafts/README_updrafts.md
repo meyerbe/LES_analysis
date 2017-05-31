@@ -22,3 +22,31 @@ red = differences (could be further distinguised into which algorithm classifies
 - compute __conditional statistics__, e.g. cloud fraction and compare
 
 
+
+# Algorithm:
+### Updrafts.initialize
+
+**1.** `Updrafts.initialize:`
+- case_name
+- ref.pressure, ref.height
+
+**2.** `Updrafts.update:`
+
+ **(a)**  read in files at time d (path from args.parse): qt_, s_, ql_, T_ = (nx,ny,nz)
+
+**(b) PDF Model:**
+- initialize CC, Lv-Lookup Table
+- 3D Data collected in 2D array
+- normalise Data
+- GMM model --> PDF (clf)
+- compute Labels array
+- sort PDF: sort parameters and labels according to <qt>
+- rearrange Data into 2D array
+
+return: labels = (nx, ny, nz)
+
+**(c) Tracer model:**
+
+for type in list:
+- read in 3D array = (nx, ny, nz)
+- plotting(...)

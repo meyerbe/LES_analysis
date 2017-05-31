@@ -8,22 +8,32 @@ import CloudClosure_res, CloudClosure_res_acc
 def main():
     Lx = 10e3
     Ly = 10e3
-    dk_range = 0
+    dk_range = [0]
 
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
     parser.add_argument("casename")
-    parser.add_argument("--Lx")
-    # parser.add_argument("--Ly")
-    parser.add_argument("--dk")
+    # parser.add_argument("--Lx")
+    # # parser.add_argument("--Ly")
+    # parser.add_argument("--dk")
+    parser.add_argument('--dk', nargs='+', type=int)
+    # # This is the correct way to handle accepting multiple arguments (or list)
+    # # '+' == 1 or more.
+    # # '*' == 0 or more.
+    # # '?' == 0 or 1.
+    # # An int is an explicit number of arguments to accept.
+    # parser.add_argument('--nargs', nargs='+')
+    # # To make the input integers
+    # parser.add_argument('--nargs-int-type', nargs='+', type=int)
+
     args = parser.parse_args()
     path = args.path
     case_name = args.casename
-    if args.Lx:
-        Lx = np.int(args.Lx)
-        Ly = Lx
+    # if args.Lx:
+    #     Lx = np.int(args.Lx)
+    #     Ly = Lx
     if args.dk:
-        dk_range = np.int(args.dk)
+        dk_range = args.dk
 
 
     path_ref = os.path.join(path, 'Stats.'+case_name+'.nc')
@@ -46,6 +56,7 @@ def main():
     N = len(files)
     print('Use the following files', files, N)
     print('zrange: ' + str(krange * dz))
+    print('dkrange: '+ str(dk_range), type(dk_range), type(dk_range[0]))
     print('Lx, Ly', Lx, Ly, nx * dx)
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
@@ -61,7 +72,10 @@ def main():
     # for dk_range in [0, 1, 2, 3, 4]:
     # for dk_range in [0]:
     #     ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
-    ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk_range, krange, nml)
+    for Lx in [1000, 5000, 10000, 20000]:
+        Ly = Lx
+        for dk in dk_range:
+            ClCl.predict_pdf(files, path, n_sample, ncomp_range, Lx, Ly, dk, krange, nml)
 
     return
 
@@ -94,8 +108,7 @@ def set_zrange(case_name):
         # krange = np.asarray(150, dtype=np.int32)
         krange = np.asarray([120, 140, 150, 160, 170, 200], dtype=np.int32)
         # files = ['18000.nc', '19800.nc', '21600.nc']
-        files = ['7200.nc']
-        # files = ['3600.nc']
+        files = ['14400.nc']
     elif case_name == 'Bomex':
         ## Bomex large, kyle
         # krange = np.asarray([27, 91])
