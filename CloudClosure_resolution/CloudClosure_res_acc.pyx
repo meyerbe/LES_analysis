@@ -368,6 +368,7 @@ cdef class CloudClosure:
         error_file_name = 'CC_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk-1)*dz)+'_time'+str(tt)+'.nc'
         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                         np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(ql_mean_domain),
+                        np.asarray(cf_comp), np.asarray(cf_field),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
                         np.asarray(error_cf), np.asarray(rel_error_cf))
         return
@@ -464,6 +465,7 @@ cdef class CloudClosure:
 
     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
                         ql_mean_comp, ql_mean_field, ql_mean_domain,
+                        cf_comp, cf_field,
                         error_ql, rel_error_ql,
                         error_cf, rel_error_cf):
         print('---------- dump error ---------- ')
@@ -479,6 +481,10 @@ cdef class CloudClosure:
         var[:] = ql_mean_field[:]
         var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))
         var[:] = ql_mean_domain[:]
+        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
+        var[:] = cf_comp[:]
+        var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
+        var[:] = cf_field[:]
         print(type(ql_mean_comp), type(ql_mean_field), type(ql_mean_domain))
         print(type(error_ql))
 
