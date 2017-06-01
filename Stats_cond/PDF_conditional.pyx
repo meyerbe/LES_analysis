@@ -220,31 +220,36 @@ cdef class PDF_conditional:
         print('labels_tr', labels_tracers.shape, np.count_nonzero(labels_tracers))
 
         '''(2) Compute liquid potential temperature from temperature and moisture'''
-        # for k_ in range(0,dk):
-        k_ = 0
-        for i in range(nx_):
-            for j in range(ny_):
-                if labels_tracers[i,j,iz] == 0:
-                    n_env += 1
-                    Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-                    aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                    theta_l = np.append(theta_l, aux)
-                    qt = np.append(qt, qt_[i, j, iz])
-                    ql = np.append(ql, ql_[i, j, iz])
-                    ql_mean_env[k] += ql_[i, j, iz]
+        for k_ in range(0,dk):
+            print('----- k_='+str(k_), ' dk='+str(dk))
+        # k_ = 0
+            for i in range(nx_):
+                for j in range(ny_):
+                    if labels_tracers[i,j,iz] == 0:
+                        n_env += 1
+                        Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
+                        aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                        theta_l = np.append(theta_l, aux)
+                        qt = np.append(qt, qt_[i, j, iz])
+                        ql = np.append(ql, ql_[i, j, iz])
+                        ql_mean_env[k] += ql_[i, j, iz]
+                        if ql_[i,j,iz] > 0.0:
+                            cf_env[k] += 1.0
+                    else:
+                        n_updraft += 1
+                        ql_mean_updraft[k] += ql_[i,j,iz]
+                        if ql_[i,j,iz] > 0.0:
+                            cf_updraft[k] += 1.0
+                    ql_mean_domain[k] += ql_[i, j, iz]
                     if ql_[i,j,iz] > 0.0:
-                        cf_env[k] += 1.0
-                else:
-                    n_updraft += 1
-                    ql_mean_updraft[k] += ql_[i,j,iz]
-                    if ql_[i,j,iz] > 0.0:
-                        cf_updraft[k] += 1.0
-                ql_mean_domain[k] += ql_[i, j, iz]
-                if ql_[i,j,iz] > 0.0:
-                    cf_domain[k] += 1.0
+                        cf_domain[k] += 1.0
+            print('nenv='+str(n_env), theta_l.shape)
         del s_, ql_, qt_, T_
+        # data = np.ndarray(shape=(n_env, nvar))
         data = np.ndarray(shape=(n_env, nvar))
-        print('..', n_updraft, n_env, theta_l.shape, qt.shape, data.shape)
+        print('..')
+        print('nup, nenv, dk', n_updraft, n_env, dk)
+        print(theta_l.shape, qt.shape, data.shape)
         print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
         data[:, 0] = theta_l[:]
         data[:, 1] = qt[:]
