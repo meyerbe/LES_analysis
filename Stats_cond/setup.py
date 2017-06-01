@@ -42,21 +42,15 @@ else:
     print('Unknown system platform: ' + sys.platform  + 'or unknown system name: ' + platform.node())
     sys.exit()
 
-_ext = Extension('Updrafts', ['Updrafts.pyx'], include_dirs=include_path,
-                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
-                 runtime_library_dirs=library_dirs)
-extensions.append(_ext)
-
 _ext = Extension('CC_thermodynamics_c', ['CC_thermodynamics_c.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
 
-
-# _ext = Extension('test_temperature_c', ['test_temperature_c.pyx'], include_dirs=include_path,
-#                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
-#                  runtime_library_dirs=library_dirs)
-# extensions.append(_ext)
+_ext = Extension('PDF_conditional', ['PDF_conditional.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
 
 
 setup(

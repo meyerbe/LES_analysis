@@ -18,7 +18,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-# from plotting_functions import plot_PDF, plot_PDF_components
+from plotting_functions import plot_PDF#, plot_PDF_components
 # from plotting_functions import plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_abs_error
 
 
@@ -332,8 +332,8 @@ cdef class PDF_conditional:
         print('')
 
         '''(E) Plotting'''
-        # save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-        # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+        save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+        plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, self.path_out, save_name)
         # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
         # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
         # # plot_hist(ql, path_out)
@@ -356,7 +356,6 @@ cdef class PDF_conditional:
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain[:,count_ncomp]), 'error_ql_domain', ncomp, nvar, nk)
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env[:,count_ncomp]), 'rel_error_ql_env', ncomp, nvar, nk)
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain[:,count_ncomp]), 'rel_error_ql_domain', ncomp, nvar, nk)
-        # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env[:,count_ncomp]), 'error_cf_env', ncomp, nvar, nk)
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain[:,count_ncomp]), 'error_cf_domain', ncomp, nvar, nk)
         dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env[:,count_ncomp]), 'rel_error_cf_env', ncomp, nvar, nk)
@@ -373,88 +372,6 @@ cdef class PDF_conditional:
                              np.asarray(error_cf_env), np.asarray(error_cf_domain),
                              np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain))
         return
-
-
-
-#
-# #     cpdef sample_pdf(self, data, clf, double ql_mean_ref, double cf_ref, double pref,
-# #                             ClausiusClapeyron CC, LatentHeat LH, ncomp_range, n_sample, nml):
-# #         # 1. sample (th_l, qt) from PDF (Monte Carlo ???
-# #         # 2. compute ql for samples
-# #         # 3. consider ensemble average <ql> = domain mean representation???
-# #
-# #         cdef:
-# #             int i, k
-# #             int nvar = 2
-# #             int nz = nml['grid']['nz']
-# #             int nk = ql_mean_ref.shape[0]
-# #
-# #         # for PDF sampling
-# #         cdef:
-# #             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-# #             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-# #             double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
-# #             double [:] alpha_comp_thl = np.zeros(n_sample)
-# #
-# #         # for Error Computation / <ql> intercomparison
-# #         cdef:
-# #             int count_ncomp = 0
-# #             # double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
-# #             # double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
-# #             double ql_mean_comp = 0.0
-# #             double cf_comp = 0.0
-# #             double error_ql = 0.0
-# #             double rel_error_ql = 0.0
-# #             double error_cf = 0.0
-# #             double rel_error_cf = 0.0
-# #
-# #
-# #
-# #         '''(1) Draw samples'''
-# #         scaler = StandardScaler()
-# #         data_nrom = scaler.fit_transform(data)
-# #         Th_l_norm, y_norm = clf.sample(n_samples=n_sample)
-# #         '''(2) Rescale theta_l and qt'''
-# #         Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
-# #
-# #         '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-# #         for i in range(n_sample-2):
-# #             T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(pref, Th_l[i, 0], Th_l[i, 1], CC, LH)
-# #             ql_mean_comp = ql_mean_comp + ql_comp_thl[i]
-# #             if ql_comp_thl[i] > 0:
-# #                 cf_comp += 1
-# #         ql_mean_comp = ql_mean_comp / n_sample
-# #         cf_comp = cf_comp / n_sample
-# #         error_ql = ql_mean_comp - ql_mean_ref
-# #         error_cf = cf_comp- cf_ref
-# #         if ql_mean_ref > 0.0:
-# #             rel_error_ql = (ql_mean_comp - ql_mean_ref) / ql_mean_ref
-# #         if cf_ref > 0.0:
-# #             rel_error_cf = (cf_comp - cf_ref) / cf_ref
-# #
-# #         print('')
-# #         print('<ql> from CloudClosure Scheme: ', ql_mean_comp)
-# #         print('<ql> from ql fields: ', ql_mean_ref)
-# #         print('error (<ql>_CC - <ql>_field): '+ str(error_ql))
-# #         print('rel err: '+ str(rel_error_ql))
-# #         print('')
-# #         print('CF from Cloud Closure Scheme: ', cf_comp)
-# #         print('CF from ql fields: ', cf_ref)
-# #         print('error: '+str(error_cf))
-# #         print('rel error: ', rel_error_cf)
-# #         print('')
-# #
-# #         # '''(E) Plotting'''
-# #         # save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_dz'+str(dk-1)
-# #         # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
-# #         # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-# #         # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-# #         # # plot_hist(ql, path_out)
-# #         # print('')
-# #
-# #         return ql_mean_comp, error_ql, rel_error_ql, cf_comp, error_cf, rel_error_cf
-
-
 
 
 
