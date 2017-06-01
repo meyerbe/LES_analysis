@@ -43,7 +43,7 @@ cdef class PDF_conditional:
         cdef:
             int nz = self.nml['grid']['nz']
             int dz = self.nml['grid']['dz']
-        self.path_out = os.path.join(path, 'CloudClosure_res')
+        self.path_out = os.path.join(path, 'PDF_cond')
 
         '''Initialize Reference Pressure'''
         if case_name[0:8] == 'ZGILS_S6':
@@ -81,7 +81,6 @@ cdef class PDF_conditional:
         print('')
         cdef extern from "thermodynamic_functions.h":
             inline double thetali_c(const double p0, const double T, const double qt, const double ql, const double qi, const double L)
-
 
 
         # ________________________________________________________________________________________
@@ -165,10 +164,14 @@ cdef class PDF_conditional:
             double [:] cf_domain = np.zeros(shape=(nk))                      # computation from 3D LES field
             double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
             int count_ncomp = 0
-            double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] error_cf = np.zeros(shape=(nk,len(ncomp_range)))
-            double [:,:] rel_error_cf = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_ql_domain = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_ql_env = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_domain = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_env = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_domain = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_env = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_domain = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_env = np.zeros(shape=(nk,len(ncomp_range)))
 
         # for Updraft / Environment Decompositoin
         cdef:
@@ -180,190 +183,195 @@ cdef class PDF_conditional:
             double [:] cf_updraft = np.zeros(nk, dtype=np.double)
 
 
-
         '''(1) Read in Fields'''
         var_list = ['s', 'qt', 'temperature', 'ql']
-        # data = np.ndarray(shape=((nx_ * ny_ * dk), nvar))
-        for ncomp in ncomp_range:
-            means_ = np.zeros(shape=(nk, ncomp, nvar))
-            covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
-            weights_ = np.zeros(shape=(nk, ncomp))
-            '''(1) Statistics File'''
-            tt = files[0][0:-3]
-            nc_file_name_out = 'PDF_cond_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
-                               +'_time'+str(tt)+'.nc'
-            # self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
+        ncomp = ncomp_range[0]
+        means_ = np.zeros(shape=(nk, ncomp, nvar))
+        covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+        weights_ = np.zeros(shape=(nk, ncomp))
+        '''(1) Statistics File'''
+        tt = files[0][0:-3]
+        nc_file_name_out = 'PDF_cond_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
+                           +'_time'+str(tt)+'.nc'
+        self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
-            for k in range(nk):
-                n_env = 0
-                n_updraft = 0
-                iz = krange[k]
-                print('')
-                print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
-                ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
-                data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+        k = 0
+        d = files[0]
 
-                for d in files:
-                    print('time: d='+str(d))
-                    nc_file_name = d
-                    path_fields = os.path.join(path, 'fields', nc_file_name)
-                    print(path_fields)
-                    s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+        n_env = 0
+        n_updraft = 0
+        iz = krange[k]
+        print('')
+        print('-- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' --')
+        ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
+        data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+        print('time: d='+str(d))
+        nc_file_name = d
+        path_fields = os.path.join(path, 'fields', nc_file_name)
+        print(path_fields)
+        s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+        # ________________________________________________________________________________________
+        # Read in Tracer Labels
+        path_tracers = os.path.join(path, 'tracer_fields')
+        type_list = ['Couvreux']
+        # type_list = ['Couvreux', 'Coherent']
+        for type in type_list:
+            labels_tracers = read_in_updrafts_colleen(type, tt, path_tracers)
+        print('labels_tr', labels_tracers.shape, np.count_nonzero(labels_tracers))
 
+        '''(2) Compute liquid potential temperature from temperature and moisture'''
+        # for k_ in range(0,dk):
+        k_ = 0
+        for i in range(nx_):
+            for j in range(ny_):
+                if labels_tracers[i,j,iz] == 0:
+                    n_env += 1
+                    Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
+                    aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                    theta_l = np.append(theta_l, aux)
+                    qt = np.append(qt, qt_[i, j, iz])
+                    ql = np.append(ql, ql_[i, j, iz])
+                    ql_mean_env[k] += ql_[i, j, iz]
+                    if ql_[i,j,iz] > 0.0:
+                        cf_env[k] += 1.0
+                else:
+                    n_updraft += 1
+                    ql_mean_updraft[k] += ql_[i,j,iz]
+                    if ql_[i,j,iz] > 0.0:
+                        cf_updraft[k] += 1.0
+                ql_mean_domain[k] += ql_[i, j, iz]
+                if ql_[i,j,iz] > 0.0:
+                    cf_domain[k] += 1.0
+        del s_, ql_, qt_, T_
+        data = np.ndarray(shape=(n_env, nvar))
+        print('..', n_updraft, n_env, theta_l.shape, qt.shape, data.shape)
+        print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
+        data[:, 0] = theta_l[:]
+        data[:, 1] = qt[:]
+        data_all = np.append(data_all, data, axis=0)
+        ql_all = np.append(ql_all, ql[:], axis=0)
 
-                    # ________________________________________________________________________________________
-                    # Read in Tracer Labels
-                    path_tracers = os.path.join(path, 'tracer_fields')
-                    type_list = ['Couvreux']
-                    # type_list = ['Couvreux', 'Coherent']
-                    for type in type_list:
-                        labels_tracers = read_in_updrafts_colleen(type, tt, path_tracers)
-                    print('labels_tr', labels_tracers.shape)
+        ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
+        cf_domain[k] /= ( len(files)*dk*(nx_*ny_) )
+        ql_mean_env[k] /= n_env
+        cf_env[k] /= n_env
+        ql_mean_updraft[k] /= n_updraft
+        cf_updraft[k] /= n_updraft
 
-                    '''(2) Compute liquid potential temperature from temperature and moisture'''
-                    for k_ in range(0,dk):
-                        k_shift = k_*nx_*ny_
-                        print('layer: k_='+str(k_), str(iz), str(iz+k_), 'dk:', dk, dk_, 'k_shift: ', k_shift)
-                        for i in range(nx_):
-                            for j in range(ny_):
-                                # ij = i*ny_ + j              # 2D --> 1D
-                                if labels_tracers[i,j,iz] == 0:
-                                    n_env += 1
-                                    Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-                                    # theta_l[k_shift+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                    aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                    theta_l = np.append(theta_l, aux)
-                                    # print('...', qt.shape)
-                                    # qt = np.append(qt, qt_[i, j, iz], axis=0)
-                                    qt = np.append(qt, qt_[i, j, iz])
-                                    # ql = np.append(ql, ql_[i, j, iz], axis=0)
-                                    ql = np.append(ql, ql_[i, j, iz])
-                                    ql_mean_env[k] += ql_[i, j, iz]
-                                    if ql_[i,j,iz] > 0.0:
-                                        cf_env[k] += 1.0
-                                else:
-                                    n_updraft += 1
-                                    ql_mean_updraft[k] += ql_[i,j,iz]
-                                    if ql_[i,j,iz] > 0.0:
-                                        cf_updraft[k] += 1.0
-                                ql_mean_domain[k] += ql_[i, j, iz]
-                                if ql_[i,j,iz] > 0.0:
-                                    cf_domain[k] += 1.0
-                    del s_, ql_, qt_, T_
-                    data = np.ndarray(shape=(n_env, nvar))
-                    print('..', n_env, theta_l.shape, qt.shape, data.shape, nx_*ny_-np.shape(np.nonzero(labels_tracers[:,:,iz])[0]))
-                    # data[:, 0] = theta_l[:, k]
-                    data[:, 0] = theta_l[:]
-                    # data[:, 1] = qt[:, k]
-                    data[:, 1] = qt[:]
-                    data_all = np.append(data_all, data, axis=0)
-                    # ql_all = np.append(ql_all, ql[:,k], axis=0)
-                    ql_all = np.append(ql_all, ql[:], axis=0)
+        '''(3) Normalise Data'''
+        scaler = StandardScaler()
+        # data_norm = scaler.fit_transform(data)
+        data_all_norm = scaler.fit_transform(data_all)
 
-                # print('data all: ', data_all.shape, len(files)*(dk)*nx_*ny_)
-                ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
-                cf_domain[k] /= ( len(files)*dk*(nx_*ny_) )
-                ql_mean_env[k] /= n_env
-                cf_env[k] /= n_env
-                ql_mean_updraft[k] /= n_updraft
-                cf_updraft[k] /= n_updraft
+        '''(4) Compute bivariate PDF'''
+        #   (a) for (s,qt)
+        #   (b) for (th_l,qt)
+        clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
+        clf_thl_norm.fit(data_all_norm)
+        means_[k, :, :] = clf_thl_norm.means_[:, :]
+        covariances_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+        weights_[k,:] = clf_thl_norm.weights_[:]
 
-                '''(3) Normalise Data'''
-                scaler = StandardScaler()
-                # data_norm = scaler.fit_transform(data)
-                data_all_norm = scaler.fit_transform(data_all)
+        # '''(5) Compute Kernel-Estimate PDF '''
+        # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
+        # relative_entropy(data, clf, kde)
+        # print('')
 
-                '''(4) Compute bivariate PDF'''
-                #   (a) for (s,qt)
-                #   (b) for (th_l,qt)
-                clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
-                # clf_thl_norm.fit(data_norm)
-                clf_thl_norm.fit(data_all_norm)
-                means_[k, :, :] = clf_thl_norm.means_[:, :]
-                covariances_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
-                weights_[k,:] = clf_thl_norm.weights_[:]
-
-                # '''(5) Compute Kernel-Estimate PDF '''
-                # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
-                # relative_entropy(data, clf, kde)
-                # print('')
-
-                # -------------------------------------------
+        # -------------------------------------------
 
 
-                '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
-#                 #       1. sample (th_l, qt) from PDF (Monte Carlo ???
-#                 #       2. compute ql for samples
-#                 #       3. consider ensemble average <ql> = domain mean representation???
-#                 '''(1) Draw samples'''
-#                 Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
-#                 '''(2) Rescale theta_l and qt'''
-#                 Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
-#
-#                 '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-#                 print('ql_mean_comp[k], k', k, ql_mean_comp[k])
-#                 for i in range(n_sample-2):
-#                     # ??? ok to use same reference pressure for all ik+k_ points?
-#                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-#                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
-#                     if ql_comp_thl[i] > 0:
-#                         cf_comp[k] += 1
-#                 print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
-#                 ql_mean_comp[k] = ql_mean_comp[k] / n_sample
-#                 cf_comp[k] = cf_comp[k] / n_sample
-#                 error_ql[k,count_ncomp] = ql_mean_comp[k] - ql_mean_field[k]
-#                 error_cf[k,count_ncomp] = cf_comp[k] - cf_field[k]
-#                 if ql_mean_field[k] > 0.0:
-#                     rel_error_ql[k,count_ncomp] = (ql_mean_comp[k] - ql_mean_field[k]) / ql_mean_field[k]
-#                 if cf_field[k] > 0.0:
-#                     rel_error_cf[k,count_ncomp] = (cf_comp[k] - cf_field[k]) / cf_field[k]
-#
-#                 print('')
-#                 print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
-#                 print('<ql> from ql fields:           ', ql_mean_field[k])
-#                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
-#                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
-#                 print('')
-#                 print('CF from Cloud Closure Scheme: ', cf_comp[k])
-#                 print('CF from ql fields: ', cf_field[k])
-#                 print('error: '+str(error_cf[k,count_ncomp]))
-#                 print('rel error: ', rel_error_cf[k,count_ncomp])
-#                 print('')
-#
-#                 '''(E) Plotting'''
-#                 save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-#                 plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
-#                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-#                 # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-#                 # plot_hist(ql, path_out)
-#                 print('')
-#
-#             plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-#             plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-#             plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-#
-#             plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
-#
-#
-#             '''(F) Save Gaussian Mixture PDFs '''
-#             print('')
-#             print('Dumping files: '+ self.path_out)
-#             print('ncomp', ncomp, ncomp_range)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
-#             # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
-#             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf[:,count_ncomp]), 'rel_error_cf', ncomp, nvar, nk)
-#
-#             count_ncomp += 1
-#
-#         error_file_name = 'CC_alltime_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
-#         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
-#                         np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(cf_comp), np.asarray(cf_field),
-#                         np.asarray(error_ql), np.asarray(rel_error_ql),
-#                         np.asarray(error_cf), np.asarray(rel_error_cf))
+        '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
+        #       1. sample (th_l, qt) from PDF (Monte Carlo ???
+        #       2. compute ql for samples
+        #       3. consider ensemble average <ql> = domain mean representation???
+        '''(1) Draw samples'''
+        Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
+        '''(2) Rescale theta_l and qt'''
+        Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
+
+        '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
+        print('ql_mean_comp[k], k', k, ql_mean_comp[k])
+        for i in range(n_sample-2):
+            # ??? ok to use same reference pressure for all ik+k_ points?
+            T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz+k_], Th_l[i, 0], Th_l[i, 1], CC, LH)
+            ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
+            if ql_comp_thl[i] > 0:
+                cf_comp[k] += 1
+        print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
+        ql_mean_comp[k] = ql_mean_comp[k] / n_sample
+        cf_comp[k] = cf_comp[k] / n_sample
+        error_ql_domain[k,count_ncomp] = ql_mean_comp[k] - ql_mean_domain[k]
+        error_cf_domain[k,count_ncomp] = cf_comp[k] - cf_domain[k]
+        error_ql_env[k,count_ncomp] = ql_mean_comp[k] - ql_mean_env[k]
+        error_cf_env[k,count_ncomp] = cf_comp[k] - cf_env[k]
+        if ql_mean_domain[k] > 0.0:
+            rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k] - ql_mean_domain[k]) / ql_mean_domain[k]
+        if cf_domain[k] > 0.0:
+            rel_error_cf_domain[k,count_ncomp] = (cf_comp[k] - cf_domain[k]) / cf_domain[k]
+        if ql_mean_env[k] > 0.0:
+            rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k] - ql_mean_env[k]) / ql_mean_env[k]
+        if cf_env[k] > 0.0:
+            rel_error_cf_env[k,count_ncomp] = (cf_comp[k] - cf_env[k]) / cf_env[k]
+
+        print('')
+        print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+        print('<ql> from ql fields (env):     ', ql_mean_env[k])
+        print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
+        print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
+        print('error domain (<ql>_CC - <ql>_domain): '+str(error_ql_domain[k,count_ncomp]))
+        print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
+        print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
+        print('')
+        print('CF from Cloud Closure Scheme: ', cf_comp[k])
+        print('CF from ql fields (env): ', cf_env[k])
+        print('CF from ql fields (domain): ', cf_domain[k])
+        print('error env:    '+str(error_cf_env[k,count_ncomp]))
+        print('error domain: '+str(error_cf_domain[k,count_ncomp]))
+        print('rel error env:    ', rel_error_cf_env[k,count_ncomp])
+        print('rel error domain: ', rel_error_cf_domain[k,count_ncomp])
+        print('')
+
+        '''(E) Plotting'''
+        # save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+        # plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+        # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+        # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+        # # plot_hist(ql, path_out)
+        # print('')
+
+        # plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+        # plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+        # plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+        #
+        # plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
+
+
+        '''(F) Save Gaussian Mixture PDFs '''
+        print('')
+        print('Dumping files: '+ self.path_out)
+    #     print('ncomp', ncomp, ncomp_range)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env[:,count_ncomp]), 'error_ql_env', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain[:,count_ncomp]), 'error_ql_domain', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env[:,count_ncomp]), 'rel_error_ql_env', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain[:,count_ncomp]), 'rel_error_ql_domain', ncomp, nvar, nk)
+        # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env[:,count_ncomp]), 'error_cf_env', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain[:,count_ncomp]), 'error_cf_domain', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env[:,count_ncomp]), 'rel_error_cf_env', ncomp, nvar, nk)
+        dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_domain[:,count_ncomp]), 'rel_error_cf_domain', ncomp, nvar, nk)
+
+    #     count_ncomp += 1
+
+        error_file_name = 'PDF_cond_alltime_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
+        self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
+                             np.asarray(ql_mean_comp), np.asarray(ql_mean_env), np.asarray(ql_mean_domain),
+                             np.asarray(cf_comp), np.asarray(cf_env), np.asarray(cf_domain),
+                             np.asarray(error_ql_env), np.asarray(error_ql_domain),
+                             np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
+                             np.asarray(error_cf_env), np.asarray(error_cf_domain),
+                             np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain))
         return
 
 
@@ -445,122 +453,140 @@ cdef class PDF_conditional:
 # #         # print('')
 # #
 # #         return ql_mean_comp, error_ql, rel_error_ql, cf_comp, error_cf, rel_error_cf
-#
-#
-#
-#
-#
-#
-#
-#
-#     #----------------------------------------------------------------------
-#     #----------------------------------------------------------------------
-#
-#     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
-#                         ql_mean_comp, ql_mean_field, cf_comp, cf_field,
-#                         error_ql, rel_error_ql,
-#                         error_cf, rel_error_cf):
-#         print('---------- dump error ---------- ')
-#         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
-#         prof_grp = rootgrp.createGroup('profiles')
-#         prof_grp.createDimension('nz', nz_)
-#         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
-#         var[:] = np.asarray(self.zrange)[:]
-#
-#         var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
-#         var[:] = ql_mean_comp[:]
-#         var = prof_grp.createVariable('ql_mean_fields', 'f8', ('nz'))
-#         var[:] = ql_mean_field[:]
-#         var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
-#         var[:] = cf_comp[:]
-#         var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
-#         var[:] = cf_field[:]
-#         print(type(ql_mean_comp), type(ql_mean_field))
-#         print(type(error_ql))
-#
-#         error_grp = rootgrp.createGroup('error')
-#         error_grp.createDimension('nz', nz_)
-#         N_comp = max(comp_range)
-#         error_grp.createDimension('Ncomp', N_comp)
-#         var = error_grp.createVariable('error_ql', 'f8', ('nz', 'Ncomp'))
-#         var[:,:] = error_ql[:,:]
-#         var = error_grp.createVariable('rel_error_ql', 'f8', ('nz', 'Ncomp'))
-#         var[:,:] = rel_error_ql[:,:]
-#         var = error_grp.createVariable('error_cf', 'f8', ('nz', 'Ncomp'))
-#         var[:,:] = error_cf[:,:]
-#         var = error_grp.createVariable('rel_error_cf', 'f8', ('nz', 'Ncomp'))
-#         var[:,:] = rel_error_cf[:,:]
-#
-#         rootgrp.close()
-#         return
-#
-#
-#     def create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
-#         print('create statistics file: '+ path+', '+ file_name)
-#         # ncomp: number of Gaussian components in EM
-#         # nvar: number of variables of multi-variate Gaussian components
-#         rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
-#         dimgrp = rootgrp.createGroup('dims')
-#         ts_grp = rootgrp.createGroup('time')
-#         ts_grp.createDimension('nt',len(time)-1)
-#         means_grp = rootgrp.createGroup('means')
-#         means_grp.createDimension('nz', nz_)
-#         means_grp.createDimension('ncomp', ncomp)
-#         means_grp.createDimension('nvar', nvar)
-#         cov_grp = rootgrp.createGroup('covariances')
-#         cov_grp.createDimension('nz', nz_)
-#         cov_grp.createDimension('ncomp', ncomp)
-#         cov_grp.createDimension('nvar', nvar)
-#         weights_grp = rootgrp.createGroup('weights')
-#         weights_grp.createDimension('nz', nz_)
-#         weights_grp.createDimension('ncomp', ncomp)
-#         error_grp = rootgrp.createGroup('error')
-#         error_grp.createDimension('nz', nz_)
-#
-#         var = ts_grp.createVariable('t','f8',('nt'))
-#         for i in range(len(time)-1):
-#             var[i] = time[i+1]
-#         z_grp = rootgrp.createGroup('z-profile')
-#         z_grp.createDimension('nz', nz_)
-#         var = z_grp.createVariable('height', 'f8', ('nz'))
-#         for i in range(nz_):
-#             var[i] = self.zrange[i]
-#         rootgrp.close()
-#         return
-#
-#
-# #----------------------------------------------------------------------
-#
-# def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
-#     print('-------- dump variable --------', var_name, group_name, path)
-#     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
-#     rootgrp = nc.Dataset(path, 'r+')
-#     if group_name == 'means':
-#         # rootgrp = nc.Dataset(path, 'r+')
-#         var = rootgrp.groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
-#         # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
-#         # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))[:,:,:]
-#         var[:,:,:] = data_[:,:,:]
-#
-#     elif group_name == 'covariances':
-#         var = rootgrp.groups['covariances'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
-#         var[:,:,:,:] = data_[:,:,:,:]
-#
-#     elif group_name == 'weights':
-#         var = rootgrp.groups['weights'].createVariable(var_name, 'f8', ('nz', 'ncomp'))
-#         var[:,:] = data_[:,:]
-#
-#     elif group_name == 'error':
-#         var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
-#         var[:] = data_[:]
-#
-#     # # write_field(path, group_name, data, var_name)
-#     # # print('--------')
-#     rootgrp.close()
-#     print('')
-#     return
-#
-#
+
+
+
+
+
+
+
+
+    #----------------------------------------------------------------------
+    #----------------------------------------------------------------------
+
+    def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
+                        ql_mean_comp, ql_mean_env, ql_mean_domain,
+                        cf_comp, cf_env, cf_domain,
+                        error_ql_env, error_ql_domain, rel_error_ql_env, rel_error_ql_domain,
+                        error_cf_env, error_cf_domain, rel_error_cf_env, rel_error_cf_domain):
+        print('---------- dump error ---------- ')
+        rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
+        prof_grp = rootgrp.createGroup('profiles')
+        prof_grp.createDimension('nz', nz_)
+        var = prof_grp.createVariable('zrange', 'f8', ('nz'))
+        var[:] = np.asarray(self.zrange)[:]
+
+        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
+        var[:] = ql_mean_comp[:]
+        var = prof_grp.createVariable('ql_mean_env', 'f8', ('nz'))
+        var[:] = ql_mean_env[:]
+        var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))
+        var[:] = ql_mean_domain[:]
+        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
+        var[:] = cf_comp[:]
+        var = prof_grp.createVariable('cf_env', 'f8', ('nz'))
+        var[:] = cf_env[:]
+        var = prof_grp.createVariable('cf_domain', 'f8', ('nz'))
+        var[:] = cf_domain[:]
+        # print(type(ql_mean_comp), type(ql_mean_env))
+        # print(type(error_ql))
+
+        error_grp = rootgrp.createGroup('error')
+        error_grp.createDimension('nz', nz_)
+        N_comp = max(comp_range)
+        error_grp.createDimension('Ncomp', N_comp)
+        var = error_grp.createVariable('error_ql_env', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_env[:,:]
+        var = error_grp.createVariable('error_ql_domain', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_domain[:,:]
+        var = error_grp.createVariable('rel_error_ql_env', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_env[:,:]
+        var = error_grp.createVariable('rel_error_ql_domain', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_domain[:,:]
+        var = error_grp.createVariable('error_cf_env', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_env[:,:]
+        var = error_grp.createVariable('error_cf_domain', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_domain[:,:]
+        var = error_grp.createVariable('rel_error_cf_env', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_env[:,:]
+        var = error_grp.createVariable('rel_error_cf_domain', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_domain[:,:]
+
+        rootgrp.close()
+        return
+
+
+    def create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
+        print('create statistics file: '+ path+', '+ file_name)
+        # ncomp: number of Gaussian components in EM
+        # nvar: number of variables of multi-variate Gaussian components
+        rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
+        dimgrp = rootgrp.createGroup('dims')
+        ts_grp = rootgrp.createGroup('time')
+        ts_grp.createDimension('nt',len(time)-1)
+        means_grp = rootgrp.createGroup('means')
+        means_grp.createDimension('nz', nz_)
+        means_grp.createDimension('ncomp', ncomp)
+        means_grp.createDimension('nvar', nvar)
+        cov_grp = rootgrp.createGroup('covariances')
+        cov_grp.createDimension('nz', nz_)
+        cov_grp.createDimension('ncomp', ncomp)
+        cov_grp.createDimension('nvar', nvar)
+        weights_grp = rootgrp.createGroup('weights')
+        weights_grp.createDimension('nz', nz_)
+        weights_grp.createDimension('ncomp', ncomp)
+        error_grp = rootgrp.createGroup('error')
+        error_grp.createDimension('nz', nz_)
+        prof_grp = rootgrp.createGroup('profiles')
+        prof_grp.createDimension('nz', nz_)
+
+        var = ts_grp.createVariable('t','f8',('nt'))
+        for i in range(len(time)-1):
+            var[i] = time[i+1]
+        z_grp = rootgrp.createGroup('z-profile')
+        z_grp.createDimension('nz', nz_)
+        var = z_grp.createVariable('height', 'f8', ('nz'))
+        for i in range(nz_):
+            var[i] = self.zrange[i]
+        rootgrp.close()
+        return
+
+
+#----------------------------------------------------------------------
+
+def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
+    print('-------- dump variable --------', var_name, group_name, path)
+    # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
+    rootgrp = nc.Dataset(path, 'r+')
+    if group_name == 'means':
+        # rootgrp = nc.Dataset(path, 'r+')
+        var = rootgrp.groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+        # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))[:,:,:]
+        var[:,:,:] = data_[:,:,:]
+
+    elif group_name == 'covariances':
+        var = rootgrp.groups['covariances'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
+        var[:,:,:,:] = data_[:,:,:,:]
+
+    elif group_name == 'weights':
+        var = rootgrp.groups['weights'].createVariable(var_name, 'f8', ('nz', 'ncomp'))
+        var[:,:] = data_[:,:]
+
+    elif group_name == 'error':
+        var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
+        var[:] = data_[:]
+
+    elif group_name == 'profiles':
+        var = rootgrp.groups['profiles'].createVariable(var_name, 'f8', ('nz'))
+        var[:] = data_[:]
+
+    # # write_field(path, group_name, data, var_name)
+    # # print('--------')
+    rootgrp.close()
+    print('')
+    return
+
+
 #----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 def read_in_netcdf(variable_name, group_name, fullpath_in):
@@ -590,7 +616,7 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
 
 def read_in_updrafts_colleen(type, t, path_):
     print('')
-    print('--- Updraft Colleen: read in ---')
+    print('- Updraft Colleen: read in -')
     import pickle
     print('')
 

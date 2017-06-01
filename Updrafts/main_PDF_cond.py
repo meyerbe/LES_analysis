@@ -103,13 +103,11 @@ def main():
 # ----------------------------------
 def set_zrange(case_name):
     if case_name[0:8] == 'ZGILS_S6':
-        # ZGILS 6
         files = ['1382400.nc']
         # files_ = [1317600, 1339200, 1360800, 1382400]  # ZGILS 6
         # files = files[0:25:2]
         krange = np.asarray([25, 25, 40, 50, 60, 65], dtype=np.int32)
     elif case_name[0:9] == 'ZGILS_S12':
-        # ZGILS S12
         # files = ['432000.nc']
         files = ['86400.nc']
         # files = ['345600.nc', '432000.nc', '518400.nc', '604800.nc', '691200.nc']
@@ -123,7 +121,6 @@ def set_zrange(case_name):
         files = ['10800.nc', '14400.nc']
         # files = ['10800.nc']
     elif case_name == 'DYCOMS_RF02':
-        # DYCOMS RF02
         # krange = np.asarray([140,150], dtype=np.int32)
         # krange = np.asarray(150, dtype=np.int32)
         krange = np.asarray([120, 140, 150, 160, 170, 200], dtype=np.int32)
@@ -137,7 +134,8 @@ def set_zrange(case_name):
         ## Bomex (dz=20)
         krange = np.asarray([50, 60], dtype=np.int32)
         # krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
-        files = ['18000.nc', '19800.nc', '21600.nc']
+        # files = ['18000.nc', '19800.nc', '21600.nc']
+        files = ['21600.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
