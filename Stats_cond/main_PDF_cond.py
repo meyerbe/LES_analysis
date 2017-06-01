@@ -56,7 +56,7 @@ def main():
     if args.dk:
         dk_range = args.dk
     else:
-        dk_range = [1]
+        dk_range = [0, 2, 4]
 
     path_ref = os.path.join(path, 'Stats.' + case_name + '.nc')
     path_fields = os.path.join(path, 'fields')
