@@ -64,28 +64,27 @@ def main():
 
 
     plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
-
-    plot_ql_n_all(files_, zrange, path, prof=False)
-    plot_mean('qt', files_, zrange, levels, path)
-    plot_mean('ql', files_, zrange, levels, path)
-    plot_mean('s', files_, zrange, levels, path)
-    try:
-        plot_mean('thetali', files_, zrange, levels, path)
-        plot_mean_var('thetali', files_, zrange, path)
-    except:
-        print('thetali not in variables')
-    # plot_mean_levels('qt', files_, zrange, path)
-    # plot_mean_levels('ql', files_, zrange, path)
-
-    plot_mean_var('ql', files_, zrange, path)
-    plot_mean_var('qt', files_, zrange, path)
-    plot_mean_var('s', files_, zrange, path)
-
-
-    plot_mean_cumulated('ql', files_cum, zrange, path)
-    plot_mean_cumulated('s', files_cum, zrange, path)
-
-    plot_max_var('ql', zrange, path)
+    # plot_ql_n_all(files_, zrange, path, prof=False)
+    # plot_mean('qt', files_, zrange, levels, path)
+    # plot_mean('ql', files_, zrange, levels, path)
+    # plot_mean('s', files_, zrange, levels, path)
+    # try:
+    #     plot_mean('thetali', files_, zrange, levels, path)
+    #     plot_mean_var('thetali', files_, zrange, path)
+    # except:
+    #     print('thetali not in variables')
+    # # plot_mean_levels('qt', files_, zrange, path)
+    # # plot_mean_levels('ql', files_, zrange, path)
+    #
+    # plot_mean_var('ql', files_, zrange, path)
+    # plot_mean_var('qt', files_, zrange, path)
+    # plot_mean_var('s', files_, zrange, path)
+    #
+    #
+    # plot_mean_cumulated('ql', files_cum, zrange, path)
+    # plot_mean_cumulated('s', files_cum, zrange, path)
+    #
+    # plot_max_var('ql', zrange, path)
 
     return
 
@@ -147,11 +146,10 @@ def set_levels(case_name, files, dz):
         # files_ = ['21600.nc']
         # files_cum = files_
     elif case_name == 'TRMM_LBA':
-        # files_ = ['1012600.nc', '1014400.nc', '1016200.nc']
-        # files_ = ['1014400.nc']
         files_ = files
-        files_cum = ['1012600.nc', '1014400.nc', '1016200.nc']
+        files_cum = ['1014400.nc', '1016200.nc', '1018000.nc', '1019800.nc']
         levels = np.asarray([10, 15, 20, 30, 40, 50, 60], dtype=np.int32)
+        time_prof = [1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour]
     elif case_name == 'Rico':
         files_ = [0, 2 * hour, 4 * hour, 6 * hour, 8 * hour, 10 * hour, 12 * hour,
                         14 * hour, 16 * hour, 18 * hour, 20 * hour, 22 * hour, 24 * hour]
@@ -164,6 +162,7 @@ def set_levels(case_name, files, dz):
 # ----------------------------------
 
 def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
+    print('-- plot mean profile: '+ var_name + ' --')
     global dt_stats
     # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
     time = read_in_netcdf('t', 'timeseries', path_ref)
@@ -174,7 +173,7 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
         var = read_in_netcdf(var_name, 'profiles', path_ref)
 
     print('')
-    print(var.shape, time.shape, zrange.shape, dt_stats)
+    print('var shape: ', var.shape, 'time: ', time.shape, ' zrange:', zrange.shape, 'dt_stats: ', dt_stats)
     print('')
     plt.figure(figsize=(9,6))
     cm1 = plt.cm.get_cmap('bone')
@@ -188,7 +187,28 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
     for t in time_range:
         for t_ in range(t_ini, time.shape[0]):
             if np.abs(time[t_] - time_range[count_t]) < dt_stats:
-                plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label='t=' + str(time[t_]))
+                if time[t_] < 3600:
+                    lab = str(time[t_]) + 's'
+                elif time[t_] < 3600 * 24:
+                    h = time[t_]  / 3600
+                    s = np.mod(time[t_], h)
+                    if s > 0:
+                        lab = str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+                    else:
+                        lab = str(np.round(h, 0)) + 'h'
+                else:
+                    d = time[t_] / day
+                    h = np.mod(it, day) / 3600
+                    s = np.mod(np.mod(it, day), 3600)
+                    if s > 0:
+                        lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+                        # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
+                    elif h > 0:
+                        lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h '
+                    else:
+                        lab = str(np.round(d, 0)) + 'days'
+
+                plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label=lab)
                 t_ini = t_
                 count_color += 1
                 continue
@@ -209,6 +229,7 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
 
 
 def plot_mean_cumulated(var_name, files_cum, zrange, path):
+    print('-- plot mean cumulated: ' + var_name + ' --')
     global case_name
     global nz
     mean_all = np.zeros(nz)
@@ -240,7 +261,6 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
             lab = str(it) + 's'
             print('sss')
         elif it < 3600 * 24:
-
             lab = str(np.round(it/3600,0)) + 'h'
             print('hhh')
         else:
@@ -267,6 +287,7 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
 
 
 def plot_mean_var(var_name, files_, zrange, path):
+    print('-- plot mean var: ' + var_name + ' --')
     global case_name
     global nx, ny, nz, dz, dt_stats
     day = 24 * 3600
@@ -322,6 +343,7 @@ def plot_mean_var(var_name, files_, zrange, path):
 
 
 def plot_max_var(var_name, zrange, path):
+    print('-- plot max var: ' + var_name + ' --')
     global case_name
     global nx, ny, nz, dz, dt_stats
     cm1 = plt.cm.get_cmap('bone')
@@ -351,6 +373,7 @@ def plot_max_var(var_name, zrange, path):
 
 
 def plot_ql_n_all(files_, zrange, path, prof=False):
+    print('-- plot ql n all: ' + var_name + ' --')
     global case_name
     global nx, ny, nz, dz, dt_stats
     day = 24 * 3600
