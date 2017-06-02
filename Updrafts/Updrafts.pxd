@@ -29,7 +29,7 @@ cdef class Updrafts:
 
     # cpdef sort_PDF(self, clf):
     cpdef sort_PDF(self, means_, covariance_, weights_, labels_)
-    cpdef sort_PDF_allk(self, means_, covariance_, weights_, labels_)
+    # cpdef sort_PDF_allk(self, means_, covariance_, weights_, labels_)
 
     cpdef create_updrafts_file(self, path, file_name, time, ncomp, nvar, nz_, nml)
     # cpdef write_updrafts_field(self, path, file_name, double[:,:,:] data)

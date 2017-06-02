@@ -429,57 +429,57 @@ cdef class Updrafts:
 
 
 
-    cpdef sort_PDF_allk(self, means_, covariances_, weights_, labels_):
-        '''sort PDF components according to <qt>'''
-        # sort such that PDF-component 0 has larger mean qt than PDF-component 1, i.e. PDF-component 0 represents the updrafts
-
-        # means_ = (nk x ncomp x nvar)
-        # covariances_ = (nk x ncomp x nvar x nvar)
-        # weights_ = (nk x ncomp)
-        # labels_ = (nx x ny x nk)
-
-        cdef:
-            double [:,:,:] means = means_[:,:,:]
-            double [:,:,:,:] covars = covariances_
-            double [:,:] weights = weights_
-            double [:,:,:] labels = np.ndarray(shape=labels_.shape,ndtype=np.double)
-            int nk = len(self.zrange)
-            # Py_ssize_t nij = labels.shape
-            int nij = labels_.shape
-            int nvar = 2
-        # means = means_
-        # covars = covariances_
-        # weights = weights_
-
-        print('')
-        print('sorting', nij)
-        print(means.shape, covars.shape, weights.shape)
-        for k in range(nk):
-            # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
-            if means[k, 0, 1] < means[k, 1, 1]:
-                aux = weights[k, 1]
-                weights[k, 1] = weights[k, 0]
-                weights[k, 0] = aux
-                for i1 in range(nvar):  # loop over variables
-                    aux = means[k, 1, i1]
-                    means[k, 1, i1] = means[k, 0, i1]
-                    means[k, 0, i1] = aux
-                    for i2 in range(nvar):
-                        aux = covars[k, 1, i1, i2]
-                        covars[k, 1, i1, i2] = covars[k, 0, i1, i2]
-                        covars[k, 0, i1, i2] = aux
-        #         # for i in range(nx):
-        #         #     for j in range(ny):
-        #         a = [int(not labels[i]) for i in range(nij)]
-        #
-        # print(a[0:3])
-        # print(labels[0:3])
-
-        # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
-        # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
-        # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
-        # print('')
-        return means, covars, weights, labels
+    # cpdef sort_PDF_allk(self, means_, covariances_, weights_, labels_):
+    #     '''sort PDF components according to <qt>'''
+    #     # sort such that PDF-component 0 has larger mean qt than PDF-component 1, i.e. PDF-component 0 represents the updrafts
+    #
+    #     # means_ = (nk x ncomp x nvar)
+    #     # covariances_ = (nk x ncomp x nvar x nvar)
+    #     # weights_ = (nk x ncomp)
+    #     # labels_ = (nx x ny x nk)
+    #
+    #     cdef:
+    #         double [:,:,:] means = means_[:,:,:]
+    #         double [:,:,:,:] covars = covariances_
+    #         double [:,:] weights = weights_
+    #         double [:,:,:] labels = np.ndarray(shape=labels_.shape,ndtype=np.double)
+    #         int nk = len(self.zrange)
+    #         # Py_ssize_t nij = labels.shape
+    #         int nij = labels_.shape
+    #         int nvar = 2
+    #     # means = means_
+    #     # covars = covariances_
+    #     # weights = weights_
+    #
+    #     print('')
+    #     print('sorting', nij)
+    #     print(means.shape, covars.shape, weights.shape)
+    #     for k in range(nk):
+    #         # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
+    #         if means[k, 0, 1] < means[k, 1, 1]:
+    #             aux = weights[k, 1]
+    #             weights[k, 1] = weights[k, 0]
+    #             weights[k, 0] = aux
+    #             for i1 in range(nvar):  # loop over variables
+    #                 aux = means[k, 1, i1]
+    #                 means[k, 1, i1] = means[k, 0, i1]
+    #                 means[k, 0, i1] = aux
+    #                 for i2 in range(nvar):
+    #                     aux = covars[k, 1, i1, i2]
+    #                     covars[k, 1, i1, i2] = covars[k, 0, i1, i2]
+    #                     covars[k, 0, i1, i2] = aux
+    #     #         # for i in range(nx):
+    #     #         #     for j in range(ny):
+    #     #         a = [int(not labels[i]) for i in range(nij)]
+    #     #
+    #     # print(a[0:3])
+    #     # print(labels[0:3])
+    #
+    #     # trivar_plot_means(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+    #     # trivar_plot_covars(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+    #     # trivar_plot_weights(var, weights, means, covars, mean_tot, covars_tot, time, 'sortB')
+    #     # print('')
+    #     return means, covars, weights, labels
 
 
     #----------------------------------------------------------------------
@@ -509,12 +509,7 @@ cdef class Updrafts:
         rootgrp.close()
         return
 
-    # cpdef add_field(self, name):
-    #     rootgrp = nc.Dataset(self.path_plus_file, 'r+', format='NETCDF4')
-    #     fieldgrp = rootgrp.groups['labels']
-    #     fieldgrp.createVariable(name, 'f8', ('nx, ny, nz'))
-    #     rootgrp.close()
-    #     return
+
 
     cpdef write_updrafts_file(self, path, file_name, data, nml):
         print('write updrafts: ' + os.path.join(path, file_name))
