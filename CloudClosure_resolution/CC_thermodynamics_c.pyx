@@ -121,11 +121,15 @@ cdef class ClausiusClapeyron:
         pv_above_Tt = np.exp(odeint(rhs,pv0,T_above_Tt,hmax=0.1)[1:])
         pv_below_Tt = np.exp(odeint(rhs,pv0,T_below_Tt,hmax=0.1)[1:])[::-1]
         pv = np.append(pv_below_Tt,pv_above_Tt )
-        self.LT.initialize(T,pv)
 
-        # print(self.LT.lookup(298.0))
-        # print(self.LT.lookup(296.0))
+        #For really small values of pv, set pv to a slightly less small number. This avoids problems in integrating
+        #the reference profiles, when the reference temperature is <100K. For the vast majority of simulations this
+        #modification should have no impact.
 
+        pv_a = np.array(pv)
+        pv_a[pv_a < 1e-11]= 1e-11
+
+        self.LT.initialize(T,pv_a)
         return
 
     cpdef finalize(self):

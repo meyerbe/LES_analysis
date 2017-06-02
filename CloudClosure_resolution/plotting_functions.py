@@ -105,14 +105,7 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
     plt.title('PDF(thl, qt)')
 
     plt.suptitle('GMM, ncomp='+str(ncomp)+', error: '+str(error)+'    (z='+str(z)+')')
-
-    # plt.savefig(
-    #     os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '_dz'+str(dk)+'.png'))
     plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
-    # try:
-    #     plt.savefig(os.path.join(path, 'CloudClosure_z_figures','PDF_figures_'+str(z)+'m'+'_ncomp'+str(ncomp)+'.png'))
-    # except:
-    #     print('!!!!! figure with ncomp='+str(ncomp)+', z='+str(z)+' not saved !!!!!')
     plt.close()
     return
 

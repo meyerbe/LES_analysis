@@ -60,9 +60,6 @@ cdef class CloudClosure:
 
         self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
         self.zrange = np.double(krange) * dz
-        print('')
-        print('zrange', np.double(krange) * dz)
-        print('')
 
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
@@ -563,6 +560,7 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
 
 
 def read_in_fields(group_name, var_list, path):
+    print('read in fields:', path)
     rootgrp = nc.Dataset(path, 'r')
     grp = rootgrp.groups[group_name]
     if group_name == 'reference':
