@@ -35,6 +35,7 @@ def main():
     dz = nml['grid']['dz']
     dt_stats = nml['stats_io']['frequency']
     print('Grid: dz='+str(dz))
+    global max_height
     print('')
 
     files = os.listdir(os.path.join(path, 'fields'))
@@ -44,41 +45,38 @@ def main():
     day = np.int(24 * 3600)
     hour = np.int(3600)
     levels, files_, files_cum, time_prof = set_levels(case_name, files, dz)
-    # if np.int(files[0]) >= 1000000:
-    #     if np.int(files_[0]) < 1000000:
-    #         for i in range(len(files_)):
-    #             files_[i] = np.int(files_[i])
-    #             files_[i] += 1000000
-    #     if np.int(files_cum[0]) < 1000000:
-    #         for i in range(len(files_cum)):
-    #             files_cum[i] = np.int(files_[i])
-    #             files_cum[i] += 1000000
-    # if args.files:
-    #     files_ = ['']
-    #     files_[0] = args.files + '.nc'
-    # # if args.files_cum:
-    # #     files_cum = ['']
-    # #     files_cum[0] = args.files + '.nc'
     print('Selected Files: ', files_)
 
     # path_fields = os.path.join(path, 'fields', str(t)+'.nc')
     # ql = read_in_netcdf('ql', 'fields', path_fields)
     print('path_ref', path_ref)
-    zrange_stats = read_in_netcdf('z', 'reference', path_ref)
+    # time_stats = read_in_netcdf('z', 'reference', path_ref)
+    # print('time stats: ', time_stats[0:5], time_stats[-3:])
+    time_stats = nc.Dataset(path_ref, 'r').groups['profiles'].variables['t'][:]
+    print('time stats: ', time_stats[0:5], time_stats[-3:])
+    zrange_stats1 = read_in_netcdf('z', 'reference', path_ref)
+    zrange_stats2 = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z'][:]
+    zrange_stats3 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp'][:]
+    zrange_stats4 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp_half'][:]
+    zrange_stats = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z_half'][:]
     if files[0][-3:] == '.nc':
         path_z = os.path.join(path, 'fields', files_[0])
     else:
         path_z = os.path.join(path, 'fields', str(files_[0])+'.nc')
     print(path_z)
     zrange_field = nc.Dataset(path_z, 'r').groups['fields'].variables['z'][:]
-
     zrange = zrange_field
     print('')
-    print('zrange stats: ', zrange_stats[0:5], zrange_stats[20:23])
-    print('zrange field: ', zrange_field[0:5], zrange_field[20:23])
+    # print('zrange stats: ', zrange_stats1[0:5], zrange_stats1[20:23])
+    print('zrange stats z_half:  ', zrange_stats[0:5], zrange_stats[20:23])
+    print('zrange stats zp:      ', zrange_stats3[0:5], zrange_stats3[20:23])
+    print('zrange stats zp_half: ', zrange_stats4[0:5], zrange_stats4[20:23])
+    print('zrange field:         ', zrange_field[0:5], zrange_field[20:23])
 
 
-    # plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
+    plot_mean_profile('cloud_fraction', time_prof, zrange, max_height, path_ref, path, True)
+    plot_mean_profile('fraction_core', time_prof, zrange, max_height, path_ref, path, True)
+    plot_mean_profile('fraction_cloud', time_prof, zrange, max_height, path_ref, path, True)
     # plot_ql_n_all(files_, zrange, path, prof=False)
     # plot_mean('qt', files_, zrange, levels, path)
     # plot_mean('ql', files_, zrange, levels, path)
@@ -88,15 +86,18 @@ def main():
     #     plot_mean_var('thetali', files_, zrange, path)
     # except:
     #     print('thetali not in variables')
-    # # plot_mean_levels('qt', files_, zrange, path)
-    # # plot_mean_levels('ql', files_, zrange, path)
+    # plot_mean_levels('qt', files_cum, zrange, path)
+    # plot_mean_levels('ql', files_cum, zrange, path)
 
     # plot_mean_var('ql', files_, zrange, path)
     # plot_mean_var('qt', files_, zrange, path)
     # plot_mean_var('s', files_, zrange, path)
 
-    plot_mean_cumulated('ql', files_cum, zrange, path)
-    plot_mean_cumulated('s', files_cum, zrange, path)
+
+    # plot_mean_cumulated('ql', files_cum, zrange, levels, path)
+    # plot_mean_cumulated('s', files_cum, zrange, levels, path)
+    # plot_mean_cumulated_BL('ql', files_cum, zrange, levels, path, max_height)
+    # plot_mean_cumulated_BL('s', files_cum, zrange, levels, path, max_height)
 
     # plot_max_var('ql', zrange, path)
 
@@ -106,6 +107,7 @@ def main():
 
 # ----------------------------------
 def set_levels(case_name, files, dz):
+    global max_height
     day = np.int(24 * 3600)
     hour = np.int(3600)
 
@@ -159,11 +161,18 @@ def set_levels(case_name, files, dz):
         # levels = [400, 500, 600, 720, 800, 900, 1000]
         # files_ = ['21600.nc']
         # files_cum = files_
+
     elif case_name == 'TRMM_LBA':
         files_ = ['1003600.nc', '1007200.nc', '1010800.nc', '1014400.nc', '1018000.nc']
-        files_cum = ['1014400.nc', '1016200.nc', '1018000.nc', '1019800.nc']
-        levels = np.asarray([10, 15, 20, 30, 40, 50, 60], dtype=np.int32)
-        time_prof = [1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour]
+        files_cum = ['1014400.nc', '1016200.nc', '1018000.nc']
+        levels = np.asarray([10, 20, 30, 40, 50, 60, 75, 85, 95, 105, 127], dtype=np.int32)
+        time_prof = [1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 5.5*hour]
+        max_height = 130
+        # Note:
+        # - 'z' from fields is equivalent to 'z_half' from the Stats-File, group 'profiles'
+        #           and 'zp_half' from Stats-file, gropu 'reference'
+        # - Stats-file: 'z' from 'reference' is not identical with 'z' from 'profiles'
+
     elif case_name == 'Rico':
         files_ = [0, 2 * hour, 4 * hour, 6 * hour, 8 * hour, 10 * hour, 12 * hour,
                         14 * hour, 16 * hour, 18 * hour, 20 * hour, 22 * hour, 24 * hour]
@@ -175,12 +184,12 @@ def set_levels(case_name, files, dz):
 
 # ----------------------------------
 
-def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
+def plot_mean_profile(var_name, time_range, zrange, max_height, path_ref, path, BL):
     print('-- plot mean from profile: '+ var_name + ' --')
     global dt_stats
     # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
     time = read_in_netcdf('t', 'timeseries', path_ref)
-    if var_name == 'cloud_fraction':
+    if var_name == 'cloud_fraction' or var_name == 'fraction_core' or var_name == 'fraction_cloud':
         var = read_in_netcdf(var_name, 'profiles', path_ref)
     else:
         var_name = var_name + '_mean'
@@ -202,7 +211,10 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
         for t_ in range(t_ini, time.shape[0]):
             if np.abs(time[t_] - time_range[count_t]) < dt_stats:
                 lab = set_tlabel(time[t_])
-                plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label=lab)
+                if BL:
+                    plt.plot(var[t_, 0:max_height], zrange[0:max_height], color=cm1(count_color / len(time_range)), label=lab)
+                else:
+                    plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label=lab)
                 t_ini = t_
                 count_color += 1
                 continue
@@ -212,15 +224,19 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
     plt.xlabel('mean ' + var_name)
     plt.ylabel('height z [m]')
     plt.title('mean ' + var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
-    plt.savefig(
-        os.path.join(path, 'figs_stats', var_name + '_fromprofile.pdf'))
+    if BL:
+        plt.savefig(
+            os.path.join(path, 'figs_stats', var_name + '_fromprofile_BL.pdf'))
+    else:
+        plt.savefig(
+            os.path.join(path, 'figs_stats', var_name + '_fromprofile.pdf'))
     # plt.show()
     # plt.close()
 
     return
 
 
-def plot_mean_cumulated(var_name, files_cum, zrange, path):
+def plot_mean_cumulated_BL(var_name, files_cum, zrange, levels, path, max_height):
     print('-- plot mean cumulated: ' + var_name + ' --')
     global case_name
     global nz
@@ -231,7 +247,66 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     print('')
     print('files_cum', files_cum, len(files_cum))
 
-    plt.figure(figsize=(9, 6))
+    fig1 = plt.figure(figsize=(9, 6))
+    cm1 = plt.cm.get_cmap('bone')
+    cm2 = plt.cm.get_cmap('winter')
+    count_color = 0.0
+
+    min = 9999.9
+    max = -9999.9
+    for t in files_cum:
+        if str(t)[-1] == 'c':
+            path_fields = os.path.join(path, 'fields', str(t))
+            it = np.int(t[0:-3])
+        else:
+            path_fields = os.path.join(path, 'fields', str(t) + '.nc')
+            it = np.double(t)
+        var_field = read_in_netcdf(var_name, 'fields', path_fields)
+        var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
+        mean_all += var_mean_field
+
+        min_ = np.amin(var_mean_field[0:max_height])
+        max_ = np.amax(var_mean_field[0:max_height])
+        if min_ < min:
+            min = min_
+        if max_ > max:
+            max = max_
+
+        lab = set_tlabel(it)
+        plt.plot(var_mean_field[0:max_height], zrange[0:max_height], '--', color=cm1(count_color / len(files_cum)), label='t=' + lab + ' (from field)')
+        count_color += 1.0
+    mean_all /= len(files_cum)
+    plt.plot(mean_all[0:max_height], zrange[0:max_height], 'k', label='time mean')
+
+
+    for i in levels:
+        if i < max_height:
+            k = zrange[i]
+            plt.plot([min,max],[k,k], linewidth=0.5, color='0.5', label=str(np.int(k))+'m (k=' + str(i) + ')' )
+
+    plt.legend()
+    plt.xlabel('mean ' + var_name)
+    plt.ylabel('height z [m]')
+    plt.title('mean ' + var_name + ' (' + case_name + ', n*nx*ny=' + str(nx * ny * len(files_cum)) + ')')
+    plt.savefig(
+        os.path.join(path, 'figs_stats', var_name + '_mean_fromfield_cum_BL.pdf'))
+    # plt.show()
+    plt.close()
+
+    return
+
+def plot_mean_cumulated(var_name, files_cum, zrange, levels, path):
+    print('-- plot mean cumulated: ' + var_name + ' --')
+    global case_name
+    global nz, max_height
+    mean_all = np.zeros(nz)
+    # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
+    # time = read_in_netcdf('t', 'timeseries', path_references)
+
+    print('')
+    print('files_cum', files_cum, len(files_cum))
+
+    fig1 = plt.figure(figsize=(9, 6))
     cm1 = plt.cm.get_cmap('bone')
     cm2 = plt.cm.get_cmap('winter')
     count_color = 0.0
@@ -248,7 +323,8 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
         mean_all += var_mean_field
 
         lab = set_tlabel(it)
-        plt.plot(var_mean_field[:], zrange, '--', color=cm1(count_color / len(files_cum)), label='t=' + lab + ' (from field)')
+        plt.plot(var_mean_field[:], zrange, '--', color=cm1(count_color / len(files_cum)),
+                     label='t=' + lab + ' (from field)')
         count_color += 1.0
 
     mean_all /= len(files_cum)
@@ -511,7 +587,7 @@ def plot_mean_levels(var_name, files_, zrange, path, profile=False):
             maxi = np.amax(var_mean_field)
 
         if var_name == 'ql':
-            location = 4
+            location = 1
             ql = np.ndarray(shape=(0))
             z_ = np.ndarray(shape=(0))
             k_ = np.ndarray(shape=(0), dtype=np.int)
@@ -527,8 +603,9 @@ def plot_mean_levels(var_name, files_, zrange, path, profile=False):
                         plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.5, label=str(l) + 'm')
                     else:
                         plt.plot([mini, maxi], [l, l], color='0.5', linewidth=0.5)
+            lab = set_tlabel(it)
             plt.plot(ql[:], z_, color=cm1(count_color / len(files_)),
-                         label='t=' + str(it) + 's (from field)')
+                         label=lab)
             # plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color / len(files_)),
             #              label='t=' + str(tt * dt_stats) + 's (from Stats)')
         else:
@@ -539,7 +616,8 @@ def plot_mean_levels(var_name, files_, zrange, path, profile=False):
                         plt.plot([mini, maxi], [l, l], color='0.5', linewidth=1.0, label=str(l)+'m')
                     elif np.mod(l,10*dz) == 0:
                         plt.plot([mini, maxi], [l, l], color='0.2', linewidth=0.2)
-            plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label='t=' + str(it) + 's (from field)')
+            lab = set_tlabel(it)
+            plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label=lab)
             if profile:
                 plt.plot(var_mean[tt, :], zrange, '--', color=cm2(count_color/len(files_)), label='t=' + str(tt * dt_stats) + 's (from Stats)')
         count_color += 1.0
