@@ -4,6 +4,7 @@ import json as  simplejson
 import numpy as np
 import pylab as plt
 import netCDF4 as nc
+from matplotlib.colors import LogNorm
 
 
 
@@ -74,7 +75,7 @@ def main():
     # plt.figure(figsize=(25,5))
     # for k in range(nk):
     #     plt.subplot(1,nk,k+1)
-    #     plt.scatter(thetali[k,:], qt[k,:], s=5, alpha=0.2)
+    #     plt.scatter(thetali[k,:], qt[k,:], s=3, alpha=0.1)
     #     plt.title('z='+str(zrange[k])+'m')
     #     plt.xlabel(r'$\theta_l$')
     #     plt.ylabel(r'$q_t$')
@@ -84,24 +85,52 @@ def main():
     # # plt.suptitle('LES Data (t=' + 'h)')
     # plt.savefig(os.path.join(path, 'scatter_plot.png'))
     # plt.close()
+    #
+    # plt.figure(figsize=(25, 5))
+    # for k in range(nk):
+    #     # ql_max = np.amax(ql[k,:])
+    #     # print('ql: ', ql_max)
+    #     plt.subplot(1, nk, k + 1)
+    #     plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
+    #     # plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none')
+    #     plt.colorbar(shrink=0.6)
+    #     plt.title('z=' + str(zrange[k]) + 'm')
+    #     plt.xlabel(r'$\theta_l$')
+    #     plt.ylabel(r'$q_t$')
+    #     # plt.xlim([298, 305])
+    #     # plt.ylim([0.007,0.018])
+    # plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    # plt.savefig(os.path.join(path, 'scatter_plot_ql.png'))
+    # plt.close()
 
     plt.figure(figsize=(25, 5))
     for k in range(nk):
-        # ql_max = np.amax(ql[k,:])
-        # print('ql: ', ql_max)
         plt.subplot(1, nk, k + 1)
-        plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
-        # plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none')
-        plt.colorbar(shrink=0.6)
+        plt.hist2d(thetali[k,:], qt[k,:], bins=100, normed=True)
+        plt.colorbar()
         plt.title('z=' + str(zrange[k]) + 'm')
         plt.xlabel(r'$\theta_l$')
         plt.ylabel(r'$q_t$')
         # plt.xlim([298, 305])
         # plt.ylim([0.007,0.018])
     plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-    # plt.suptitle('LES Data (t=' + 'h)')
-    plt.savefig(os.path.join(path, 'scatter_plot_ql.png'))
+    plt.savefig(os.path.join(path, 'hist2d_plot.png'))
     plt.close()
+
+    plt.figure(figsize=(25, 5))
+    for k in range(nk):
+        plt.subplot(1, nk, k + 1)
+        plt.hist2d(thetali[k, :], qt[k, :], bins=100, norm = LogNorm(), normed = True)
+        plt.colorbar()
+        plt.title('z=' + str(zrange[k]) + 'm')
+        plt.xlabel(r'$\theta_l$')
+        plt.ylabel(r'$q_t$')
+        # plt.xlim([298, 305])
+        # plt.ylim([0.007,0.018])
+    plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    plt.savefig(os.path.join(path, 'hist2d_plot_log.png'))
+    plt.close()
+
 
 
     return
