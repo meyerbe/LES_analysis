@@ -3,6 +3,7 @@ import argparse
 import json as simplejson
 import numpy as np
 import pylab as plt
+import netCDF4 as nc
 
 sys.path.append("..")
 from io_read_in_files import read_in_netcdf
@@ -42,30 +43,29 @@ def main():
 
     day = np.int(24 * 3600)
     hour = np.int(3600)
-    # t = files_[0]
-    # files_ = [files[0][0:-3]]
-    # files_ = [0, 1 * day, 2 * day, 3 * day, 4 * day, 5 * day, 6*day, 7*day, 8*day]
-    # files_ = [6*day, 7*day, 8*day, 9*day, 10*day, 11*day, 12*day, 13*day]
     levels, files_, files_cum, time_prof = set_levels(case_name, files, dz)
-    if args.files:
-        files_ = ['']
-        files_[0] = args.files + '.nc'
-    # if args.files_cum:
-    #     files_cum = ['']
-    #     files_cum[0] = args.files + '.nc'
+    # if args.files:
+    #     files_ = ['']
+    #     files_[0] = args.files + '.nc'
+    # # if args.files_cum:
+    # #     files_cum = ['']
+    # #     files_cum[0] = args.files + '.nc'
     print('Selected Files: ', files_)
 
     # path_fields = os.path.join(path, 'fields', str(t)+'.nc')
     # ql = read_in_netcdf('ql', 'fields', path_fields)
     print('path_ref', path_ref)
-    zrange = read_in_netcdf('z', 'reference', path_ref)
+    zrange_stats = read_in_netcdf('z', 'reference', path_ref)
+    zrange_field = nc.Dataset(os.path.join(path, 'fields', files_[0]), 'r').groups['fields'].variables['z'][:]
+    zrange = zrange_field
     print('')
-    print('zrange: ', zrange)
+    print('zrange stats: ', zrange_stats[0:5], zrange_stats[20:23])
+    print('zrange field: ', zrange_field[0:5], zrange_field[20:23])
 
 
-    plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
+    # plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
     # plot_ql_n_all(files_, zrange, path, prof=False)
-    # plot_mean('qt', files_, zrange, levels, path)
+    plot_mean('qt', files_, zrange, levels, path)
     # plot_mean('ql', files_, zrange, levels, path)
     # plot_mean('s', files_, zrange, levels, path)
     # try:
@@ -162,7 +162,7 @@ def set_levels(case_name, files, dz):
 # ----------------------------------
 
 def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
-    print('-- plot mean profile: '+ var_name + ' --')
+    print('-- plot mean from profile: '+ var_name + ' --')
     global dt_stats
     # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
     time = read_in_netcdf('t', 'timeseries', path_ref)
@@ -198,8 +198,8 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
                         lab = str(np.round(h, 0)) + 'h'
                 else:
                     d = time[t_] / day
-                    h = np.mod(it, day) / 3600
-                    s = np.mod(np.mod(it, day), 3600)
+                    h = np.mod(time[t_], day) / 3600
+                    s = np.mod(np.mod(time[t_], day), 3600)
                     if s > 0:
                         lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
                         # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
@@ -373,7 +373,8 @@ def plot_max_var(var_name, zrange, path):
 
 
 def plot_ql_n_all(files_, zrange, path, prof=False):
-    print('-- plot ql n all: ' + var_name + ' --')
+    print('-- plot ql n all --')
+    print(files_)
     global case_name
     global nx, ny, nz, dz, dt_stats
     day = 24 * 3600
@@ -387,19 +388,46 @@ def plot_ql_n_all(files_, zrange, path, prof=False):
         if str(t)[-1] == 'c':
             path_fields = os.path.join(path, 'fields', str(t))
             it = np.int(t[0:-3])
+            if it >= 1000000:
+                it = np.int(t[0:-3]) - 1000000
         else:
             path_fields = os.path.join(path, 'fields', str(t) + '.nc')
-            it = t
+            it = np.int(t)
+            if it >= 1000000:
+                it -= 1000000
+
         if it < 3600:
             lab = str(it) + 's'
         elif it < 3600 * 24:
-            lab = str(np.round(it / 3600, 0)) + 'h'
+            h = it / 3600
+            s = np.mod(it, h)
+            if s > 0:
+                lab = str(np.round(h, 1)) + 'h ' + str(np.round(s, 0)) + 's'
+            else:
+                lab = str(np.round(h, 1)) + 'h'
+            print('it', it, h, s, lab)
         else:
             d = it / day
             h = np.mod(it, day) / 3600
             s = np.mod(np.mod(it, day), 3600)
-            lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+            if s > 0:
+                lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+                # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
+            elif h > 0:
+                lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h '
+            else:
+                lab = str(np.round(d, 0)) + 'days'
 
+        print('it: ', it, lab)
+        # if it < 3600:
+        #     lab = str(it) + 's'
+        # elif it < 3600 * 24:
+        #     lab = str(np.round(it / 3600, 0)) + 'h'
+        # else:
+        #     d = it / day
+        #     h = np.mod(it, day) / 3600
+        #     s = np.mod(np.mod(it, day), 3600)
+        #     lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
         ql = read_in_netcdf('ql', 'fields', path_fields)
         zql = []
         nql = []
@@ -471,38 +499,16 @@ def plot_mean(var_name, files_, zrange, levels, path, prof = False):
         plt.plot([mini, maxi], [l, l], color='0.75', linewidth=0.8, label=str(l) + 'm')
 
     for t in files_:
-        print('t', t)
         if str(t)[-1] == 'c':
             path_fields = os.path.join(path, 'fields', str(t))
-            if case_name == 'TRMM_LBA':
-                it = np.int(t[3:-3])
-            else:
-                it = np.int(t[0:-3])
+            it = np.int(t[0:-3])
         else:
             path_fields = os.path.join(path, 'fields', str(t) + '.nc')
-            if case_name == 'TRMM_LBA':
-                it = np.int(t[3:-1])
-            else:
-                it = np.double(t)
-        # path_fields = os.path.join(path, 'fields', str(t) + '.nc')
+            it = np.double(t)
         var_field = read_in_netcdf(var_name, 'fields', path_fields)
         var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
 
-        t_label = 't='
-        if it >= 3600*24:
-            days = np.round(it/(3600*24),0)
-            hours = np.floor( (it - days*3600*24) / 3600)
-            secs = np.int(it - 24*3600*days - 3600*hours)
-            print('it', it, days, hours, secs)
-            t_label = t_label + str(days)[0:-2] + 'd '
-            t_label = t_label + str(hours)[0:-2] + 'h '
-            t_label = t_label + np.str(secs) + 's '
-        elif it >= 3600:
-            hours = np.int(np.mod(it,3600))
-            secs = it - 3600 * hours
-            t_label = t_label + np.str(hours) + 'h ' + np.str(secs) + 's '
-        else:
-            t_label = t_label + np.str(it) + 's'
+        t_label = set_tlabel(it)
         plt.plot(var_mean_field[:], zrange, color=cm1(count_color/len(files_)), label=t_label)
         if prof:
             tt = np.int((np.double(it) - time[0]) / np.double(dt_stats))
@@ -610,6 +616,35 @@ def plot_mean_levels(var_name, files_, zrange, path, profile=False):
     plt.close()
     return
 
+
+# _______
+def set_tlabel(tt):
+    print('set_tlabel ', tt)
+    if tt >= 1000000:
+        tt -= 1000000
+    print('tt', tt)
+    # tt = np.double(tt)
+    if tt < 3600:
+        lab = str(tt) + 's'
+    elif tt < 3600 * 24:
+        h = np.double(np.floor(tt / 1800)) / 2
+        s = np.mod(tt, h*3600)
+        if s > 0:
+            lab = str(np.round(h, 1)) + 'h ' + str(np.round(s, 0)) + 's'
+        else:
+            lab = str(np.round(h, 1)) + 'h'
+        print('tt', tt, h, s, lab)
+    else:
+        d = tt / day
+        h = np.mod(tt, day) / 3600
+        s = np.mod(np.mod(tt, day), 3600)
+        if s > 0:
+            lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+        elif h > 0:
+            lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h '
+        else:
+            lab = str(np.round(d, 0)) + 'days'
+    return lab
 
 if __name__ == "__main__":
     main()
