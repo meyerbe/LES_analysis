@@ -44,6 +44,15 @@ def main():
     day = np.int(24 * 3600)
     hour = np.int(3600)
     levels, files_, files_cum, time_prof = set_levels(case_name, files, dz)
+    # if np.int(files[0]) >= 1000000:
+    #     if np.int(files_[0]) < 1000000:
+    #         for i in range(len(files_)):
+    #             files_[i] = np.int(files_[i])
+    #             files_[i] += 1000000
+    #     if np.int(files_cum[0]) < 1000000:
+    #         for i in range(len(files_cum)):
+    #             files_cum[i] = np.int(files_[i])
+    #             files_cum[i] += 1000000
     # if args.files:
     #     files_ = ['']
     #     files_[0] = args.files + '.nc'
@@ -56,7 +65,13 @@ def main():
     # ql = read_in_netcdf('ql', 'fields', path_fields)
     print('path_ref', path_ref)
     zrange_stats = read_in_netcdf('z', 'reference', path_ref)
-    zrange_field = nc.Dataset(os.path.join(path, 'fields', files_[0]), 'r').groups['fields'].variables['z'][:]
+    if files[0][-3:] == '.nc':
+        path_z = os.path.join(path, 'fields', files_[0])
+    else:
+        path_z = os.path.join(path, 'fields', str(files_[0])+'.nc')
+    print(path_z)
+    zrange_field = nc.Dataset(path_z, 'r').groups['fields'].variables['z'][:]
+
     zrange = zrange_field
     print('')
     print('zrange stats: ', zrange_stats[0:5], zrange_stats[20:23])
@@ -65,7 +80,7 @@ def main():
 
     # plot_mean_profile('cloud_fraction', time_prof, zrange, path_ref, path)
     # plot_ql_n_all(files_, zrange, path, prof=False)
-    plot_mean('qt', files_, zrange, levels, path)
+    # plot_mean('qt', files_, zrange, levels, path)
     # plot_mean('ql', files_, zrange, levels, path)
     # plot_mean('s', files_, zrange, levels, path)
     # try:
@@ -75,15 +90,14 @@ def main():
     #     print('thetali not in variables')
     # # plot_mean_levels('qt', files_, zrange, path)
     # # plot_mean_levels('ql', files_, zrange, path)
-    #
+
     # plot_mean_var('ql', files_, zrange, path)
     # plot_mean_var('qt', files_, zrange, path)
     # plot_mean_var('s', files_, zrange, path)
-    #
-    #
-    # plot_mean_cumulated('ql', files_cum, zrange, path)
-    # plot_mean_cumulated('s', files_cum, zrange, path)
-    #
+
+    plot_mean_cumulated('ql', files_cum, zrange, path)
+    plot_mean_cumulated('s', files_cum, zrange, path)
+
     # plot_max_var('ql', zrange, path)
 
     return
@@ -146,7 +160,7 @@ def set_levels(case_name, files, dz):
         # files_ = ['21600.nc']
         # files_cum = files_
     elif case_name == 'TRMM_LBA':
-        files_ = files
+        files_ = ['1003600.nc', '1007200.nc', '1010800.nc', '1014400.nc', '1018000.nc']
         files_cum = ['1014400.nc', '1016200.nc', '1018000.nc', '1019800.nc']
         levels = np.asarray([10, 15, 20, 30, 40, 50, 60], dtype=np.int32)
         time_prof = [1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour]
@@ -187,34 +201,12 @@ def plot_mean_profile(var_name, time_range, zrange, path_ref, path):
     for t in time_range:
         for t_ in range(t_ini, time.shape[0]):
             if np.abs(time[t_] - time_range[count_t]) < dt_stats:
-                if time[t_] < 3600:
-                    lab = str(time[t_]) + 's'
-                elif time[t_] < 3600 * 24:
-                    h = time[t_]  / 3600
-                    s = np.mod(time[t_], h)
-                    if s > 0:
-                        lab = str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
-                    else:
-                        lab = str(np.round(h, 0)) + 'h'
-                else:
-                    d = time[t_] / day
-                    h = np.mod(time[t_], day) / 3600
-                    s = np.mod(np.mod(time[t_], day), 3600)
-                    if s > 0:
-                        lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
-                        # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
-                    elif h > 0:
-                        lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h '
-                    else:
-                        lab = str(np.round(d, 0)) + 'days'
-
+                lab = set_tlabel(time[t_])
                 plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label=lab)
                 t_ini = t_
                 count_color += 1
                 continue
-
         count_t += 1
-
 
     plt.legend()
     plt.xlabel('mean ' + var_name)
@@ -243,7 +235,6 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
     cm1 = plt.cm.get_cmap('bone')
     cm2 = plt.cm.get_cmap('winter')
     count_color = 0.0
-    day = 24 * 3600
 
     for t in files_cum:
         if str(t)[-1] == 'c':
@@ -256,19 +247,7 @@ def plot_mean_cumulated(var_name, files_cum, zrange, path):
         var_mean_field = np.mean(np.mean(var_field, axis=0), axis=0)
         mean_all += var_mean_field
 
-
-        if it < 3600:
-            lab = str(it) + 's'
-            print('sss')
-        elif it < 3600 * 24:
-            lab = str(np.round(it/3600,0)) + 'h'
-            print('hhh')
-        else:
-            d = it / day
-            h = np.mod(it, day) / 3600
-            s = np.mod(np.mod(it, day), 3600)
-            # lab = str(np.round(d,0)) + 'days ' + str(np.round(h,0)) + 'h ' + str(np.round(s,0)) + 's'
-            lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
+        lab = set_tlabel(it)
         plt.plot(var_mean_field[:], zrange, '--', color=cm1(count_color / len(files_cum)), label='t=' + lab + ' (from field)')
         count_color += 1.0
 
@@ -309,16 +288,7 @@ def plot_mean_var(var_name, files_, zrange, path):
         var_mean_fields = np.mean(np.mean(var, axis=0), axis=0)
         var2_mean = np.mean(np.mean(var*var, axis=0), axis=0)
         var_variance = var2_mean - var_mean_fields
-        if it < 3600:
-            lab = str(it) + 's'
-        elif it < 3600 * 24:
-            lab = str(np.round(it / 3600, 0)) + 'h'
-        else:
-            d = it / day
-            h = np.mod(it, day) / 3600
-            s = np.mod(np.mod(it, day), 3600)
-            lab = str(np.round(d,0)) + 'days ' + str(np.round(h,0)) + 'h ' + str(np.round(s,0)) + 's'
-            # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
+        lab = set_tlabel(it)
         plt.subplot(1, 2, 1)
         plt.plot(var_mean_fields, zrange, color = cm2(count_color/len(files_)), label='t=' + lab)
         plt.subplot(1, 2, 2)
@@ -396,38 +366,9 @@ def plot_ql_n_all(files_, zrange, path, prof=False):
             if it >= 1000000:
                 it -= 1000000
 
-        if it < 3600:
-            lab = str(it) + 's'
-        elif it < 3600 * 24:
-            h = it / 3600
-            s = np.mod(it, h)
-            if s > 0:
-                lab = str(np.round(h, 1)) + 'h ' + str(np.round(s, 0)) + 's'
-            else:
-                lab = str(np.round(h, 1)) + 'h'
-            print('it', it, h, s, lab)
-        else:
-            d = it / day
-            h = np.mod(it, day) / 3600
-            s = np.mod(np.mod(it, day), 3600)
-            if s > 0:
-                lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
-                # lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 1)) + 'h '
-            elif h > 0:
-                lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h '
-            else:
-                lab = str(np.round(d, 0)) + 'days'
-
+        lab = set_tlabel(it)
         print('it: ', it, lab)
-        # if it < 3600:
-        #     lab = str(it) + 's'
-        # elif it < 3600 * 24:
-        #     lab = str(np.round(it / 3600, 0)) + 'h'
-        # else:
-        #     d = it / day
-        #     h = np.mod(it, day) / 3600
-        #     s = np.mod(np.mod(it, day), 3600)
-        #     lab = str(np.round(d, 0)) + 'days ' + str(np.round(h, 0)) + 'h ' + str(np.round(s, 0)) + 's'
+
         ql = read_in_netcdf('ql', 'fields', path_fields)
         zql = []
         nql = []
@@ -519,7 +460,6 @@ def plot_mean(var_name, files_, zrange, levels, path, prof = False):
     plt.xlabel('mean '+var_name)
     plt.ylabel('height z [m]')
     plt.title('mean '+var_name + ' (' + case_name + ', nx*ny=' + str(nx * ny) + ')')
-
     plt.savefig(
         os.path.join(path, 'figs_stats', var_name + '_mean_fromfield.png'))
     # plt.show()
@@ -619,11 +559,8 @@ def plot_mean_levels(var_name, files_, zrange, path, profile=False):
 
 # _______
 def set_tlabel(tt):
-    print('set_tlabel ', tt)
     if tt >= 1000000:
         tt -= 1000000
-    print('tt', tt)
-    # tt = np.double(tt)
     if tt < 3600:
         lab = str(tt) + 's'
     elif tt < 3600 * 24:
@@ -633,7 +570,7 @@ def set_tlabel(tt):
             lab = str(np.round(h, 1)) + 'h ' + str(np.round(s, 0)) + 's'
         else:
             lab = str(np.round(h, 1)) + 'h'
-        print('tt', tt, h, s, lab)
+        print('set_tlabel: ', 'tt', tt, h, s, lab)
     else:
         d = tt / day
         h = np.mod(tt, day) / 3600
