@@ -179,16 +179,14 @@ cdef extern from "thermodynamic_functions.h":
 cpdef sat_adj_fromentropy(double p0, double s, double qt, ClausiusClapeyron CC, LatentHeat LH):
     cdef:
         double T, qv, qc, ql, qi, lam
-        int alpha = 0
     # eos_c(&self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
     eos_c(&CC.LT.LookupStructC, LH.Lambda_fp, LH.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
-    if ql > 0.0:
-        # print('saturated')
-        alpha = 1
-    else:
-        # print('dry')
-        pass
-    return T, ql, alpha
+    # if ql > 0.0:
+    #     # print('saturated')
+    # else:
+    #     # print('dry')
+    #     pass
+    return T, ql
 
 
 
@@ -362,11 +360,11 @@ cpdef sat_adj_fromthetali(double p, double thl, double qt, ClausiusClapeyron CC,
         T = T_1
         ql = 0.0
         # print("not saturated: (thl,qt)=", round(thl,2), round(qt,4), round(T,1))
-        alpha = 0
+        # alpha = 0
     else:
         ''' (3) if saturated: calculate second starting point T_2 '''
         # print("air saturated: (thl,qt)=", round(thl,2), round(qt,4))
-        alpha = 1
+        # alpha = 1
         ql_1 = qt - qv_star_1               # eos_c: same; thermo.py = ql_1
         # L_1 = latent_heat(T_1)            # eos_c: L_1 = L_fp(T_1, lam_1)
         L_1 = LH.L(T_1, 1.0)
@@ -407,4 +405,4 @@ cpdef sat_adj_fromthetali(double p, double thl, double qt, ClausiusClapeyron CC,
         ql = ql_2
         # print('count = ', count)
     time_b = time.clock()
-    return T, ql, alpha#, time_b-time_a
+    return T, ql#, time_b-time_a

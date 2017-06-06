@@ -23,7 +23,8 @@ import PDF_conditional
 def main():
     Lx = 5e3
     Ly = 5e3
-    dk_range = [0]
+    dk_range = [0, 2, 4]
+    # dk_range = [2, 4]
 
     parser = argparse.ArgumentParser(prog='PyCLES')
     parser.add_argument("path")
@@ -55,8 +56,6 @@ def main():
     # dk_range: number of layers below and above added to data
     if args.dk:
         dk_range = args.dk
-    else:
-        dk_range = [0, 2, 4]
 
     path_ref = os.path.join(path, 'Stats.' + case_name + '.nc')
     path_fields = os.path.join(path, 'fields')
@@ -73,8 +72,8 @@ def main():
 
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
-    # ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
-    ncomp_range = [1]
+    ncomp_range = [1, 2, 3, 4, 5, 6, 7, 8]
+    # ncomp_range = [1]
     krange, files = set_zrange(case_name)
     N = len(files)
     print('Use the following files', files, N)
@@ -132,10 +131,10 @@ def set_zrange(case_name):
         # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50], dtype=np.int32)
         # files = ['21600.nc']
         ## Bomex (dz=20)
-        krange = np.asarray([50, 60], dtype=np.int32)
-        # krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
-        # files = ['18000.nc', '19800.nc', '21600.nc']
-        files = ['21600.nc']
+        # krange = np.asarray([50, 60], dtype=np.int32)
+        krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
+        files = ['18000.nc', '19800.nc', '21600.nc']
+        # files = ['21600.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
