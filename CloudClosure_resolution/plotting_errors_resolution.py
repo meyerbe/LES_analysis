@@ -23,8 +23,14 @@ def main():
     parser.add_argument("path")
     parser.add_argument("casename")
     parser.add_argument("time")
-    parser.add_argument("--Lx")
-    parser.add_argument("--dz")
+    # parser.add_argument("--Lx")
+    parser.add_argument('--Lx', nargs='+', type=int)
+    # # This is the correct way to handle accepting multiple arguments (or list)
+    # # '+' == 1 or more.
+    # # '*' == 0 or more.
+    # # '?' == 0 or 1.
+    # parser.add_argument("--dz")
+    parser.add_argument('--dz', nargs='+', type=int)
     parser.add_argument("--ncomp_max")
     parser.add_argument("--xa_ql")
     parser.add_argument("--xb_ql")
@@ -37,23 +43,26 @@ def main():
     if args.Lx:
         Lx_range = np.round(np.double(args.Lx),1)
     else:
-        Lx_range = [1000.0, 5000.0, 10000.0, 15000.0]
+        # Lx_range = [1000.0, 5000.0, 10000.0, 15000.0]
+        Lx_range = [5000.0]
     if args.dz:
-        dz_range = np.int(args.dz)
+        dz_range = args.dz
     else:
-        dz_range = [20, 60, 100]
+        # dz_range = [20, 60, 100]
+        dz_range = [40]
     if args.ncomp_max:
         ncomp_max = np.int(args.ncomp_max)
     else:
         ncomp_max = 3
+    print('Lx range: ', Lx_range)
+    print('dz range: ', dz_range)
+    print('ncomp max: ', ncomp_max)
 
 
     case_name = args.casename
     nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     nz = nml['grid']['nz']
     dz = nml['grid']['dz']
-
-
 
     xa = -1.2e-5
     xb = 1e-6
@@ -66,9 +75,11 @@ def main():
 
 
     # Read in
-    file_name = 'CC_alltime_res_error' + '_Lx10000.0Ly10000.0_dz20' + '_time' + time_field + '.nc'
+    file_name = 'CC_alltime_res_error' + '_Lx' + str(Lx_range[0]) + 'Ly' + str(Lx_range[0]) \
+                + '_dz' + str(dz_range[0]) + '_time' + time_field + '.nc'
+    # file_name = 'CC_alltime_res_error' + '_Lx10000.0Ly10000.0_dz20' + '_time' + time_field + '.nc'
     path_in = os.path.join(path, 'CloudClosure_res', file_name)
-    print(path_in)
+    # print(path_in)
 
     rootgrp = nc.Dataset(path_in, 'r')
     zrange = rootgrp.groups['profiles'].variables['zrange'][:]
@@ -77,19 +88,25 @@ def main():
     error_ql_rel = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
     error_cf = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
     error_cf_rel = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
-    ql_mean_fields = np.zeros((len(Lx_range), len(dz_range), nz))
-    print('..', error_ql.shape)
+    ql_mean_field = np.zeros((len(Lx_range), len(dz_range), nz))
+    cf_field = np.zeros((len(Lx_range), len(dz_range), nz))
+    print('shapes: ', error_ql.shape, '#Lx: ', len(Lx_range), '#dz: ', len(dz_range), 'nz: ', nz, 'ncomp_max: ', ncomp_max)
     for i in range(len(Lx_range)):
         Lx = Lx_range[i]
         for j in range(len(dz_range)):
+            print('')
             delta_z = dz_range[j]
             file_name = 'CC_alltime_res_error' + '_Lx' + str(Lx) + 'Ly' + str(Lx) + '_dz' + str(delta_z) + '_time' + time_field + '.nc'
             print(file_name)
             path_in = os.path.join(path, 'CloudClosure_res', file_name)
+            print(path_in)
             rootgrp = nc.Dataset(path_in, 'r')
             error_ql[i, j, :, :] = rootgrp.groups['error'].variables['error_ql'][:, 0:ncomp_max]
             error_ql_rel[i, j, :, :] = rootgrp.groups['error'].variables['rel_error_ql'][:, 0:ncomp_max]
-            ql_mean_fields[i,j, :] = rootgrp.groups['profiles'].variables['ql_mean_fields'][:]
+            ql_mean_field[i,j, :] = rootgrp.groups['profiles'].variables['ql_mean_field'][:]
+            cf_field[i, j, :] = rootgrp.groups['profiles'].variables['cf_field'][:]
+            error_cf[i, j, :, :] = rootgrp.groups['error'].variables['error_cf'][:, 0:ncomp_max]
+            error_cf_rel[i, j, :, :] = rootgrp.groups['error'].variables['rel_error_cf'][:, 0:ncomp_max]
             zrange_ = rootgrp.groups['profiles'].variables['zrange'][:]
             rootgrp.close()
             if zrange_.any() != zrange.any():
@@ -97,10 +114,14 @@ def main():
                 sys.exit()
 
     path_out = os.path.join(path, 'CloudClosure_res_figures')
-    plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+    plot_ql_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
                         ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time_field, path_out)
-    plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+    plot_ql_rel_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
                                ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time_field, path_out)
+    plot_cf_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, cf_field, error_cf, error_cf_rel, zrange,
+                                  ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time_field, path_out)
+    plot_cf_rel_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, cf_field, error_cf, error_cf_rel, zrange,
+                                  ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time_field, path_out)
 
     return
 
@@ -109,10 +130,10 @@ def main():
 
 
 
-def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+def plot_ql_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
                         ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time, path):
     print('')
-    print('plot error ')
+    print('plot error ql')
     # data = (Lx x dz x nz x ncomp)
 
     import netCDF4 as nc
@@ -124,7 +145,7 @@ def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
 
     n_lx = len(Lx_range)
     n_dz = len(dz_range)
-    print('n_lx', n_lx, 'n_dz', n_dz)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
     markers = ['o', 'v', '*', 'd']
 
     # (1) one plot per Lx (for all dz)
@@ -136,7 +157,7 @@ def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
@@ -159,7 +180,7 @@ def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
                          label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -175,12 +196,13 @@ def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        for nl in range(1,n_lx):
-            for nc in range(ncomp_max):
-                col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+        for nl in range(n_lx):
+            if Lx_range[nl]>1000:
+                for nc in range(ncomp_max):
+                    col = cm1(np.double(nc) / ncomp_max)
+                    plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+                plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -197,10 +219,10 @@ def plot_ql_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
 
 
 
-def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+def plot_ql_rel_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
                                    ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time, path):
     print('')
-    print('plot relative error ')
+    print('plot relative error ql')
     # data = (Lx x dz x nz x ncomp)
 
     import netCDF4 as nc
@@ -213,7 +235,7 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
 
     n_lx = len(Lx_range)
     n_dz = len(dz_range)
-    print('n_lx', n_lx, 'n_dz', n_dz)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
     markers = ['o', 'v', '*', 'd']
 
     # (1) one plot per Lx (for all dz)
@@ -225,7 +247,7 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=1)
         # plt.xlim(xlimits_ql)
         plt.xlim([-1.1, 1.1])
@@ -247,7 +269,7 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
     #             col = cm1(np.double(nc) / ncomp_max)
     #             plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
     #                      label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-    #         plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+    #         plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
     #     plt.legend(loc=1)
     #     #plt.xlim(xlimits_ql)
     #     plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -263,12 +285,13 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        for nl in range(1, n_lx):
-            for nc in range(ncomp_max):
-                col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+        for nl in range(n_lx):
+            if Lx_range[nl] > 1000:
+                for nc in range(ncomp_max):
+                    col = cm1(np.double(nc) / ncomp_max)
+                    plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=1)
         # plt.xlim(xlimits_ql)
         plt.xlim([-1.1,1.1])
@@ -286,10 +309,14 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
 
 
 
-def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
-                                      ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time, path):
+def plot_cf_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, cf_field, error_cf, error_cf_rel, zrange,
+                                  ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time, path):
     print('')
-    print('plot error ')
+    print('plot error CF')
+    # print('CF: ', cf_field)
+    # print('e(CF): ', error_cf)
+    # print('ql: ', ql_mean_field)
+    # print('e(ql): ', error_ql)
     # data = (Lx x dz x nz x ncomp)
 
     import netCDF4 as nc
@@ -302,7 +329,7 @@ def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
 
     n_lx = len(Lx_range)
     n_dz = len(dz_range)
-    print('n_lx', n_lx, 'n_dz', n_dz)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
     markers = ['o', 'v', '*', 'd']
 
     # (1) one plot per Lx (for all dz)
@@ -314,14 +341,14 @@ def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_cf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
+            # plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=2)
-        plt.xlim(xlimits_ql)
+        # plt.xlim(xlimits_cf)
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql>)$')
+        plt.xlabel(r'$\epsilon(<CF>)$')
         plt.ylabel('height z (m)')
-    plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
-    save_name = 'error_ql_allres_dz_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    plt.suptitle('error <CF>' + '(t=' + str(time) + ')')
+    save_name = 'error_cf_allres_dz_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
     # plt.show()
     plt.savefig(os.path.join(path_out, save_name))
     plt.close()
@@ -333,16 +360,16 @@ def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
         for nl in range(n_lx):
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                plt.plot(error_cf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
                          label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+            # plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=2)
-        plt.xlim(xlimits_ql)
+        # plt.xlim(xlimits_cf)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql>)$')
+        plt.xlabel(r'$\epsilon(<CF>)$')
         plt.ylabel('height z (m)')
-    plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
-    save_name = 'error_ql_allres_Lx__nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    plt.suptitle('error <CF>' + '(t=' + str(time) + ')')
+    save_name = 'error_cf_allres_Lx__nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
     # plt.show()
     plt.close()
@@ -351,19 +378,20 @@ def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        for nl in range(1, n_lx):
-            for nc in range(ncomp_max):
-                col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+        for nl in range(n_lx):
+            if Lx_range[nl] > 1000:
+                for nc in range(ncomp_max):
+                    col = cm1(np.double(nc) / ncomp_max)
+                    plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+                plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
         plt.xlabel(r'$\epsilon(<ql>)$')
         plt.ylabel('height z (m)')
     plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
-    save_name = 'error_ql_allres_Lx_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    save_name = 'error_cf_allres_Lx_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
     # plt.show()
     plt.close()
@@ -371,10 +399,10 @@ def plot_cf_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_
     return
 
 
-def plot_cf_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+def plot_cf_rel_error_allres_ncompmax(ql_mean_field, error_ql, error_ql_rel, cf_field, error_cf, error_cf_rel, zrange,
                                       ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, time, path):
     print('')
-    print('plot relative error ')
+    print('plot relative error CF')
     # data = (Lx x dz x nz x ncomp)
 
     import netCDF4 as nc
@@ -387,7 +415,7 @@ def plot_cf_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
 
     n_lx = len(Lx_range)
     n_dz = len(dz_range)
-    print('n_lx', n_lx, 'n_dz', n_dz)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
     markers = ['o', 'v', '*', 'd']
 
     # (1) one plot per Lx (for all dz)
@@ -397,60 +425,61 @@ def plot_cf_rel_error_allres_ncompmax(ql_mean_fields, error_ql, error_ql_rel, er
         for ndz in range(n_dz):
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
+                plt.plot(error_cf_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
+            plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
+        # plt.xlim(xlimits_cf)
         plt.xlim([-1.1, 1.1])
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql> / <ql>)$')
+        plt.xlabel(r'$\epsilon(CF) / CF$')
         plt.ylabel('height z (m)')
-    plt.suptitle('relative error <ql>' + '(t=' + str(time) + ')')
-    save_name = 'error_ql_rel_allres_dz_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    plt.suptitle('relative error CF' + '(t=' + str(time) + ')')
+    save_name = 'error_cf_rel_allres_dz_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
     # plt.show()
     plt.savefig(os.path.join(path_out, save_name))
     plt.close()
 
-    # # (2) one plot per dz (for all Lx)
-    # plt.figure(figsize=(9 * n_lx, 12))
-    # for ndz in range(n_dz):
-    #     plt.subplot(1, n_dz, ndz + 1)
-    #     for nl in range(n_lx):
-    #         for nc in range(ncomp_max):
-    #             col = cm1(np.double(nc) / ncomp_max)
-    #             plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
-    #                      label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-    #         plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
-    #     plt.legend(loc=1)
-    #     #plt.xlim(xlimits_ql)
-    #     plt.title('dz=' + str(dz_range[ndz]) + 'm')
-    #     plt.xlabel(r'$\epsilon(<ql>)$')
-    #     plt.ylabel('height z (m)')
-    # plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
-    # save_name = 'error_allres_Lx__nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
-    # plt.savefig(os.path.join(path_out, save_name))
-    # # plt.show()
-    # plt.close()
+    # (2) one plot per dz (for all Lx)
+    plt.figure(figsize=(9 * n_lx, 12))
+    for ndz in range(n_dz):
+        plt.subplot(1, n_dz, ndz + 1)
+        for nl in range(n_lx):
+            for nc in range(ncomp_max):
+                col = cm1(np.double(nc) / ncomp_max)
+                plt.plot(error_cf_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (Lx=' + str(Lx_range[nl]) + ')')
+        plt.legend(loc=1)
+        #plt.xlim(xlimits_cf)
+        plt.title('dz=' + str(dz_range[ndz]) + 'm')
+        plt.xlabel(r'$\epsilon(CF)$')
+        plt.ylabel('height z (m)')
+    plt.suptitle('error CF' + '(t=' + str(time) + ')')
+    save_name = 'error_cf_allres_Lx__nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        for nl in range(1, n_lx):
-            for nc in range(ncomp_max):
-                col = cm1(np.double(nc) / ncomp_max)
-                plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_fields[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+        for nl in range(n_lx):
+            if Lx_range[nl] > 1000:
+                for nc in range(ncomp_max):
+                    col = cm1(np.double(nc) / ncomp_max)
+                    plt.plot(error_cf_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+                plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
+        # plt.xlim(xlimits_cf)
         plt.xlim([-1.1, 1.1])
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql> / <ql>)$')
+        plt.xlabel(r'$\epsilon(CF) / CF$')
         plt.ylabel('height z (m)')
-    plt.suptitle('relative error <ql>' + '(t=' + str(time) + ')')
-    save_name = 'error_ql_rel_allres_Lx_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
+    plt.suptitle('relative error CF' + '(t=' + str(time) + ')')
+    save_name = 'error_cf_rel_allres_Lx_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
     # plt.show()
     plt.close()

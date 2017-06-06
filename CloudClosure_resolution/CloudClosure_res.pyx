@@ -237,7 +237,7 @@ cdef class CloudClosure:
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
-                print('data all: ', data_all.shape, len(files)*(dk)*nx_*ny_)
+                # print('data all: ', data_all.shape, len(files)*(dk)*nx_*ny_)
                 ql_mean_field[k] /= ( len(files)*dk*(nx_*ny_) )
                 cf_field[k] /= ( len(files)*dk*(nx_*ny_) )
                 # print('CF field before division (dk='+str(dk-1)+'): ', cf_field[k]/(nx_*ny_*len(files)))
@@ -327,7 +327,6 @@ cdef class CloudClosure:
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
-            # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', error_ql[:,count_ncomp], 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf[:,count_ncomp]), 'rel_error_cf', ncomp, nvar, nk)
 
@@ -443,14 +442,12 @@ cdef class CloudClosure:
 
         var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
         var[:] = ql_mean_comp[:]
-        var = prof_grp.createVariable('ql_mean_fields', 'f8', ('nz'))
+        var = prof_grp.createVariable('ql_mean_field', 'f8', ('nz'))
         var[:] = ql_mean_field[:]
         var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
         var[:] = cf_comp[:]
         var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
         var[:] = cf_field[:]
-        print(type(ql_mean_comp), type(ql_mean_field))
-        print(type(error_ql))
 
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
