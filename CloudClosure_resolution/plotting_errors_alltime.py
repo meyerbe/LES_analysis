@@ -108,7 +108,7 @@ def plot_error_ql_ncompmax(case_name, path, file_name, ncomp_max, xlimits, dz, L
     plt.xlim([-1,0])
     plt.legend()
     plt.title('relative error <ql> (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm)')
-    plt.xlabel(r'$\epsilon(<ql>)$')
+    plt.xlabel(r'$\epsilon(<ql>)/<ql>$')
     plt.ylabel('height z (m)')
     save_name = 'alltime_error_ql_nc' + str(ncomp_max) + '_dz' + str(delta_z) + '_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
@@ -150,7 +150,7 @@ def plot_error_cf_ncompmax(case_name, path, file_name, ncomp_max, xlimits, dz, L
     plt.xlim([-1,0])
     plt.legend()
     plt.title('relative error CF (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm)')
-    plt.xlabel(r'$\epsilon(CF)$')
+    plt.xlabel(r'$\epsilon(CF)/CF$')
     plt.ylabel('height z (m)')
     save_name = 'alltime_error_cf_nc' + str(ncomp_max) + '_dz' + str(delta_z) + '_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))

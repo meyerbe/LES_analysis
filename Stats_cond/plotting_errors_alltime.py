@@ -84,11 +84,11 @@ def main():
         xb = np.double(args.xb_ql)
     xlimits_ql = [xa, xb]
     xlimits_cf = [-2e-2, 1e-1]
-    # for ncomp_max in [3,5,8]:
-    #     plot_error_ql_ncompmax(error_ql_env, ql_mean_env, error_ql_rel_env, zrange,
-    #                            ncomp_max, xlimits_ql, dz, Lx, delta_z, time_name, t_ref, type_, path_out)
-    #     plot_error_cf_ncompmax(error_cf_env, cf_env, error_cf_rel_env, zrange,
-    #                            ncomp_max, xlimits_cf, dz, Lx, delta_z, time_name, t_ref, type_, path_out)
+    for ncomp_max in [3,5,8]:
+        plot_error_ql_ncompmax(error_ql_env, ql_mean_env, error_ql_rel_env, zrange,
+                               ncomp_max, xlimits_ql, dz, Lx, delta_z, time_name, t_ref, type_, path_out)
+        plot_error_cf_ncompmax(error_cf_env, cf_env, error_cf_rel_env, zrange,
+                               ncomp_max, xlimits_cf, dz, Lx, delta_z, time_name, t_ref, type_, path_out)
 
     path_profile = os.path.join(path, 'Stats.'+case_name+'.nc')
     print('')
@@ -99,7 +99,7 @@ def main():
     ql_stats_ = root.groups['profiles'].variables['ql_mean'][:,:]
     time_stats = root.groups['profiles'].variables['t'][:]
     zrange_stats = root.groups['profiles'].variables['z'][:]
-    it = time_field / dt_stats
+    it = np.int(time_field / dt_stats)
     print('')
     print('Times: ', time_field, time_stats[it])
     print(time_stats.shape, it)

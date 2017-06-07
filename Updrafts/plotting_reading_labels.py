@@ -1,3 +1,14 @@
+'''Description
+- plot_anomalies: compute anomalies of fields ()' = () - <()> (deviation from horizontal mean) and plot
+- plot_labels_comparison_hor: plot horizontal crosssections to compare PDF labels to tracer labels
+- plot_labels_compariosn_vert: plot vertical crosssections to compare PDF labels to tracer labels
+- plot_variable_vert: plot contourf and imshow of only one variable
+'''
+
+
+
+
+
 import os
 import argparse
 import json as simplejson
@@ -89,6 +100,7 @@ def main():
         kmax = np.int(max(krange_pdf))
         kmax = 100
         kmin = 10
+        kmin = 0
         print('kmin:', kmin)
         print('kmax: ', kmax, '(max k: ' + str(max(krange_pdf)) + ')')
 
@@ -104,10 +116,14 @@ def main():
         #     print('height: ', krange_plot[k]*dz)
         #     file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm.pdf'
         #     plot_labels_comparison_hor(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, k, krange_pdf, dz, path, file_name)
-        # if dk == 1:
-        #     for y0 in [10, 50]:
-        #         file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm.pdf'
-        #         plot_labels_comparison_vert(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path, file_name)
+        if dk == 1:
+            for y0 in [10]: #[10, 50]
+                # file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm.pdf'
+                # plot_labels_comparison_vert(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path, file_name)
+
+                file_name = 'thetal_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm'
+                plot_variable_vert(thetali_, 'thetali', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin,
+                           kmax, dz, path, file_name)
 
         plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, krange_pdf, kmin, kmax, dz, path)
 
@@ -148,12 +164,30 @@ def plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, tim
 
 
     y0 = 10
-    k = krange_pdf[0]
-    file_name = 'w' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly.pdf'
-    plot_variable_vert(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, y0, k, krange_pdf, kmin, kmax, dz, path, file_name)
-    file_name = 'thetal' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly.pdf'
-    plot_variable_vert(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, y0, k, krange_pdf, kmin, kmax, dz, path,
+    k0 = 40
+    file_name = 'thetal_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
+    plot_variable_vert(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path,
                        file_name)
+    file_name = 'thetal_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
+    plot_variable_hor(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
+                       dz, path,file_name)
+    file_name = 'qt_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
+    plot_variable_vert(qt_anomaly, 'qt', labels_pdf, labels_tracers, type, time, y0,
+                       krange_pdf, kmin, kmax, dz, path, file_name)
+    file_name = 'qt_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
+    plot_variable_hor(qt_anomaly, 'qt', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
+                       dz, path, file_name)
+    file_name = 'ql_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
+    plot_variable_vert(qt_anomaly, 'ql', labels_pdf, labels_tracers, type, time, y0,
+                       krange_pdf, kmin, kmax, dz, path, file_name)
+    file_name = 'ql_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
+    plot_variable_hor(ql_anomaly, 'ql', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
+                       dz, path, file_name)
+    file_name = 'w_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
+    plot_variable_vert(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path, file_name)
+    file_name = 'w_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
+    plot_variable_hor(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
+                       dz, path, file_name)
 
     return
 
@@ -480,21 +514,32 @@ def plot_labels_comparison_vert(qt, ql, w, thetali, labels_pdf, labels_tr, type_
     plt.close()
     return
 
-#
-# def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, y0, k, krange, dz, path, file_name):
-#     iz = np.int(krange[k])
-#
-#     plt.figure(12,6)
-#     plt.subplot(1,2,1)
-#     plt.imshow(var[:, :, iz])
-#     plt.colorbar(shrink=0.5)
-#     plt.contour(lables_pdf[:,:,k], [0.9], colors='w')
-#     plt.title(var_name)
-#
-#     return
+
+def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, k0, krange, dz, path, file_name):
+    iz = np.int(krange[k0])
+
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.contourf(var[:, :, k0])
+    plt.colorbar(shrink=0.5)
+    plt.contour(labels_pdf[:, :, k0], [0.9], colors='w')
+    plt.title(var_name)
+
+    plt.subplot(1, 2, 2)
+    plt.contourf(var[:, :, k0])
+    plt.colorbar(shrink=0.5)
+    plt.contour(labels_tr[:, :, k0], [0.9], colors='w')
+    plt.title(var_name)
+
+    plt.suptitle(var_name + ': ' + type_ + ' vs. PDF (z=' + str(iz * dz) + 'm)')
+    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_cont' + '.pdf'))
+    plt.close()
+
+    return
 
 
-def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, k, krange, kmin, kmax, dz, path,
+
+def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path,
                       file_name):
     xrange = np.arange(0, var.shape[0], 1)
 
@@ -504,17 +549,17 @@ def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, k,
     plt.colorbar(shrink=0.5)
     plt.contour(labels_pdf[:, y0, kmin:kmax].T, [0.9], colors='w')
     plt.title(var_name)
-    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'k (m)')
+    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'z (m)')
 
     plt.subplot(1,2,2)
     plt.imshow(var[:, y0, kmin:kmax].T)
     plt.colorbar(shrink=0.5)
     plt.contour(labels_tr[:, y0, kmin:kmax].T, [0.9], colors='w')
     plt.title(var_name)
-    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'k (m)')
+    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'z (m)')
 
     plt.suptitle('w: ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', 'im_' + file_name))
+    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_im' + '.pdf'))
     plt.close()
 
 
@@ -525,17 +570,19 @@ def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, k,
     plt.colorbar(shrink=0.5)
     plt.contour(labels_pdf[:, y0, kmin:kmax].T, [0.9], colors='w')
     plt.title(var_name)
-    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'k (m)')
+    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'z (m)')
+    plt.gca().invert_yaxis()
 
     plt.subplot(1, 2, 2)
     plt.contourf(var[:, y0, kmin:kmax].T)
     plt.colorbar(shrink=0.5)
     plt.contour(labels_tr[:, y0, kmin:kmax].T, [0.9], colors='w')
     plt.title(var_name)
-    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'k (m)')
+    set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'z (m)')
+    plt.gca().invert_yaxis()
 
-    plt.suptitle('w: ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', 'cont_' + file_name))
+    plt.suptitle(var_name + ': ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
+    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_cont' + '.pdf'))
     plt.close()
 
     return
@@ -606,6 +653,8 @@ def set_ticks(ax, var_x, var_y, xtitle, ytitle):
     plt.xlabel(xtitle)
     plt.ylabel(ytitle)
     return
+
+
 
 
 def read_in_fields(t, path_):

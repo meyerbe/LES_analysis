@@ -43,8 +43,8 @@ def main():
     if args.Lx:
         Lx_range = np.round(np.double(args.Lx),1)
     else:
-        # Lx_range = [1000.0, 5000.0, 10000.0, 15000.0]
-        Lx_range = [5000.0]
+        Lx_range = [1000.0, 5000.0, 10000.0, 15000.0]
+        # Lx_range = [5000.0]
     if args.dz:
         dz_range = args.dz
     else:
@@ -79,7 +79,7 @@ def main():
                 + '_dz' + str(dz_range[0]) + '_time' + time_field + '.nc'
     # file_name = 'CC_alltime_res_error' + '_Lx10000.0Ly10000.0_dz20' + '_time' + time_field + '.nc'
     path_in = os.path.join(path, 'CloudClosure_res', file_name)
-    # print(path_in)
+    print(path_in)
 
     rootgrp = nc.Dataset(path_in, 'r')
     zrange = rootgrp.groups['profiles'].variables['zrange'][:]
