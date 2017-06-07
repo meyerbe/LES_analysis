@@ -55,29 +55,36 @@ def main():
     time_stats = nc.Dataset(path_ref, 'r').groups['profiles'].variables['t'][:]
     print('time stats: ', time_stats[0:5], time_stats[-3:])
     zrange_stats1 = read_in_netcdf('z', 'reference', path_ref)
-    zrange_stats2 = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z'][:]
-    zrange_stats3 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp'][:]
-    zrange_stats4 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp_half'][:]
     zrange_stats = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z_half'][:]
-    if files[0][-3:] == '.nc':
+    zrange_stats2 = nc.Dataset(path_ref, 'r').groups['profiles'].variables['z'][:]
+    if case_name == 'TRMM_LBA':
+        zrange_stats3 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp'][:]
+        zrange_stats4 = nc.Dataset(path_ref, 'r').groups['reference'].variables['zp_half'][:]
+    if str(files_[0])[-3:] == '.nc':
         path_z = os.path.join(path, 'fields', files_[0])
     else:
         path_z = os.path.join(path, 'fields', str(files_[0])+'.nc')
     print(path_z)
-    zrange_field = nc.Dataset(path_z, 'r').groups['fields'].variables['z'][:]
-    zrange = zrange_field
+    try:
+        zrange_field = nc.Dataset(path_z, 'r').groups['fields'].variables['z'][:]
+        zrange = zrange_field
+    except:
+        zrange = zrange_stats
     print('')
     # print('zrange stats: ', zrange_stats1[0:5], zrange_stats1[20:23])
     print('zrange stats z_half:  ', zrange_stats[0:5], zrange_stats[20:23])
-    print('zrange stats zp:      ', zrange_stats3[0:5], zrange_stats3[20:23])
-    print('zrange stats zp_half: ', zrange_stats4[0:5], zrange_stats4[20:23])
-    print('zrange field:         ', zrange_field[0:5], zrange_field[20:23])
+    if case_name == 'TRMM_LBA':
+        print('zrange stats zp:      ', zrange_stats3[0:5], zrange_stats3[20:23])
+        print('zrange stats zp_half: ', zrange_stats4[0:5], zrange_stats4[20:23])
+        print('zrange field:         ', zrange_field[0:5], zrange_field[20:23])
 
-
-    plot_mean_profile('cloud_fraction', time_prof, zrange, max_height, path_ref, path, True)
-    plot_mean_profile('fraction_core', time_prof, zrange, max_height, path_ref, path, True)
-    plot_mean_profile('fraction_cloud', time_prof, zrange, max_height, path_ref, path, True)
+    max_height = 100
+    # plot_mean_profile('thetali', time_prof, zrange, max_height, path_ref, path, False)
+    # plot_mean_profile('cloud_fraction', time_prof, zrange, max_height, path_ref, path, True)
+    # plot_mean_profile('fraction_core', time_prof, zrange, max_height, path_ref, path, True)
+    # plot_mean_profile('fraction_cloud', time_prof, zrange, max_height, path_ref, path, True)
     # plot_ql_n_all(files_, zrange, path, prof=False)
+    plot_mean('thetali', files_, zrange, levels, path)
     # plot_mean('qt', files_, zrange, levels, path)
     # plot_mean('ql', files_, zrange, levels, path)
     # plot_mean('s', files_, zrange, levels, path)
@@ -157,6 +164,7 @@ def set_levels(case_name, files, dz):
         files_ = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6 * hour]
         files_cum = [5 * hour, np.int(5.5 * hour), 6 * hour]
         levels = [500, 600, 720, 800, 1000, 1200, 1500, 2000]
+        time_prof = [0, 1 * hour, 2 * hour, 3 * hour, 4 * hour, 5 * hour, 6*hour]
         ## Bomex test
         # levels = [400, 500, 600, 720, 800, 900, 1000]
         # files_ = ['21600.nc']
@@ -188,7 +196,7 @@ def plot_mean_profile(var_name, time_range, zrange, max_height, path_ref, path, 
     print('-- plot mean from profile: '+ var_name + ' --')
     global dt_stats
     # path_references = os.path.join(path, 'Stats.' + case_name + '.nc')
-    time = read_in_netcdf('t', 'timeseries', path_ref)
+    time_ = read_in_netcdf('t', 'timeseries', path_ref)
     if var_name == 'cloud_fraction' or var_name == 'fraction_core' or var_name == 'fraction_cloud':
         var = read_in_netcdf(var_name, 'profiles', path_ref)
     else:
@@ -196,26 +204,32 @@ def plot_mean_profile(var_name, time_range, zrange, max_height, path_ref, path, 
         var = read_in_netcdf(var_name, 'profiles', path_ref)
 
     print('')
-    print('var shape: ', var.shape, 'time: ', time.shape, ' zrange:', zrange.shape, 'dt_stats: ', dt_stats)
+    print('var shape: ', var.shape, 'time: ', time_.shape, time_range, ' zrange:', zrange.shape, 'dt_stats: ', dt_stats)
     print('')
     plt.figure(figsize=(9,6))
     cm1 = plt.cm.get_cmap('bone')
-    # for t in range(time.shape[0]):
-    #     if time[t]>=3600.0 and np.mod(time[t], 100*dt_stats) == 0.0:
-    #         print('timetimetime', time[t], 20*dt_stats)
+    # for t in range(time_.shape[0]):
+    #     if time_[t]>=3600.0 and np.mod(time[t], 100*dt_stats) == 0.0:
+    #         print('timetimetime', time_[t], 20*dt_stats)
     #         plt.plot(var[t,:], zrange, label='t='+str(time[t]))
+    count_color = 0
     t_ini = 0
     count_t = 0
-    count_color = 0
     for t in time_range:
-        for t_ in range(t_ini, time.shape[0]):
-            if np.abs(time[t_] - time_range[count_t]) < dt_stats:
-                lab = set_tlabel(time[t_])
+        for t_ in range(t_ini, time_.shape[0]):
+            # print('')
+            # print('t', t, 't_', t_, 't_ini', t_ini, time_.shape[0], 'dt_stats', dt_stats)
+            # print(time_[t_], time_range[count_t])
+            # print('diff: ', np.abs(time_[t_] - time_range[count_t]))
+            if np.abs(time_[t_] - time_range[count_t]) < dt_stats:
+                lab = set_tlabel(time_[t_])
+                # print('tt', t, time_range[count_t])
+                # print(t_, time[t_], lab, dt_stats)
                 if BL:
                     plt.plot(var[t_, 0:max_height], zrange[0:max_height], color=cm1(count_color / len(time_range)), label=lab)
                 else:
                     plt.plot(var[t_, :], zrange, color=cm1(count_color / len(time_range)), label=lab)
-                t_ini = t_
+                t_ini = t_+1
                 count_color += 1
                 continue
         count_t += 1
