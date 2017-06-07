@@ -115,7 +115,8 @@ cdef class Updrafts:
 
 
 
-    cpdef update(self, files, ncomp_range, dz_range, krange, nml, path, path_tr):
+    # cpdef update(self, files, ncomp_range, dz_range, krange, nml, path, path_tr):
+    cpdef update(self, files, ncomp_range, krange, nml, path, path_tr):
         print('')
         print('----- Updraft Clustering: update -----')
 
@@ -148,7 +149,8 @@ cdef class Updrafts:
 
 
             # (B) PDF Model
-            labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
+            # labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
+            labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, krange, tt, nml)
             up_type = 'PDF'
             plot_labels(qt_, ql_, w_, labels_pdf, tt, krange, dz, up_type, path)
 
@@ -170,7 +172,8 @@ cdef class Updrafts:
     # ----------------------------------------------------------------------
     #               PDF Model
     # ----------------------------------------------------------------------
-    cpdef predict_PDF(self, s_, qt_, T_, ql_, path, int ncomp, dz_range_, krange_, tt, nml):
+    # cpdef predict_PDF(self, s_, qt_, T_, ql_, path, int ncomp, dz_range_, krange_, tt, nml):
+    cpdef predict_PDF(self, s_, qt_, T_, ql_, path, int ncomp, krange_, tt, nml):
         # input:
         #     - 3D fields at given time tt
         # output:
@@ -205,7 +208,7 @@ cdef class Updrafts:
             int nvar = 2
             int [:] krange = krange_
             int nk = len(krange)
-            int dz_range = dz_range_
+            # int dz_range = dz_range_
             Py_ssize_t k, iz
             str d
             int dz = nml['grid']['dz']
@@ -276,7 +279,7 @@ cdef class Updrafts:
 
         data = np.ndarray(shape=((nx * ny), nvar))
         means_ = np.ndarray(shape=(nk, ncomp, nvar))
-        covariance_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+        covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
         weights_ = np.zeros(shape=(nk, ncomp))
 
         '''(1) Statistics File'''
@@ -314,16 +317,25 @@ cdef class Updrafts:
             #   (b) for (th_l,qt)
             clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
             clf_thl_norm.fit(data_norm)
-            means_[k, :, :] = clf_thl_norm.means_[:, :]
-            covariance_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
-            weights_[k,:] = clf_thl_norm.weights_[:]
+            # means_[k, :, :] = clf_thl_norm.means_[:, :]
+            # covariances_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
+            # weights_[k,:] = clf_thl_norm.weights_[:]
 
 
             '''(5) Find Labels, sort and rearrange'''
             # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
             # Note: it is either (# of zeros in labels_new) = (# of zeros in labels_) or (# of zeros in labels_new) = (nx*ny - (# of zeros in labels_))
             labels_ = clf_thl_norm.predict(data_norm)
-            means, covars, weight, labels_new = self.sort_PDF(clf_thl_norm.means_,
+            means, covars, weights, labels_new = self.sort_PDF(clf_thl_norm.means_,
+                                                              clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
+            print('')
+            print('hoihoi')
+            print(len(means), len(covars), len(labels_new))
+            print(type(means), type(covars), type(weights), type(labels_new))
+            print(means.shape, covars.shape)
+            print(len(labels_new))
+            print('')
+            means_[k, :, :], covariances_[k, :, :, :], weights_[k, :], labels_new = self.sort_PDF(clf_thl_norm.means_,
                                                               clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
             print('Labels: ', np.count_nonzero(labels_), np.count_nonzero(labels_new), labels_.shape[0]-np.count_nonzero(labels_))
             if ( np.count_nonzero(labels_new) != labels_.shape[0]-np.count_nonzero(labels_)
@@ -368,12 +380,20 @@ cdef class Updrafts:
             #     print('rel err: '+ str(rel_error_ql[k]))
             #
 
-            # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
-            # means, covars, weight, labels = self.sort_PDF(means_, covariance_, weights_, labels_)
 
-            # self.write_updrafts_field(self.path_out, nc_file_name_labels, labels)
 
+        '''(6) Save Updraft Labels & Gaussian Mixture PDFs '''
         self.write_updrafts_file(self.path_out, nc_file_name_labels, labels, nml)
+
+        print('')
+        print('Dumping files: '+ self.path_out)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'means', means_, 'qtT', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'weights', weights_, 'qtT', ncomp, nvar, nk)
+        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
+        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
+        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
+        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_cf[:,count_ncomp]), 'rel_error_cf', ncomp, nvar, nk)
 
         return labels
 
@@ -525,35 +545,70 @@ cdef class Updrafts:
         # # var[:,:,:] = np.array(data)
         return
 
-
+    #----------------------------------------------------------------------
     cpdef create_statistics_file(self, path, file_name, time, ncomp, nvar, nz_):
+        cdef:
+            int i
+            int nz = nz_
+
         print('create statistics file: '+ path+', '+ file_name)
         # ncomp: number of Gaussian components in EM
         # nvar: number of variables of multi-variate Gaussian components
         rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
         dimgrp = rootgrp.createGroup('dims')
         means_grp = rootgrp.createGroup('means')
-        means_grp.createDimension('nz', nz_)
+        means_grp.createDimension('nz', nz)
         means_grp.createDimension('ncomp', ncomp)
         means_grp.createDimension('nvar', nvar)
         cov_grp = rootgrp.createGroup('covariances')
-        cov_grp.createDimension('nz', nz_)
+        cov_grp.createDimension('nz', nz)
         cov_grp.createDimension('ncomp', ncomp)
         cov_grp.createDimension('nvar', nvar)
         weights_grp = rootgrp.createGroup('weights')
-        weights_grp.createDimension('nz', nz_)
-        weights_grp.createDimension('EM2', 2)
+        weights_grp.createDimension('nz', nz)
+        weights_grp.createDimension('ncomp', ncomp)
         ts_grp = rootgrp.createGroup('time')
         ts_grp.createDimension('nt',len(time))
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]
         z_grp = rootgrp.createGroup('z-profile')
-        z_grp.createDimension('nz', nz_)
+        z_grp.createDimension('nz', nz)
         var = z_grp.createVariable('height', 'f8', ('nz'))
-        for i in range(nz_):
+        for i in range(nz):
             var[i] = self.zrange[i]
         rootgrp.close()
+        return
+
+
+
+    cpdef dump_variable(self, path, group_name, data_, var_name, ncomp, nvar, nz_):
+        print('-------- dump variable --------', var_name, group_name, path)
+        # # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
+        rootgrp = nc.Dataset(path, 'r+')
+        if group_name == 'means':
+            # rootgrp = nc.Dataset(path, 'r+')
+            var = rootgrp.groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+            # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))
+            # var = nc.Dataset(path, 'r+').groups['means'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar'))[:,:,:]
+            var[:,:,:] = data_[:,:,:]
+
+        elif group_name == 'covariances':
+            var = rootgrp.groups['covariances'].createVariable(var_name, 'f8', ('nz', 'ncomp', 'nvar', 'nvar'))
+            var[:,:,:,:] = data_[:,:,:,:]
+
+        elif group_name == 'weights':
+            var = rootgrp.groups['weights'].createVariable(var_name, 'f8', ('nz', 'ncomp'))
+            var[:,:] = data_[:,:]
+
+        elif group_name == 'error':
+            var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
+            var[:] = data_[:]
+
+        # # write_field(path, group_name, data, var_name)
+        # # print('--------')
+        rootgrp.close()
+        print('')
         return
 
 
