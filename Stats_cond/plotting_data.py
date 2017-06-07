@@ -172,19 +172,19 @@ def main():
         # type_ = 'Couvreux'
         # file_name = 'data_env_vs_all_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.pdf'
         # plot_data_scatter(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr, ql[:, k], ql_env_tr, ql_up_tr,
-        #               nx * ny, n_env_tr, n_up_tr, type_ , k * dz, time_field, path_out, file_name)
+        #               nx * ny, n_env_tr, n_up_tr, type_ , iz * dz, time_field, path_out, file_name)
         # file_name = 'data_env_vs_all_' + type_  + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored.pdf'
         # plot_data_scatter_colored(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
         #                           ql[:, k], ql_env_tr, ql_up_tr,
-        #                             nx * ny, n_env_tr, n_up_tr, type_ , k * dz, time_field, path_out, file_name)
+        #                             nx * ny, n_env_tr, n_up_tr, type_ , iz * dz, time_field, path_out, file_name)
         type_ = 'PDF'
-        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.pdf'
+        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
         plot_data_scatter(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf, ql[:, k], ql_env_pdf, ql_up_pdf,
-                      nx * ny, n_env_pdf, n_up_pdf, type_ , k * dz, time_field, path_out, file_name)
-        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored.pdf'
+                      nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
+        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored.png'
         plot_data_scatter_colored(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf,
                                   ql[:, k], ql_env_pdf, ql_up_pdf,
-                      nx * ny, n_env_pdf, n_up_pdf, type_ , k * dz, time_field, path_out, file_name)
+                      nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
 
         end = time.time()
         print('k=' + str(k) + ', time: ' + str(end - ini))
