@@ -297,6 +297,129 @@ def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, Lx, dk, pa
 
 
 
+def plot_samples(type, data, data_ql, samples, samples_ql, var_name1, var_name2, scaler, ncomp, z, path, save_name):
+    print('Plot samples')
+    # type:         normalised data or original data
+    # data:         data from LES output
+    # data_ql:      ql data from LES output
+    # samples:      sample data drawn from GMM PDF
+    # samples_ql:   ql data calculated from sample data
+    # var_name1:    thl or s
+    # var_name :    qt
+    # scaler:       scaling factors for normalisation
+    # ncomp:        # of components for GMM PDF
+    # path:         output path for saving figure
+
+    # print('shapes: ', data.shape, data_ql.shape, samples.shape, samples_ql.shape)
+    # print('min/max: ', np.amin(data_ql), np.amax(data_ql), np.amin(samples_ql), np.amax(samples_ql))
+
+    # ql_min = np.min([np.amin(data_ql), np.amin(samples_ql)])
+    ql_min = 0.0
+    ql_max = np.max([np.amax(data_ql), np.amax(samples_ql)])
+
+    scale_thl = scaler.scale_[0]
+    scale_qt = scaler.scale_[1]
+    xmin = np.min([np.amin(data[:, 0]),np.amin(samples[:, 0])])
+    xmax = np.max([np.amax(data[:, 0]),np.amax(samples[:, 0])])
+    ymin = np.min([np.amin(data[:, 1]),np.amin(samples[:, 1])])
+    ymax = np.max([np.amax(data[:, 1]),np.amax(samples[:, 1])])
+    cm = plt.cm.get_cmap('RdYlBu')
+    cm = plt.cm.get_cmap('viridis')
+
+    plt.figure(figsize=(8,9))
+    plt.subplot(2,2,1)
+    plt.scatter(data[:,0], data[:,1], s=5, alpha=0.2)
+    if type == 'norm':
+        plt.title('data norm (n='+str(np.shape(data)[0])+')')
+    else:
+        plt.title('data (n='+str(np.shape(data)[0])+')')
+    labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
+
+
+    plt.subplot(2,2,2)
+    plt.scatter(samples[:,0], samples[:,1], s=5, alpha=0.2)
+    plt.title('samples (n='+str(np.size(samples_ql))+')')
+    labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
+
+    plt.subplot(2, 2, 3)
+    try:
+        ax = plt.scatter(data[:, 0], data[:, 1], c=data_ql[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
+        if np.amax(data_ql[:]) > 0.0:
+            plt.colorbar(ax, shrink=0.6)
+    except:
+        print('except data - color arr: ', data.shape, data_ql.shape)
+        # # traceback.print_exc()
+        # color_arr = np.zeros(shape=np.size(data_ql))
+        # for i in range(np.size(data_ql)):
+        #     color_arr[i] = data_ql[i] * 1e3
+        # print('data_ql except', np.amin(data_ql), np.amax(data_ql), np.amin(color_arr), np.amax(color_arr),np.shape(color_arr))
+        # print(color_arr.shape)
+        # print(color_arr)
+        # try:
+        #     ax = plt.scatter(data[:, 0], data[:, 1], c=color_arr[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
+        #     if np.amax(data_ql[:]) > 0.0:
+        #         plt.colorbar(ax, shrink=0.6)
+        # except:
+        #     # traceback.print_exc()
+        #     print('except except (data ql)')
+        #     ax = plt.scatter(data[:, 0], data[:, 1], s=6, alpha=0.5, edgecolors='none', vmin=ql_min,vmax=ql_max)  # , cmap = cm)
+    if type == 'norm':
+        plt.title('data norm (n=' + str(np.shape(data)[0]) + ')')
+    else:
+        plt.title('data (n=' + str(np.shape(data)[0]) + ')')
+    labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
+
+
+
+    plt.subplot(2, 2, 4)
+    color_arr = np.zeros(shape=np.size(samples_ql))
+    for i in range(np.size(samples_ql)):
+        color_arr[i] = samples_ql[i] * 1e3
+    print('samples_ql ', np.amin(samples_ql), np.amax(samples_ql), np.amin(color_arr), np.amax(color_arr),
+          np.shape(color_arr))
+    try:
+        print('try')
+        ax = plt.scatter(samples[:, 0], samples[:, 1], c=samples_ql[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
+        if np.amax(data_ql[:]) > 0.0:
+            plt.colorbar(ax, shrink=0.6)
+    except:
+        pass
+        # try:
+        #     print('except-try')
+        #     ax = plt.scatter(samples[:, 0], samples[:, 1], c=color_arr[:], s=6, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)#, cmap = cm)
+        #     if np.amax(data_ql[:]) > 0.0:
+        #         plt.colorbar(ax, shrink=0.6)
+        # except:
+        #     print('except-except')
+        #     ax = plt.scatter(samples[:, 0], samples[:, 1], s=6, alpha=0.5, edgecolors='none')#, cmap = cm)
+
+    plt.title('samples (n=' + str(np.size(samples_ql)) + ')')
+    labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
+
+    # plt.subplot(2, 3, 6)
+    # color_arr = np.zeros(shape=np.shape(data_ql))
+    # for i in range(np.shape(data_ql)[0]):
+    #     color_arr[i] = data_ql[i] * 1e4
+    # print('data_ql. ', np.amin(data_ql), np.amax(data_ql), np.amin(color_arr), np.amax(color_arr))
+    # plt.scatter(data[:, 0], data[:, 1], c=color_arr[:], s=5, alpha=0.2)
+    # # plt.gray()
+    # if type == 'norm':
+    #     plt.title('data norm')
+    # else:
+    #     plt.title('data')
+    # labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
+
+    plt.suptitle('Data & Samples: ncomp='+str(ncomp)+', z='+str(z)+'m', fontsize=18)
+    # if type == 'norm':
+    #     savename = 'sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(z)+'m.png'
+    # else:
+    #     savename = 'sample_figure_' + 'ncomp' + str(ncomp) + '_' + str(z) + 'm.png'
+    print(os.path.join(path + '_figures', save_name))
+    plt.savefig(
+        os.path.join(path + '_figures', save_name))
+    plt.close()
+    return
+
 
 
 def labeling(var_name1, var_name2, xmin, xmax, ymin, ymax):

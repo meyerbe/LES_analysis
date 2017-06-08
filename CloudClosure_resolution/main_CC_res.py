@@ -53,8 +53,8 @@ def main():
     dz = nml['grid']['dz']
 
     # ClCl = CloudClosure_res_acc.CloudClosure()
-    # ClCl = CloudClosure_res.CloudClosure()
-    ClCl = CloudClosure_res_anomaly.CloudClosure()
+    ClCl = CloudClosure_res.CloudClosure()
+    # ClCl = CloudClosure_res_anomaly.CloudClosure()
 
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
@@ -134,10 +134,10 @@ def set_zrange(case_name):
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
         files = ['18000.nc', '19800.nc', '21600.nc']
         # Bomex test
-        # files = ['21600.nc']
+        files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
         # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
-        # krange = np.asarray([20, 30, 50], dtype=np.int32)
+        krange = np.asarray([20, 30, 50], dtype=np.int32)
         # krange = np.asarray([18,30,38])
     elif case_name == 'TRMM_LBA':
         # files = ['1014400.nc']

@@ -19,7 +19,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-from plotting_functions import plot_PDF, plot_PDF_components
+from plotting_functions import plot_PDF, plot_PDF_components, plot_samples
 from plotting_functions import plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_abs_error
 
 
@@ -275,26 +275,18 @@ cdef class CloudClosure:
                 '''(3) Normalise Data'''
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
-                data_all_norm_aux = scaler.fit_transform(data_all_aux)
-                data_all_norm_2 = scaler.fit_transform(data_all_2)
                 if ncomp == 1:
                     plt.figure(figsize=(18,6))
-                    plt.subplot(1,6,1)
+                    plt.subplot(1,4,1)
                     plt.scatter(data_all_aux[:,0], data_all_aux[:,1])
                     plt.title('normal')
-                    plt.subplot(1,6,2)
-                    plt.scatter(data_all_norm_aux[:,0], data_all_norm_aux[:,1])
-                    plt.title('normal norm')
-                    plt.subplot(1,6,3)
+                    plt.subplot(1,4,2)
                     plt.scatter(data_all_2[:,0], data_all_2[:,1])
                     plt.title('anomaly thl')
-                    plt.subplot(1,6,4)
-                    plt.scatter(data_all_norm_2[:,0], data_all_norm_2[:,1])
-                    plt.title('anomaly norm thl')
-                    plt.subplot(1,6,5)
+                    plt.subplot(1,4,3)
                     plt.scatter(data_all[:,0], data_all[:,1])
                     plt.title('anomaly thl + qt')
-                    plt.subplot(1,6,6)
+                    plt.subplot(1,4,4)
                     plt.scatter(data_all_norm[:,0], data_all_norm[:,1])
                     plt.title('anomaly norm thl + qt')
 
@@ -332,11 +324,12 @@ cdef class CloudClosure:
                 for i in range(n_sample-2):
                     # ??? ok to use same reference pressure for all ik+k_ points?
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
+                    # T_comp_thl_aux[i], ql_comp_thl_aux[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
                         cf_comp[k] += 1
                 print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
-                ql_mean_comp[k] = ql_mean_comp[k] / n_sample
+                ql_mean_comp[k] = ql_mean_comp[k] / (n_sample-2)
                 cf_comp[k] = cf_comp[k] / n_sample
                 error_ql[k,count_ncomp] = ql_mean_comp[k] - ql_mean_field[k]
                 error_cf[k,count_ncomp] = cf_comp[k] - cf_field[k]
@@ -360,8 +353,12 @@ cdef class CloudClosure:
                 '''(E) Plotting'''
                 save_name = 'PDF_figures_anomaly_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
                 plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
-                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                # save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(iz*dz)+'m.png'
+                # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
+                save_name = 'sample_figure_'+'ncomp'+str(ncomp)+str(iz*dz)+'m.png'
+                plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
+                save_name = 'satadj_sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(iz*dz)+'m.png'
+                plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
                 # plot_hist(ql, path_out)
                 print('')
 

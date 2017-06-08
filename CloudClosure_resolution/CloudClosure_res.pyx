@@ -281,7 +281,7 @@ cdef class CloudClosure:
                     if ql_comp_thl[i] > 0:
                         cf_comp[k] += 1
                 print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
-                ql_mean_comp[k] = ql_mean_comp[k] / n_sample
+                ql_mean_comp[k] = ql_mean_comp[k] / (n_sample-2)
                 cf_comp[k] = cf_comp[k] / n_sample
                 error_ql[k,count_ncomp] = ql_mean_comp[k] - ql_mean_field[k]
                 error_cf[k,count_ncomp] = cf_comp[k] - cf_field[k]
