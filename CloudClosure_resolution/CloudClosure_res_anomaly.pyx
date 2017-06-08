@@ -36,7 +36,7 @@ cdef class CloudClosure:
 
     cpdef initialize(self, krange, path, case_name):
         print('')
-        print('--- Cloud Closure Scheme ---')
+        print('--- Cloud Closure Scheme anomaly ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
         print('')
         self.nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
@@ -277,28 +277,29 @@ cdef class CloudClosure:
                 data_all_norm = scaler.fit_transform(data_all)
                 data_all_norm_aux = scaler.fit_transform(data_all_aux)
                 data_all_norm_2 = scaler.fit_transform(data_all_2)
-                plt.figure(figsize=(18,6))
-                plt.subplot(1,6,1)
-                plt.scatter(data_all_aux[:,0], data_all_aux[:,1])
-                plt.title('normal')
-                plt.subplot(1,6,2)
-                plt.scatter(data_all_norm_aux[:,0], data_all_norm_aux[:,1])
-                plt.title('normal norm')
-                plt.subplot(1,6,3)
-                plt.scatter(data_all_2[:,0], data_all_2[:,1])
-                plt.title('anomaly thl')
-                plt.subplot(1,6,4)
-                plt.scatter(data_all_norm_2[:,0], data_all_norm_2[:,1])
-                plt.title('anomaly norm thl')
-                plt.subplot(1,6,5)
-                plt.scatter(data_all[:,0], data_all[:,1])
-                plt.title('anomaly thl + qt')
-                plt.subplot(1,6,6)
-                plt.scatter(data_all_norm[:,0], data_all_norm[:,1])
-                plt.title('anomaly norm thl + qt')
+                if ncomp == 1:
+                    plt.figure(figsize=(18,6))
+                    plt.subplot(1,6,1)
+                    plt.scatter(data_all_aux[:,0], data_all_aux[:,1])
+                    plt.title('normal')
+                    plt.subplot(1,6,2)
+                    plt.scatter(data_all_norm_aux[:,0], data_all_norm_aux[:,1])
+                    plt.title('normal norm')
+                    plt.subplot(1,6,3)
+                    plt.scatter(data_all_2[:,0], data_all_2[:,1])
+                    plt.title('anomaly thl')
+                    plt.subplot(1,6,4)
+                    plt.scatter(data_all_norm_2[:,0], data_all_norm_2[:,1])
+                    plt.title('anomaly norm thl')
+                    plt.subplot(1,6,5)
+                    plt.scatter(data_all[:,0], data_all[:,1])
+                    plt.title('anomaly thl + qt')
+                    plt.subplot(1,6,6)
+                    plt.scatter(data_all_norm[:,0], data_all_norm[:,1])
+                    plt.title('anomaly norm thl + qt')
 
-                plt.savefig(os.path.join(path,'figure_'+str(iz*dz)+'_dk'+str(dk*dz)+'_ncomp'+str(ncomp)+'Lx_'+str(Lx_)+'.png'))
-                plt.close()
+                    plt.savefig(os.path.join(self.path_out,'figure_'+str(iz*dz)+'_dk'+str(dk*dz)+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'.png'))
+                    plt.close()
 
                 '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
@@ -378,6 +379,10 @@ cdef class CloudClosure:
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_field[:]), 'ql_mean_field', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_field[:]), 'cf_field', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
@@ -544,9 +549,9 @@ cdef class CloudClosure:
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]
-        z_grp = rootgrp.createGroup('z-profile')
+        z_grp = rootgrp.createGroup('profiles')
         z_grp.createDimension('nz', nz_)
-        var = z_grp.createVariable('height', 'f8', ('nz'))
+        var = z_grp.createVariable('z', 'f8', ('nz'))
         for i in range(nz_):
             var[i] = self.zrange[i]
         rootgrp.close()
@@ -575,6 +580,10 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
 
     elif group_name == 'error':
         var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
+        var[:] = data_[:]
+
+    elif group_name == 'profiles':
+        var = rootgrp.groups['profiles'].createVariable(var_name, 'f8', ('nz'))
         var[:] = data_[:]
 
     # # write_field(path, group_name, data, var_name)

@@ -105,7 +105,8 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
     plt.title('PDF(thl, qt)')
 
     plt.suptitle('GMM, ncomp='+str(ncomp)+', error: '+str(error)+'    (z='+str(z)+')')
-    plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
+    # plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
+    plt.savefig(os.path.join(path + '_figures', save_name + '.png'))
     plt.close()
     return
 
@@ -128,7 +129,8 @@ def scatter_data(data0, data1, var_name1, var_name2, dk, ncomp, error, z, path, 
 
     # plt.savefig(
     #     os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '_dz'+str(dk)+'.png'))
-    plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
+    # plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
+    plt.savefig(os.path.join(path + '_figures', save_name + '.png'))
     plt.close()
     return
 
@@ -286,7 +288,8 @@ def plot_PDF_components(means_, covars_, weights_, ncomp, krange, dz, Lx, dk, pa
 
 
     save_name = 'figure_PDFcomps_ncomp'+str(ncomp)+'_Lx'+str(Lx)+'_dz'+str(dk)
-    plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
+    # plt.savefig(os.path.join(path + '_figures', save_name + '.pdf'))
+    plt.savefig(os.path.join(path + '_figures', save_name + '.png'))
 
     return
 

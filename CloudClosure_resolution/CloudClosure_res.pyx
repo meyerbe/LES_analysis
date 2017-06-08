@@ -71,7 +71,6 @@ cdef class CloudClosure:
         self.CC.initialize(self.nml, self.LH)
         print('')
 
-
         return
 
 
@@ -325,6 +324,10 @@ cdef class CloudClosure:
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_field[:]), 'ql_mean_field', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_field[:]), 'cf_field', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
@@ -491,9 +494,9 @@ cdef class CloudClosure:
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]
-        z_grp = rootgrp.createGroup('z-profile')
+        z_grp = rootgrp.createGroup('profiles')
         z_grp.createDimension('nz', nz_)
-        var = z_grp.createVariable('height', 'f8', ('nz'))
+        var = z_grp.createVariable('z', 'f8', ('nz'))
         for i in range(nz_):
             var[i] = self.zrange[i]
         rootgrp.close()
@@ -522,6 +525,10 @@ def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
 
     elif group_name == 'error':
         var = rootgrp.groups['error'].createVariable(var_name, 'f8', ('nz'))
+        var[:] = data_[:]
+
+    elif group_name == 'profiles':
+        var = rootgrp.groups['profiles'].createVariable(var_name, 'f8', ('nz'))
         var[:] = data_[:]
 
     # # write_field(path, group_name, data, var_name)
