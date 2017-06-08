@@ -329,7 +329,7 @@ cdef class CloudClosure:
                 print('ql_mean_comp[k], k', k, ql_mean_comp[k])
                 for i in range(n_sample-2):
                     # ??? ok to use same reference pressure for all ik+k_ points?
-                    T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1], CC, LH)
+                    T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
                         cf_comp[k] += 1
