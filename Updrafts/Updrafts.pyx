@@ -12,7 +12,7 @@ import pickle
 import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
-from plotting_functions import plot_labels_comparison, plot_labels, plot_labels_test
+from plotting_functions import plot_labels_comparison, plot_labels, plot_labels_test, plot_parameters_pdf
 
 # NEW:
 #   - no more accumlation over times (files) or levels for PDF model
@@ -150,7 +150,7 @@ cdef class Updrafts:
 
             # (B) PDF Model
             # labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, dz_range, krange, tt, nml)
-            labels_pdf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, krange, tt, nml)
+            labels_pdf, clf = self.predict_PDF(s_, qt_, T_, ql_, path, ncomp, krange, tt, nml)
             up_type = 'PDF'
             plot_labels(qt_, ql_, w_, labels_pdf, tt, krange, dz, up_type, path)
 
@@ -159,7 +159,7 @@ cdef class Updrafts:
             for up_type in type_list:
                 labels_tr = self.read_in_updrafts_colleen(up_type, tt, path_tr)
                 plot_labels(qt_, ql_, w_, labels_tr, tt, krange, dz, up_type, path)
-                plot_labels_test(qt_, ql_, w_, labels_tr, tt, krange, dz, up_type, path)
+                # plot_labels_test(qt_, ql_, w_, labels_tr, tt, krange, dz, up_type, path)
                 plot_labels_comparison(qt_, ql_, labels_pdf, labels_tr, up_type, tt, krange, dz, path)
 
 
@@ -254,23 +254,22 @@ cdef class Updrafts:
             double [:,:] theta_l = np.zeros([nx*ny,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double Lv
 
-        # # for PDF sampling
-        # cdef:
-        #     int n_sample = np.int(1e6)
-        #     double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-        #     double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
-        #     double [:] alpha_comp_thl = np.zeros(n_sample)
+        # for PDF sampling
+        cdef:
+            int n_sample = np.int(1e6)
+            double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
 
         # for Error Computation
         cdef:
-            double [:] ql_mean_field = np.zeros(shape=(nk))
-        #     double ql_mean = 0.0
-            double [:] cf_field = np.zeros(shape=(nk))
-        #     double cf_comp = 0.0
-        #     double [:] error_ql = np.zeros(shape=(nk))
-        #     double [:] rel_error_ql = np.zeros(shape=(nk))
-        #     double [:] error_cf = np.zeros(shape=(nk))
-        #     double [:] rel_error_cf = np.zeros(shape=(nk))
+            double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
+            double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)         # computation from PDF sampling
+            double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
+            double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
+            double [:] error_ql = np.zeros(shape=(nk))
+            double [:] rel_error_ql = np.zeros(shape=(nk))
+            double [:] error_cf = np.zeros(shape=(nk))
+            double [:] rel_error_cf = np.zeros(shape=(nk))
 
         # for Labeling
         # cdef:
@@ -317,24 +316,12 @@ cdef class Updrafts:
             #   (b) for (th_l,qt)
             clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
             clf_thl_norm.fit(data_norm)
-            # means_[k, :, :] = clf_thl_norm.means_[:, :]
-            # covariances_[k,:,:,:] = clf_thl_norm.covariances_[:,:,:]
-            # weights_[k,:] = clf_thl_norm.weights_[:]
-
 
             '''(5) Find Labels, sort and rearrange'''
             # sort PDF components, s.t. 0/1 always correspond to the same component (environment vs. updrafts)
             # Note: it is either (# of zeros in labels_new) = (# of zeros in labels_) or (# of zeros in labels_new) = (nx*ny - (# of zeros in labels_))
             labels_ = clf_thl_norm.predict(data_norm)
-            means, covars, weights, labels_new = self.sort_PDF(clf_thl_norm.means_,
-                                                              clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
-            print('')
-            print('hoihoi')
-            print(len(means), len(covars), len(labels_new))
-            print(type(means), type(covars), type(weights), type(labels_new))
-            print(means.shape, covars.shape)
-            print(len(labels_new))
-            print('')
+
             means_[k, :, :], covariances_[k, :, :, :], weights_[k, :], labels_new = self.sort_PDF(clf_thl_norm.means_,
                                                               clf_thl_norm.covariances_, clf_thl_norm.weights_, labels_)
             print('Labels: ', np.count_nonzero(labels_), np.count_nonzero(labels_new), labels_.shape[0]-np.count_nonzero(labels_))
@@ -342,45 +329,56 @@ cdef class Updrafts:
                  and np.count_nonzero(labels_new) != np.count_nonzero(labels_) ):
                 print('!!!!! Labels Problem !!!!')
             print('')
+            # means_[k, :, :] = clf_thl_norm.means_
+            # covariances_[k, :,:,:] = clf_thl_norm.covariances_
+            # weights_[k, :] = clf_thl_norm.weights_
+            # labels_new = labels_
 
             # rearrange into 2D array (for only one data file)
             for i in range(nx):
                 for j in range(ny):
                     ij = i*ishift + j
                     labels[i,j,k] = labels_new[ij]
-                #     '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
-            #     #       1. sample (th_l, qt) from PDF (Monte Carlo ???
-            #     #       2. compute ql for samples
-            #     #       3. consider ensemble average <ql> = domain mean representation???
-            #     '''(1) Draw samples'''
-            #     Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
-            #     '''(2) Rescale theta_l and qt'''
-            #     Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
-            #
-            #     '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-            #     for i in range(n_sample-2):
-            #         # T_comp[i], ql_comp[i], alpha_comp[i] = sat_adj_fromentropy(p_ref[iz-1], S[i,0],S[i,1])
-            #         T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-            #         ql_mean = ql_mean + ql_comp_thl[i]
-            #         if ql_comp_thl[i] > 0:
-            #             cf_comp += 1
-            #     ql_mean = ql_mean / n_sample
-            #     cf_comp = cf_comp / n_sample
-            #
-            #     error_ql[k] = ql_mean - ql_mean_field
-            #     error_cf[k] = cf_comp - cf_field[k]
-            #     if ql_mean_field > 0.0:
-            #         rel_error_ql[k] = (ql_mean - ql_mean_field) / ql_mean_field
-            #     if cf_field[k] > 0.0:
-            #         rel_error_cf[k] = (cf_comp - cf_field[k]) / cf_field[k]
-            #
-            #     print('<ql> from CloudClosure Scheme: ', ql_mean)
-            #     print('<ql> from ql fields: ', ql_mean_field)
-            #     print('error (<ql>_CC - <ql>_field): '+str(error_ql[k]))
-            #     print('rel err: '+ str(rel_error_ql[k]))
-            #
+                    # '''(D) Compute mean liquid water <ql> from PDF f(s,qt)'''
+
+            '''(6) Compute Error in <ql> and CF'''
+            #   a. sample (th_l, qt) from PDF (Monte Carlo ???
+            #   b. compute ql for samples
+            #   c. consider ensemble average <ql> = domain mean representation???
+            '''     (a) Draw samples'''
+            Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
+            '''     (b) Rescale theta_l and qt'''
+            Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
+
+            '''     (c) Compute ql (saturation adjustment) & Cloud Fraction '''
+            for i in range(n_sample-2):
+                T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
+                if ql_comp_thl[i] > 0:
+                    cf_comp[k] += 1
+            ql_mean_comp[k] = ql_mean_comp[k] / n_sample
+            cf_comp[k] = cf_comp[k] / n_sample
+            error_ql[k] = ql_mean_comp[k] - ql_mean_field[k]
+            error_cf[k] = cf_comp[k] - cf_field[k]
+            if ql_mean_field[k] > 0.0:
+                rel_error_ql[k] = (ql_mean_comp[k] - ql_mean_field[k]) / ql_mean_field[k]
+            if cf_field[k] > 0.0:
+                rel_error_cf[k] = (cf_comp[k] - cf_field[k]) / cf_field[k]
+
+            print('')
+            print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+            print('<ql> from ql fields:           ', ql_mean_field[k])
+            print('error (<ql>_CC - <ql>_field): '+str(error_ql[k]))
+            print('rel err: '+ str(rel_error_ql[k]))
+            print('')
+            print('CF from Cloud Closure Scheme: ', cf_comp[k])
+            print('CF from ql fields: ', cf_field[k])
+            print('error: '+str(error_cf[k]))
+            print('rel error: ', rel_error_cf[k])
+            print('')
 
 
+        plot_parameters_pdf(labels, means_, covariances_, weights_, krange_, self.zrange, tt, dz, path)
 
         '''(6) Save Updraft Labels & Gaussian Mixture PDFs '''
         self.write_updrafts_file(self.path_out, nc_file_name_labels, labels, nml)
@@ -390,12 +388,12 @@ cdef class Updrafts:
         self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'means', means_, 'qtT', ncomp, nvar, nk)
         self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
         self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'weights', weights_, 'qtT', ncomp, nvar, nk)
-        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
-        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
-        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
-        # self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_cf[:,count_ncomp]), 'rel_error_cf', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_ql[:]), 'error_ql', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_ql[:]), 'rel_error_ql', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(error_cf[:]), 'error_cf', ncomp, nvar, nk)
+        self.dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'error', np.asarray(rel_error_cf[:]), 'rel_error_cf', ncomp, nvar, nk)
 
-        return labels
+        return labels, clf_thl_norm
 
 
 
@@ -419,7 +417,6 @@ cdef class Updrafts:
 
         labels = np.zeros(shape = labels_.shape)
 
-        # print(means.shape, covars.shape, weights.shape)
         # change PDF-component label if mean qt of component 0 smaller than mean qt of PDF-component 1
         if means[0, 1] < means[1, 1]:
             # print('')

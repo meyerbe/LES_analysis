@@ -407,4 +407,4 @@ cpdef sat_adj_fromthetali(double p, double thl, double qt, ClausiusClapeyron CC,
         ql = ql_2
         # print('count = ', count)
     time_b = time.clock()
-    return T, ql, alpha#, time_b-time_a
+    return T, ql#, time_b-time_a

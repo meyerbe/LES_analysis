@@ -22,6 +22,64 @@ plt.rcParams['lines.linewidth'] = 0.8
 
 
 
+def plot_parameters_pdf(labels_, means, covars, weights, krange, zrange, time_, dz, path):
+    for k in range(len(krange)):
+        iz = krange[k]
+        k_ = k
+        # if type_ == 'PDF':
+        #     k_ = k
+        # else:
+        #     k_ = iz
+
+        plt.figure(figsize=(12, 8))
+
+        plt.subplot(2, 3, 1)
+        plt.imshow(labels_[:, :, k_])
+        plt.colorbar(shrink=0.6)
+        plt.title('Labels')
+
+        # plt.subplot(2, 3, 4)
+        # plt.imshow(qt[:, :, iz])
+        # plt.colorbar(shrink=0.6)
+        # # if np.amax(np.abs(labels_[:,:,k])) != 0.0:
+        # #     plt.contour(labels_[:, :, k],colors='w', levels=[0.9])
+        # plt.contour(labels_[:, :, k_] , [0.9],colors='w')
+        # plt.title(r'$q_t$ (cont: pdf label)')
+        #
+        # plt.subplot(2, 3, 5)
+        # plt.imshow(ql[:, :, iz])
+        # plt.colorbar(shrink=0.6)
+        # plt.contour(labels_[:, :, k_],[0.9], colors='w')
+        # plt.title(r'$q_l$')
+        #
+        # plt.subplot(2, 3, 6)
+        # plt.imshow(w[:, :, iz])
+        # plt.colorbar(shrink=0.6)
+        # plt.contour(labels_[:, :, k_], [0.9],colors='w')
+        # plt.title('w')
+
+        plt.subplot(2,3,2)
+        plt.plot(means[:, 0, 1], zrange, label='comp 1')
+        plt.plot(means[:, 1, 1], zrange, label='comp 2')
+        plt.legend()
+        plt.title('<qt>')
+        plt.subplot(2,3,3)
+        plt.plot(means[:, 0, 0], zrange, label='comp 1')
+        plt.plot(means[:, 1, 0], zrange, label='comp 2')
+        plt.legend()
+        plt.title(r'<$\theta_l$>')
+        # plt.plot(weights[:, 0], krange, label='comp 1')
+        # plt.plot(weights[:, 1], krange, label='comp 2')
+
+        plt.savefig(os.path.join(path, 'Updrafts_figures', 'PDF_parameters' + '_t' + str(time_) + '_z' + str(iz*dz) + 'm.pdf'))
+        # # plt.show()
+        plt.close()
+    return
+
+
+
+
+
 def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path):
     for k in range(len(krange)):
         iz = krange[k]
