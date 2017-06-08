@@ -190,6 +190,7 @@ cdef class PDF_conditional:
         # ________________________________________________________________________________________
         # Read in Tracer Labels
         path_tracers = os.path.join(path, 'tracer_fields')
+        tt = files[0][0:-3]
         for type_ in type_list:
             labels_tracers = read_in_updrafts_colleen(type_, tt, path_tracers)
             print('labels_tr', labels_tracers.shape, np.count_nonzero(labels_tracers))
@@ -199,7 +200,6 @@ cdef class PDF_conditional:
                 covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
                 weights_ = np.zeros(shape=(nk, ncomp))
                 '''(1) Statistics File'''
-                tt = files[0][0:-3]
                 nc_file_name_out = 'PDF_cond_alltime_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
                 self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
@@ -540,7 +540,7 @@ def read_in_netcdf(variable_name, group_name, fullpath_in):
 
 def read_in_updrafts_colleen(type, t, path_):
     print('')
-    print('- Updraft Colleen: read in -')
+    print('- Updraft Colleen: read in ' + type + ' -')
     import pickle
     print('')
 

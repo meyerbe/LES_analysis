@@ -52,6 +52,11 @@ _ext = Extension('PDF_conditional', ['PDF_conditional.pyx'], include_dirs=includ
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
 
+_ext = Extension('plotting_data_functions', ['plotting_data_functions.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
+
 
 setup(
     ext_modules=cythonize(extensions, verbose=1, include_path=include_path)

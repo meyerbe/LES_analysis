@@ -123,7 +123,7 @@ def main():
     print('')
 
     plot_mean_profiles(ql_mean_env, ql_mean_domain, ql_stats, cf_env, cf_domain, cf_stats,
-                       delta_z, Lx, zrange, time_name, type_, path_out)
+                       Lx, zrange, time_name, type_, path_out)
 
 
 
@@ -225,22 +225,20 @@ def plot_error_cf_ncompmax(error_cf_env, cf_env, error_cf_rel_env, zrange,
 
 
 def plot_mean_profiles(ql_mean_env, ql_mean_domain, ql_stats, cf_env, cf_domain, cf_stats,
-                       delta_z_, Lx, zrange, time, type_, path_out):
+                       Lx, zrange, time, type_, path_out):
     cm1 = plt.cm.get_cmap('viridis')
     cm2 = plt.cm.get_cmap('bone')
     cm3 = plt.cm.get_cmap('winter')
-
-    delta_z = np.int(np.int(delta_z_))
 
     plt.figure(figsize=(9,9))
     plt.plot(ql_mean_env[:], zrange[:], label='<ql> env.')
     plt.plot(ql_mean_domain[:], zrange[:], label='<ql> domain.')
     plt.plot(ql_stats[:], zrange[:], label='<ql> stats')
     plt.legend()
-    plt.title(' <ql> (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm, t=' + str(time) + ')')
+    plt.title(' <ql> (Lx=' + str(Lx) + '(t=' + str(time) + ')')
     plt.xlabel(r'$<ql>$')
     plt.ylabel('height z (m)')
-    save_name = type_ + '_ql_nc' + '_dz' + str(delta_z) + '_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
+    save_name = type_ + '_ql_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
 
     # plt.show()
@@ -252,10 +250,10 @@ def plot_mean_profiles(ql_mean_env, ql_mean_domain, ql_stats, cf_env, cf_domain,
     plt.plot(cf_domain[:], zrange[:], label='CF domain.')
     plt.plot(cf_stats[:], zrange[:], label='CF stats')
     plt.legend()
-    plt.title('CF (Lx=' + str(Lx) + ', dz=' + str(delta_z) + 'm, t=' + str(time) + ')')
+    plt.title('CF (Lx=' + str(Lx) + '(t=' + str(time) + ')')
     plt.xlabel(r'$CF$')
     plt.ylabel('height z (m)')
-    save_name = type_ + '_cf_' + '_dz' + str(delta_z) + '_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
+    save_name = type_ + '_cf_Lx' + str(Lx) + '_time' + str(time) + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
 
     # plt.show()
