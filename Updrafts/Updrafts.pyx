@@ -553,6 +553,18 @@ cdef class Updrafts:
         # nvar: number of variables of multi-variate Gaussian components
         rootgrp = nc.Dataset(os.path.join(path,file_name), 'w', format='NETCDF4')
         dimgrp = rootgrp.createGroup('dims')
+
+        ts_grp = rootgrp.createGroup('time')
+        ts_grp.createDimension('nt',len(time))
+        var = ts_grp.createVariable('t','f8',('nt'))
+        for i in range(len(time)-1):
+            var[i] = time[i+1]
+        z_grp = rootgrp.createGroup('z-profile')
+        z_grp.createDimension('nz', nz)
+        var = z_grp.createVariable('height', 'f8', ('nz'))
+        for i in range(nz):
+            var[i] = self.zrange[i]
+
         means_grp = rootgrp.createGroup('means')
         means_grp.createDimension('nz', nz)
         means_grp.createDimension('ncomp', ncomp)
@@ -564,16 +576,9 @@ cdef class Updrafts:
         weights_grp = rootgrp.createGroup('weights')
         weights_grp.createDimension('nz', nz)
         weights_grp.createDimension('ncomp', ncomp)
-        ts_grp = rootgrp.createGroup('time')
-        ts_grp.createDimension('nt',len(time))
-        var = ts_grp.createVariable('t','f8',('nt'))
-        for i in range(len(time)-1):
-            var[i] = time[i+1]
-        z_grp = rootgrp.createGroup('z-profile')
-        z_grp.createDimension('nz', nz)
-        var = z_grp.createVariable('height', 'f8', ('nz'))
-        for i in range(nz):
-            var[i] = self.zrange[i]
+
+        error_grp = rootgrp.createGroup('error')
+        error_grp.createDimension('nz', nz)
         rootgrp.close()
         return
 

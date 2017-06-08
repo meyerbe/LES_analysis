@@ -47,6 +47,8 @@ def main():
     if args.time:
         time = np.int(args.time)
 
+    out_path  = os.path.join(path, 'Updrafts_figures_Labels')
+
     global nx, ny, nz, dx, dy, dz
     nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     nx = nml['grid']['nx']
@@ -79,6 +81,8 @@ def main():
     krange_pdf = zrange_pdf / dz
     nk = len(krange_pdf)
 
+    krange_plot = krange_pdf[0:-1:5]
+
     # Read in Tracer Labels
     path_tracers = os.path.join(path, 'tracer_fields')
     # type_list = ['Couvreux']
@@ -89,6 +93,7 @@ def main():
         print('labels_pdf', labels_pdf.shape)
         print('zrange_pdf', zrange_pdf)
         print('krange_pdf', krange_pdf)
+        print('krange_plot', krange_plot)
 
 
         dk = krange_pdf[1] - krange_pdf[0]
@@ -111,27 +116,31 @@ def main():
         cm1 = plt.cm.get_cmap('viridis')
         cm2 = plt.cm.get_cmap('bone')
         cm3 = plt.cm.get_cmap('winter')
-        krange_plot = krange_pdf[0:-1:5]
+
         # for k in range(len(krange_plot)):
         #     print('height: ', krange_plot[k]*dz)
         #     file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm.pdf'
-        #     plot_labels_comparison_hor(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, k, krange_pdf, dz, path, file_name)
+        #     plot_labels_comparison_hor(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, k, krange_pdf, dz, out_path, file_name)
         if dk == 1:
             for y0 in [10]: #[10, 50]
                 # file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm.pdf'
-                # plot_labels_comparison_vert(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path, file_name)
+                # plot_labels_comparison_vert(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, out_path, file_name)
 
                 file_name = 'thetal_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm'
                 plot_variable_vert(thetali_, 'thetali', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin,
-                           kmax, dz, path, file_name)
+                           kmax, dz, out_path, file_name)
 
-        plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, krange_pdf, kmin, kmax, dz, path)
+                # file_name = 'thetal_' + type + '_hor_t' + str(time) + '_k' + str(k0) + 'm'
+                # plot_variable_hor(thetali_, 'thetali', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
+                #                    dz, out_path, file_name)
+
+        plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, krange_pdf, kmin, kmax, dz, out_path)
 
     return
 
 
 
-def plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, krange_pdf, kmin, kmax, dz, path):
+def plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, time, krange_pdf, kmin, kmax, dz, path_out):
     print('--- plot Anomalies ---')
     # Compute horizontal mean profiles
     qt_mean = np.mean(np.mean(qt_, axis=0), axis=0)
@@ -152,42 +161,42 @@ def plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, tim
 
     krange_plot = krange_pdf[0:-1:5]
     print('krange plot: ', krange_plot)
-    # for k in range(len(krange_plot)):
-    #     file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm_anomaly.pdf'
-    #     plot_labels_comparison_hor(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, k, krange_pdf, dz, path,
-    #                            file_name)
+    for k in range(len(krange_plot)):
+        file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm_anomaly.pdf'
+        plot_labels_comparison_hor(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, np.int(krange_plot[k]), krange_pdf, dz, path_out,
+                               file_name)
 
     # for y0 in [10, 50]:
     #     file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly.pdf'
     #     plot_labels_comparison_vert(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, y0, krange_pdf,
-    #                                 kmin, kmax, dz, path, file_name)
+    #                                 kmin, kmax, dz, path_out, file_name)
 
 
     y0 = 10
     k0 = 40
     file_name = 'thetal_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
-    plot_variable_vert(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path,
+    plot_variable_vert(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path_out,
                        file_name)
     file_name = 'thetal_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
     plot_variable_hor(thetali_anomaly, 'thetali', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
-                       dz, path,file_name)
+                       dz, path_out,file_name)
     file_name = 'qt_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
     plot_variable_vert(qt_anomaly, 'qt', labels_pdf, labels_tracers, type, time, y0,
-                       krange_pdf, kmin, kmax, dz, path, file_name)
+                       krange_pdf, kmin, kmax, dz, path_out, file_name)
     file_name = 'qt_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
     plot_variable_hor(qt_anomaly, 'qt', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
-                       dz, path, file_name)
+                       dz, path_out, file_name)
     file_name = 'ql_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
     plot_variable_vert(qt_anomaly, 'ql', labels_pdf, labels_tracers, type, time, y0,
-                       krange_pdf, kmin, kmax, dz, path, file_name)
+                       krange_pdf, kmin, kmax, dz, path_out, file_name)
     file_name = 'ql_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
     plot_variable_hor(ql_anomaly, 'ql', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
-                       dz, path, file_name)
+                       dz, path_out, file_name)
     file_name = 'w_' + type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly'
-    plot_variable_vert(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path, file_name)
+    plot_variable_vert(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, y0, krange_pdf, kmin, kmax, dz, path_out, file_name)
     file_name = 'w_' + type + '_hor_t' + str(time) + '_z' + str(k0*dz) + 'm_anomaly'
     plot_variable_hor(w_anomaly, 'w', labels_pdf, labels_tracers, type, time, k0, krange_pdf,
-                       dz, path, file_name)
+                       dz, path_out, file_name)
 
     return
 
@@ -254,9 +263,8 @@ def read_in_updrafts_colleen(type, t, path_):
     return labels
 
 
-def plot_labels_comparison_hor(qt, ql, w, thetali, labels_pdf, labels_tr, type_, time, k, krange, dz, path, file_name):
+def plot_labels_comparison_hor(qt, ql, w, thetali, labels_pdf, labels_tr, type_, time, k, krange, dz, path_out, file_name):
     print('')
-    print('PLOTTING hor: '+ type_)
     [nx_pdf, ny_pdf, nz_pdf] = labels_pdf.shape
     [nx_tr, ny_tr, nz_tr] = labels_tr.shape
     n_pdf = labels_pdf.shape
@@ -264,6 +272,7 @@ def plot_labels_comparison_hor(qt, ql, w, thetali, labels_pdf, labels_tr, type_,
     print('')
 
     iz = np.int(krange[k])
+    print('PLOTTING hor: '+ type_ + ', k=' + str(k) + ', iz=' + str(iz) + ', z='+str(iz*dz))
 
     plt.figure(figsize=(24,6))
 
@@ -371,13 +380,13 @@ def plot_labels_comparison_hor(qt, ql, w, thetali, labels_pdf, labels_tr, type_,
         print('Dimensions do not agree')
 
     plt.suptitle('Updraft selection: ' + type_ + ' vs. PDF (z=' + str(iz*dz) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', file_name))
+    plt.savefig(os.path.join(path_out, file_name))
     # plt.show()
     plt.close()
     return
 
 
-def plot_labels_comparison_vert(qt, ql, w, thetali, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path, file_name):
+def plot_labels_comparison_vert(qt, ql, w, thetali, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path_out, file_name):
     print('')
     print('PLOTTING vertical: '+ type_)
     [nx_pdf, ny_pdf, nz_pdf] = labels_pdf.shape
@@ -509,13 +518,13 @@ def plot_labels_comparison_vert(qt, ql, w, thetali, labels_pdf, labels_tr, type_
         print('Dimensions do not agree')
 
     plt.suptitle('Updraft selection: ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', file_name))
+    plt.savefig(os.path.join(path_out, file_name))
     # plt.show()
     plt.close()
     return
 
 
-def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, k0, krange, dz, path, file_name):
+def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, k0, krange, dz, path_out, file_name):
     iz = np.int(krange[k0])
 
     plt.figure(figsize=(12, 6))
@@ -532,14 +541,14 @@ def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, k0, kra
     plt.title(var_name)
 
     plt.suptitle(var_name + ': ' + type_ + ' vs. PDF (z=' + str(iz * dz) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_cont' + '.pdf'))
+    plt.savefig(os.path.join(path_out, file_name + '_cont' + '.pdf'))
     plt.close()
 
     return
 
 
 
-def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path,
+def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path_out,
                       file_name):
     xrange = np.arange(0, var.shape[0], 1)
 
@@ -559,7 +568,7 @@ def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, kr
     set_ticks(plt.gca(), xrange[:] * dx, krange[kmin:kmax] * dz, 'x (m)', 'z (m)')
 
     plt.suptitle('w: ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_im' + '.pdf'))
+    plt.savefig(os.path.join(path_out, file_name + '_im' + '.pdf'))
     plt.close()
 
 
@@ -582,13 +591,13 @@ def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, kr
     plt.gca().invert_yaxis()
 
     plt.suptitle(var_name + ': ' + type_ + ' vs. PDF (y=' + str(y0 * dy) + 'm)')
-    plt.savefig(os.path.join(path, 'figures_Labels', file_name + '_cont' + '.pdf'))
+    plt.savefig(os.path.join(path_out, file_name + '_cont' + '.pdf'))
     plt.close()
 
     return
 
 
-def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path):
+def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path_out):
     for k in range(len(krange)):
         iz = krange[k]
         if type_ == 'PDF':
@@ -623,7 +632,7 @@ def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path):
         plt.contour(labels_[:, :, k_], [0.9],colors='w')
         plt.title('w')
 
-        plt.savefig(os.path.join(path, 'Updrafts_figures', 'Labels_' + type_ + '_t' + str(time) + '_z' + str(iz*dz) + 'm.pdf'))
+        plt.savefig(os.path.join(path_out, 'Labels_' + type_ + '_t' + str(time) + '_z' + str(iz*dz) + 'm.pdf'))
         # # plt.show()
         plt.close()
     return
