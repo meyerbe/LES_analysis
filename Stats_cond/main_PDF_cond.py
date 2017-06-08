@@ -26,7 +26,7 @@ def main():
     parser.add_argument("path")
     parser.add_argument("casename")
     parser.add_argument("--time")
-    parser.add_argument("--Lx")
+    parser.add_argument("--Lx", nargs='+', type=int)
     parser.add_argument('--dk', nargs='+', type=int)
     parser.add_argument('--ncomp', nargs='+', type=int)
 
@@ -52,9 +52,9 @@ def main():
     if args.time:
         time = np.int(args.time)
     if args.Lx:
-        Lx_range = np.int(args.Lx)
+        Lx_range = args.Lx
     else:
-        Lx_range = [5000]
+        Lx_range = [1000, 5000, 10000, 20000]
     # dk_range: number of layers below and above added to data
     if args.dk:
         dk_range = args.dk
