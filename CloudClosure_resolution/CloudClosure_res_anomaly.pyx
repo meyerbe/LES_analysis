@@ -43,7 +43,7 @@ cdef class CloudClosure:
         cdef:
             int nz = self.nml['grid']['nz']
             int dz = self.nml['grid']['dz']
-        self.path_out = os.path.join(path, 'CloudClosure_res')
+        self.path_out = os.path.join(path, 'CloudClosure_res_anomaly')
 
 
         '''Initialize Reference Pressure'''
@@ -70,7 +70,6 @@ cdef class CloudClosure:
         #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         self.CC.initialize(self.nml, self.LH)
         print('')
-
 
         return
 
@@ -148,11 +147,17 @@ cdef class CloudClosure:
             double [:,:,:] T_
             double [:,:,:] qt_
             double [:,:] qt = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
+            double [:] qt_mean = np.zeros(nz, dtype=np.double)
+            double [:,:] qt_anomaly = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] ql_
             double [:,:] ql = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql_all
             double qi_ = 0.0
             double [:,:] theta_l = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l_anomaly = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:,:] theta_l_anomaly_2 = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:,:,:] theta_l_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:] theta_l_mean = np.zeros(nz, dtype=np.double)
             double [:,:] data_all
             double Lv
 
@@ -180,6 +185,21 @@ cdef class CloudClosure:
 
         '''(1) Read in Fields'''
         var_list = ['s', 'qt', 'temperature', 'ql']
+
+        nc_file_name = files[0]
+        path_fields = os.path.join(path, 'fields', nc_file_name)
+        s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+
+        for i in range(nx):
+            for j in range(ny):
+                for k in range(nz):
+                    Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
+                    theta_l_[i,j,k] = thetali_c(p_ref[k], T_[i,j,k], qt_[i,j,k], ql_[i,j,k], qi_, Lv)
+        theta_l_mean = np.mean(np.mean(theta_l_, axis=0), axis=0)
+        qt_mean = np.mean(np.mean(qt_, axis=0), axis=0)
+        print('theta l mean: ', theta_l_mean.shape, nz)
+
+
         data = np.ndarray(shape=((nx_ * ny_ * dk), nvar))
         for ncomp in ncomp_range:
             means_ = np.zeros(shape=(nk, ncomp, nvar))
@@ -187,7 +207,7 @@ cdef class CloudClosure:
             weights_ = np.zeros(shape=(nk, ncomp))
             '''(1) Statistics File'''
             tt = files[0][0:-3]
-            nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
+            nc_file_name_out = 'CC_alltime_anomaly_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
                                +'_time'+str(tt)+'.nc'
             self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
@@ -197,6 +217,8 @@ cdef class CloudClosure:
                 print('- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' -')
                 ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                 data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                data_all_2 = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                data_all_aux = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
 
                 for d in files:
                     print('time: d='+str(d))
@@ -204,8 +226,13 @@ cdef class CloudClosure:
                     path_fields = os.path.join(path, 'fields', nc_file_name)
                     s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
 
+                    # for i in range(nx):
+                    #     for j in range(ny):
+                    #         Lv = LH.L(T_[i,j,iz],LH.Lambda_fp(T_[i,j,iz]))
+                    #         theta_l_[i,j,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
+                    # theta_l_mean[k] = np.mean(np.mean(theta_l_, axis=0), axis=0)
+
                     '''(2) Compute liquid potential temperature from temperature and moisture'''
-                    # for k_ in range(-dk+1,dk):
                     for k_ in range(0,dk):
                         k_shift = k_*nx_*ny_
                         print('layer: k_='+str(k_), str(iz), str(iz+k_), 'dk:', dk, dk_, 'k_shift: ', k_shift)
@@ -215,26 +242,27 @@ cdef class CloudClosure:
                                 ij = i*ny_ + j              # 2D --> 1D
                                 Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
                                 theta_l[k_shift+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                                theta_l_anomaly[k_shift+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv) - theta_l_mean[iz+k_]
+                                # theta_l_anomaly_2[k_shift+ij,k] = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv) - theta_l_mean[iz]
                                 qt[k_shift+ij,k] = qt_[i,j,iz+k_]
+                                qt_anomaly[k_shift+ij,k] = qt_[i,j,iz+k_] - qt_mean[iz+k_]
                                 ql[k_shift+ij,k] = ql_[i,j,iz+k_]
                                 ql_mean_field[k] += ql_[i,j,iz+k_]
                                 if ql_[i,j,iz+k_] > 0.0:
                                     cf_field[k] += 1.0
-
-                                # # test test test test
-                                # theta_l[k_*nx_*ny_+ij,k] = thetali_c(p_ref[iz], T_[i,j,iz], qt_[i,j,iz], ql_[i,j,iz], qi_, Lv)
-                                # qt[k_*nx_*ny_+ij,k] = qt_[i,j,iz]
-                                # ql[k_*nx_*ny_+ij,k] = ql_[i,j,iz]
-                                # ql_mean_field[k] += ql_[i,j,iz]
-                                # if ql_[i,j,iz] > 0.0:
-                                #     cf_field[k] += 1.0
                         # save_name = 'ncomp'+str(ncomp)+'_dk'+str(dk) + '_z'+str((iz+k_)*dz)+'m'
                         # scatter_data(theta_l[:,k], ql[:,k], 'thl', 'qt', dk, ncomp, err_ql, iz*dz, self.path_out, save_name)
                         # print('')
                     del s_, ql_, qt_, T_
-                    data[:, 0] = theta_l[:, k]
-                    data[:, 1] = qt[:, k]
+                    data[:, 0] = theta_l_anomaly[:, k]
+                    data[:, 1] = qt_anomaly[:, k]
                     data_all = np.append(data_all, data, axis=0)
+                    data[:, 1] = qt[:, k]
+                    data_all_2 = np.append(data_all_2, data, axis=0)
+                    data[:, 0] = theta_l[:,k]
+                    data[:, 1] = qt[:, k]
+                    data_all_aux = np.append(data_all_aux, data, axis=0)
+
                     ql_all = np.append(ql_all, ql[:,k], axis=0)
 
                 # print('data all: ', data_all.shape, len(files)*(dk)*nx_*ny_)
@@ -246,6 +274,30 @@ cdef class CloudClosure:
                 '''(3) Normalise Data'''
                 scaler = StandardScaler()
                 data_all_norm = scaler.fit_transform(data_all)
+                data_all_norm_aux = scaler.fit_transform(data_all_aux)
+                data_all_norm_2 = scaler.fit_transform(data_all_2)
+                plt.figure(figsize=(18,6))
+                plt.subplot(1,6,1)
+                plt.scatter(data_all_aux[:,0], data_all_aux[:,1])
+                plt.title('normal')
+                plt.subplot(1,6,2)
+                plt.scatter(data_all_norm_aux[:,0], data_all_norm_aux[:,1])
+                plt.title('normal norm')
+                plt.subplot(1,6,3)
+                plt.scatter(data_all_2[:,0], data_all_2[:,1])
+                plt.title('anomaly thl')
+                plt.subplot(1,6,4)
+                plt.scatter(data_all_norm_2[:,0], data_all_norm_2[:,1])
+                plt.title('anomaly norm thl')
+                plt.subplot(1,6,5)
+                plt.scatter(data_all[:,0], data_all[:,1])
+                plt.title('anomaly thl + qt')
+                plt.subplot(1,6,6)
+                plt.scatter(data_all_norm[:,0], data_all_norm[:,1])
+                plt.title('anomaly norm thl + qt')
+
+                plt.savefig(os.path.join(path,'figure_'+str(iz*dz)+'_dk'+str(dk*dz)+'_ncomp'+str(ncomp)+'Lx_'+str(Lx_)+'.png'))
+                plt.close()
 
                 '''(4) Compute bivariate PDF'''
                 #   (a) for (s,qt)
@@ -277,7 +329,7 @@ cdef class CloudClosure:
                 print('ql_mean_comp[k], k', k, ql_mean_comp[k])
                 for i in range(n_sample-2):
                     # ??? ok to use same reference pressure for all ik+k_ points?
-                    T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                    T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1], CC, LH)
                     ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
                         cf_comp[k] += 1
@@ -304,7 +356,7 @@ cdef class CloudClosure:
                 print('')
 
                 '''(E) Plotting'''
-                save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+                save_name = 'PDF_figures_anomaly_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
                 plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                 # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
@@ -324,7 +376,7 @@ cdef class CloudClosure:
             print('ncomp', ncomp, ncomp_range)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
-            # dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
+            # dump_variable(os.path.join(self.path_out, nc_file_name_CC), 'weights', weights_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf[:,count_ncomp]), 'error_cf', ncomp, nvar, nk)
@@ -332,7 +384,7 @@ cdef class CloudClosure:
 
             count_ncomp += 1
 
-        error_file_name = 'CC_alltime_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
+        error_file_name = 'CC_alltime_anomaly_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                         np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(cf_comp), np.asarray(cf_field),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
