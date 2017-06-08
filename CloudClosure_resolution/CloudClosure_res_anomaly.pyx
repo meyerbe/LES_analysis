@@ -190,6 +190,7 @@ cdef class CloudClosure:
         path_fields = os.path.join(path, 'fields', nc_file_name)
         s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
 
+        ''' (a) compute mean profiles for computation of anomalies'''
         for i in range(nx):
             for j in range(ny):
                 for k in range(nz):
@@ -205,7 +206,7 @@ cdef class CloudClosure:
             means_ = np.zeros(shape=(nk, ncomp, nvar))
             covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
-            '''(1) Statistics File'''
+            ''' (b) initialize Statistics File '''
             tt = files[0][0:-3]
             nc_file_name_out = 'CC_alltime_anomaly_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
                                +'_time'+str(tt)+'.nc'

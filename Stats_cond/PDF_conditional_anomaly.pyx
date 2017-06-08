@@ -43,7 +43,7 @@ cdef class PDF_conditional:
         cdef:
             int nz = self.nml['grid']['nz']
             int dz = self.nml['grid']['dz']
-        self.path_out = os.path.join(path, 'PDF_cond')
+        self.path_out = os.path.join(path, 'PDF_cond_anomaly')
 
         '''Initialize Reference Pressure'''
         if case_name[0:8] == 'ZGILS_S6':
@@ -147,6 +147,9 @@ cdef class PDF_conditional:
             double qi_ = 0.0
             # double [:,:] theta_l = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:] theta_l = np.ndarray(shape=(0), dtype=np.double)
+            double [:,:] theta_l_anomaly = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:,:,:] theta_l_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
+            double [:] theta_l_mean = np.zeros(nz, dtype=np.double)
             double [:,:] data_all
             double Lv
 
@@ -183,7 +186,7 @@ cdef class PDF_conditional:
             double [:] cf_updraft = np.zeros(nk, dtype=np.double)
 
 
-        '''(1) Read in Fields'''
+        '''(1) Read in Fields & compute mean profiles'''
         var_list = ['s', 'qt', 'temperature', 'ql']
         type_list = ['Couvreux']
         # type_list = ['Couvreux', 'Coherent']
@@ -191,6 +194,21 @@ cdef class PDF_conditional:
         # Read in Tracer Labels
         path_tracers = os.path.join(path, 'tracer_fields')
         tt = files[0][0:-3]
+        d = files[0]
+        print('time: d='+str(d))
+        nc_file_name = d
+        path_fields = os.path.join(path, 'fields', nc_file_name)
+        print(path_fields)
+        s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+        ''' (a) compute mean profiles for computation of anomalies'''
+        for i in range(nx):
+            for j in range(ny):
+                for k in range(nz):
+                    Lv = LH.L(T_[i,j,k],LH.Lambda_fp(T_[i,j,k]))
+                    theta_l_[i,j,k] = thetali_c(p_ref[k], T_[i,j,k], qt_[i,j,k], ql_[i,j,k], qi_, Lv)
+        theta_l_mean = np.mean(np.mean(theta_l_, axis=0), axis=0)
+        qt_mean = np.mean(np.mean(qt_, axis=0), axis=0)
+        del s_
 
         ''' (2) Compute PDF Model '''
         for type_ in type_list:
@@ -202,16 +220,11 @@ cdef class PDF_conditional:
                 covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
                 weights_ = np.zeros(shape=(nk, ncomp))
                 '''(b) initialize Statistics File'''
-                nc_file_name_out = 'PDF_cond_alltime_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
+                nc_file_name_out = 'PDF_cond_anomaly_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
                 self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
-                d = files[0]
-                print('time: d='+str(d))
-                nc_file_name = d
-                path_fields = os.path.join(path, 'fields', nc_file_name)
-                print(path_fields)
-                s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+
 
 
                 '''(2) Compute liquid potential temperature from temperature and moisture'''
@@ -226,6 +239,7 @@ cdef class PDF_conditional:
                     ql = np.ndarray(shape=(0), dtype=np.double)
                     ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                     data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+
                     for k_ in range(0,dk):
                         print('----- k_='+str(k_), ' dk='+str(dk))
                     # k_ = 0
@@ -234,9 +248,11 @@ cdef class PDF_conditional:
                                 if labels_tracers[i,j,iz] == 0:
                                     n_env += 1
                                     Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-                                    aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                    theta_l = np.append(theta_l, aux)
-                                    qt = np.append(qt, qt_[i, j, iz])
+                                    th_anomaly = theta_l_[i,j,iz+k_] - theta_l_mean[iz+k_]
+                                    theta_l = np.append(theta_l, th_anomaly)
+                                    qt_anomaly = qt_[i,j,iz+k_] - qt_mean[iz+k_]
+                                    # qt = np.append(qt, qt_[i, j, iz])
+                                    qt = np.append(qt, qt_anomaly)
                                     ql = np.append(ql, ql_[i, j, iz])
                                     ql_mean_env[k] += ql_[i, j, iz]
                                     if ql_[i,j,iz] > 0.0:
@@ -251,8 +267,9 @@ cdef class PDF_conditional:
                                     cf_domain[k] += 1.0
                         print('nenv='+str(n_env), theta_l.shape)
                     # del s_, ql_, qt_, T_
+
                     data = np.ndarray(shape=(n_env, nvar))
-                    print('..')
+        #             print('..')
                     print('nup, nenv, dk', n_updraft, n_env, dk)
                     print(theta_l.shape, qt.shape, data.shape)
                     print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
@@ -300,7 +317,7 @@ cdef class PDF_conditional:
                     print('ql_mean_comp[k], k', k, ql_mean_comp[k])
                     for i in range(n_sample-2):
                         # ??? ok to use same reference pressure for all ik+k_ points?
-                        T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz+k_], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                        T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz+k_], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
                         ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
                         if ql_comp_thl[i] > 0:
                             cf_comp[k] += 1
@@ -339,7 +356,7 @@ cdef class PDF_conditional:
                     print('')
 
                     '''(E) Plotting'''
-                    save_name = 'PDF_figures_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+                    save_name = 'PDF_figures_anomaly_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
                     plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, self.path_out, save_name)
                     # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                     # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
@@ -352,7 +369,7 @@ cdef class PDF_conditional:
                     #
                     # plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
 
-                del s_, ql_, qt_, T_
+
 
                 '''(F) Save Gaussian Mixture PDFs '''
                 print('')
@@ -379,6 +396,9 @@ cdef class PDF_conditional:
                                  np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
                                  np.asarray(error_cf_env), np.asarray(error_cf_domain),
                                  np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain))
+        # del s_, ql_, qt_, T_
+        del ql_, qt_, T_
+
         return
 
 
