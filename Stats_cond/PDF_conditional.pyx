@@ -36,7 +36,7 @@ cdef class PDF_conditional:
 
     cpdef initialize(self, krange, path, case_name):
         print('')
-        print('--- PDF conditional ---')
+        print('--- PDF conditional (not anomaly) ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
         print('')
         self.nml = simplejson.loads(open(os.path.join(path, case_name+'.in')).read())
