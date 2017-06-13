@@ -19,7 +19,7 @@ import CC_thermodynamics_c
 from CC_thermodynamics_c cimport LatentHeat, ClausiusClapeyron
 from CC_thermodynamics_c import sat_adj_fromentropy, sat_adj_fromthetali
 
-from plotting_functions import plot_PDF, plot_PDF_components
+from plotting_functions import plot_PDF, plot_PDF_components, plot_samples
 from plotting_functions import plot_error_vs_ncomp_ql, plot_error_vs_ncomp_cf, plot_abs_error
 
 
@@ -30,11 +30,12 @@ cdef class CloudClosure:
         self.p_ref = None
         self.z_ref = None
         self.zrange = None
+        self.krange = None
         return
 
 
 
-    cpdef initialize(self, krange, path, case_name):
+    cpdef initialize(self, krange, zrange, path, case_name):
         print('')
         print('--- Cloud Closure Scheme ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
@@ -58,8 +59,17 @@ cdef class CloudClosure:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', self.path_ref)[:]
 
-        self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
-        self.zrange = np.double(krange) * dz
+        self.krange = krange
+        try:
+            self.z_ref = read_in_netcdf('z_half', 'profiles', self.path_ref)
+        except:
+            self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
+        self.zrange = zrange
+        # self.zrange = np.zeros(shape=krange.shape)
+        # for k in range(krange.shape[0]):
+        #     self.zrange[k] = self.z_ref[krange[k]]
+        # self.zrange = np.double(krange) * dz
+        # print('zrange: ', self.zrange[:])
 
 
         '''Initialize Latent Heat and ClausiusClapeyron'''
@@ -93,7 +103,7 @@ cdef class CloudClosure:
             int nk = len(krange)
             # double [:] dk_range = dk_range_
             int dk = dk_ + 1
-            Py_ssize_t k, iz
+            Py_ssize_t k, iz, k_
             str d
             int dx = nml['grid']['dx']
             int dy = nml['grid']['dy']
@@ -184,7 +194,7 @@ cdef class CloudClosure:
             means_ = np.zeros(shape=(nk, ncomp, nvar))
             covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
-            '''(1) Statistics File'''
+            ''' (b) initialize Statistics File '''
             tt = files[0][0:-3]
             nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
                                +'_time'+str(tt)+'.nc'
@@ -204,7 +214,6 @@ cdef class CloudClosure:
                     s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
 
                     '''(2) Compute liquid potential temperature from temperature and moisture'''
-                    # for k_ in range(-dk+1,dk):
                     for k_ in range(0,dk):
                         k_shift = k_*nx_*ny_
                         print('layer: k_='+str(k_), str(iz), str(iz+k_), 'dk:', dk, dk_, 'k_shift: ', k_shift)
@@ -304,9 +313,10 @@ cdef class CloudClosure:
 
                 '''(E) Plotting'''
                 save_name = 'PDF_figures_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-                plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+                plot_PDF(data_all, data_all_norm, ql_all, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_Lx' + str(Lx_) +'_dk'+str(dk-1) + '_z' + str(iz*dz)+'m.png'
+                plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
                 # plot_hist(ql, path_out)
                 print('')
 
@@ -337,7 +347,7 @@ cdef class CloudClosure:
 
         error_file_name = 'CC_alltime_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
-                        np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(cf_comp), np.asarray(cf_field),
+                        np.asarray(ql_mean_field), np.asarray(cf_field),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
                         np.asarray(error_cf), np.asarray(rel_error_cf))
         return
@@ -433,7 +443,7 @@ cdef class CloudClosure:
     #----------------------------------------------------------------------
 
     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
-                        ql_mean_comp, ql_mean_field, cf_comp, cf_field,
+                        ql_mean_field, cf_field,
                         error_ql, rel_error_ql,
                         error_cf, rel_error_cf):
         print('---------- dump error ---------- ')
@@ -442,13 +452,15 @@ cdef class CloudClosure:
         prof_grp.createDimension('nz', nz_)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
+        var = prof_grp.createVariable('krange', 'f8', ('nz'))
+        var[:] = np.asarray(self.krange)[:]
 
-        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
-        var[:] = ql_mean_comp[:]
+        # var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
+        # var[:] = ql_mean_comp[:]
         var = prof_grp.createVariable('ql_mean_field', 'f8', ('nz'))
         var[:] = ql_mean_field[:]
-        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
-        var[:] = cf_comp[:]
+        # var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
+        # var[:] = cf_comp[:]
         var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
         var[:] = cf_field[:]
 
@@ -499,6 +511,9 @@ cdef class CloudClosure:
         var = z_grp.createVariable('z', 'f8', ('nz'))
         for i in range(nz_):
             var[i] = self.zrange[i]
+        var = z_grp.createVariable('k', 'f8', ('nz'))
+        for i in range(nz_):
+            var[i] = self.krange[i]
         rootgrp.close()
         return
 

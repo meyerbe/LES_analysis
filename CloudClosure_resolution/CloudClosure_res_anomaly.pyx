@@ -93,7 +93,7 @@ cdef class CloudClosure:
             int nk = len(krange)
             # double [:] dk_range = dk_range_
             int dk = dk_ + 1
-            Py_ssize_t k, iz
+            Py_ssize_t k, iz, k_
             str d
             int dx = nml['grid']['dx']
             int dy = nml['grid']['dy']
@@ -260,7 +260,7 @@ cdef class CloudClosure:
                     data_all = np.append(data_all, data, axis=0)
                     data[:, 1] = qt[:, k]
                     data_all_2 = np.append(data_all_2, data, axis=0)
-                    data[:, 0] = theta_l[:,k]
+                    data[:, 0] = theta_l[:, k]
                     data[:, 1] = qt[:, k]
                     data_all_aux = np.append(data_all_aux, data, axis=0)
 
@@ -352,13 +352,13 @@ cdef class CloudClosure:
 
                 '''(E) Plotting'''
                 save_name = 'PDF_figures_anomaly_'+str(iz*dz)+'m'+'_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-                plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, self.path_out, save_name)
+                plot_PDF(data_all, data_all_norm, ql_all, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
                 # save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(iz*dz)+'m.png'
                 # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
-                save_name = 'sample_figure_'+'ncomp'+str(ncomp)+str(iz*dz)+'m.png'
+                save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_Lx' + str(Lx_) +'_dk'+str(dk-1) + '_z' + str(iz*dz)+'m.png'
                 plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
-                save_name = 'satadj_sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(iz*dz)+'m.png'
-                plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
+                # save_name = 'satadj_sample_figure_'+'ncomp'+str(ncomp)+'_norm_'+str(iz*dz)+'m.png'
+                # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, self.path_out, save_name)
                 # plot_hist(ql, path_out)
                 print('')
 
@@ -376,9 +376,9 @@ cdef class CloudClosure:
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
-            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_pdf', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_field[:]), 'ql_mean_field', ncomp, nvar, nk)
-            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_pdf', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_field[:]), 'cf_field', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
@@ -389,7 +389,7 @@ cdef class CloudClosure:
 
         error_file_name = 'CC_alltime_anomaly_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
-                        np.asarray(ql_mean_comp), np.asarray(ql_mean_field), np.asarray(cf_comp), np.asarray(cf_field),
+                        np.asarray(ql_mean_field), np.asarray(cf_field),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
                         np.asarray(error_cf), np.asarray(rel_error_cf))
         return
@@ -485,7 +485,7 @@ cdef class CloudClosure:
     #----------------------------------------------------------------------
 
     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
-                        ql_mean_comp, ql_mean_field, cf_comp, cf_field,
+                        ql_mean_field, cf_field,
                         error_ql, rel_error_ql,
                         error_cf, rel_error_cf):
         print('---------- dump error ---------- ')
@@ -494,13 +494,15 @@ cdef class CloudClosure:
         prof_grp.createDimension('nz', nz_)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
+        var = prof_grp.createVariable('krange', 'f8', ('nz'))
+        var[:] = np.asarray(self.krange)[:]
 
-        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
-        var[:] = ql_mean_comp[:]
+        # var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
+        # var[:] = ql_mean_comp[:]
         var = prof_grp.createVariable('ql_mean_field', 'f8', ('nz'))
         var[:] = ql_mean_field[:]
-        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
-        var[:] = cf_comp[:]
+        # var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
+        # var[:] = cf_comp[:]
         var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
         var[:] = cf_field[:]
 
