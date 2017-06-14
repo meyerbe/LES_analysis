@@ -168,7 +168,6 @@ def main():
                     buoy[ij,k] = buoyancy_[i,j,iz]
                 if labels_tracers[i,j,iz] == 0:
                     n_env_tr[k] += 1
-                    # n_env_tr += 1
                     qt_env_tr = np.append(qt_env_tr, qt_[i, j, iz])
                     ql_env_tr = np.append(ql_env_tr, ql_[i, j, iz])
                     w_env_tr = np.append(w_env_tr, w_[i,j,iz])
@@ -178,7 +177,6 @@ def main():
                         buoy_env_tr = np.append(buoy_env_tr, buoyancy_[i, j, iz])
                 else:
                     n_up_tr[k] += 1
-                    # n_up_tr += 1
                     qt_up_tr = np.append(qt_up_tr, qt_[i, j, iz])
                     ql_up_tr = np.append(ql_up_tr, ql_[i, j, iz])
                     w_up_tr = np.append(w_up_tr, w_[i,j,iz])
@@ -189,7 +187,6 @@ def main():
 
                 if labels_pdf[i,j,k] == 0:
                     n_env_pdf[k] += 1
-                    # n_env_pdf += 1
                     qt_env_pdf = np.append(qt_env_pdf, qt_[i,j,iz])
                     ql_env_pdf = np.append(ql_env_pdf, ql_[i,j,iz])
                     w_env_pdf = np.append(w_env_pdf, w_[i,j,iz])
@@ -199,7 +196,6 @@ def main():
                         buoy_env_pdf = np.append(buoy_env_pdf, buoyancy_[i, j, iz])
                 else:
                     n_up_pdf[k] += 1
-                    # n_up_pdf += 1
                     qt_up_pdf = np.append(qt_up_pdf, qt_[i, j, iz])
                     ql_up_pdf = np.append(ql_up_pdf, ql_[i, j, iz])
                     w_up_pdf = np.append(w_up_pdf, w_[i,j,iz])

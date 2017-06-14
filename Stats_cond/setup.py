@@ -57,6 +57,11 @@ extensions.append(_ext)
 #                  runtime_library_dirs=library_dirs)
 # extensions.append(_ext)
 
+_ext = Extension('PDF_conditional_log', ['PDF_conditional_log.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
+
 _ext = Extension('PDF_conditional_anomaly', ['PDF_conditional_anomaly.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)
