@@ -7,9 +7,10 @@ cdef class PDF_conditional:
         double [:] p_ref
         double [:] z_ref
         double [:] zrange
+        int [:] krange
         LatentHeat LH
         ClausiusClapeyron CC
         dict nml
 
-    cpdef initialize(self, krange, path, case_name)
+    cpdef initialize(self, krange, zrange, path, case_name)
     cpdef predict_pdf(self, files, path, int n_sample, ncomp_range, Lx_, Ly_, dk_, int [:] krange_, nml)

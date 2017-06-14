@@ -79,17 +79,16 @@ def main():
     dy = nml['grid']['dy']
     dz = nml['grid']['dz']
 
-    PDF_cond = PDF_conditional.PDF_conditional()
+    PDF_cond = PDF_conditional_anomaly.PDF_conditional()
 
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
     krange, files = set_zrange(case_name)
-    zrange = krange * dz
     N = len(files)
     print('Use the following files' + str(files) + ', ' +str(N))
     print('')
     print('krange' + ', ' + str(type(krange)) + ', ' + str(type(krange[0])))
-    print('zrange: ' + str(zrange))
+    print('zrange: ' + str(krange * dz))
     print('dkrange: ' + str(dk_range) + ', ' + str(type(dk_range)) + ', ' + str(type(dk_range[0])))
     print('dz: ' + str(dz))
     print('ncomp: ' + str(ncomp_range))
@@ -97,7 +96,7 @@ def main():
     print(path)
     print('')
 
-    PDF_cond.initialize(krange, zrange, path, case_name)
+    PDF_cond.initialize(krange, path, case_name)
     n_sample = 1e6
 
     # for Lx in [1000, 5000, 10000, 20000]:
@@ -145,9 +144,8 @@ def set_zrange(case_name):
         ## Bomex (dz=20)
         # krange = np.asarray([50, 60], dtype=np.int32)
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
-        # files = ['18000.nc']
-        files = ['21600.nc']
-
+        files = ['18000.nc', '19800.nc', '21600.nc']
+        # files = ['21600.nc']
         # Bomex test
         # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])

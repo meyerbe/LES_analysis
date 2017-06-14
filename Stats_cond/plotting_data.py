@@ -22,7 +22,7 @@ plt.rcParams['axes.labelsize'] = 10
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = 8
-plt.rcParams['figure.titlesize'] = 10
+plt.rcParams['figure.titlesize'] = 12
 plt.rcParams['lines.linewidth'] = 0.8
 
 
@@ -38,6 +38,8 @@ def main():
     path_out = os.path.join(path, 'PDF_cond_figures', 'scatter_plots')
     case_name = args.casename
     time_field = args.time_field
+    print('')
+    print('path out: ' + path_out)
 
     nml = simplejson.loads(open(os.path.join(path, case_name + '.in')).read())
     nx = nml['grid']['nx']
@@ -46,12 +48,14 @@ def main():
     dx = nml['grid']['dx']
     dy = nml['grid']['dy']
     dz = nml['grid']['dz']
+    print('')
     print('Files Dimensions: ' +  str(nx) +', '+ str(ny)+', ' + str(nz))
 
     krange, files = set_zrange(case_name)
     zrange = krange * dz
     nk = len(krange)
-    print('Selected Files: ', files)
+    print('time field: '+ str(time_field))
+    # print('Selected Files: ', files)
     print('Selected Levels: nk='+str(nk))
     print('krange: ', krange)
     print('zrange: ', zrange)
@@ -63,8 +67,16 @@ def main():
     root = nc.Dataset(path_files, 'r')
     qt_ = root.groups['fields'].variables['qt'][:,:,:]
     ql_ = root.groups['fields'].variables['ql'][:, :, :]
+    w_ = root.groups['fields'].variables['w'][:, :, :]
+    try:
+        buoyancy_ = root.groups['fields'].variables['buoyancy'][:,:,:]
+        buoyancy_flag = True
+    except:
+        buoyancy_flag = False
+        print('!! buoyancy not in fields')
     try:
         thetal_ = root.groups['fields'].variables['thetali'][:, :, :]
+        thetal_flag = True
     except:
         # thetal = np.zeros(shape=qt_.shape)
         # for i in range(nx):
@@ -72,6 +84,7 @@ def main():
         #         for k in range(nz):
         #             aux = thetali_c(p_ref[iz + k_], T_[i, j, iz + k_], qt_[i, j, iz + k_], ql_[i, j, iz + k_], qi_, Lv)
         #             theta_l = np.append(theta_l, aux)
+        thetal_flag = False
         print('!! thetal not in fields')
     root.close()
 
@@ -89,13 +102,6 @@ def main():
 
     # (4) select the datapoints that are environemnt / updraft
     ini = time.time()
-
-    # # aux1 = np.zeros(shape=(0))
-    # # aux2 = np.zeros(shape=(0))
-    # # aux3 = np.zeros(shape=(0))
-    # # aux4 = np.zeros(shape=(0))
-    # # aux5 = np.zeros(shape=(0))
-    # # aux6 = np.zeros(shape=(0))
     # # qt_env_tr = np.zeros(shape=(0, nz), dtype=np.double)
     # # ql_env_tr = np.zeros(shape=(0, nz), dtype=np.double)
     # # th_env_tr = np.zeros(shape=(0, nz), dtype=np.double)
@@ -104,35 +110,50 @@ def main():
     # # th_up_tr = np.zeros(shape=(0, nz), dtype=np.double)
     qt = np.zeros(shape=(nx*ny,nk))
     ql = np.zeros(shape=(nx * ny, nk))
-    thetal = np.zeros(shape=(nx * ny, nk))
-    # n_up_tr = np.zeros(nk, dtype=np.int32)
-    # n_env_tr = np.zeros(nk, dtype=np.int32)
-    # n_up_pdf = np.zeros(nk, dtype=np.int32)
-    # n_env_pdf = np.zeros(nk, dtype=np.int32)
-    #
+    if thetal_flag:
+        thetal = np.zeros(shape=(nx * ny, nk))
+    w = np.zeros(shape=(nx * ny, nk))
+    if buoyancy_flag:
+        buoy = np.zeros(shape=(nx * ny, nk))
+
+
+    n_up_tr = np.zeros(nk, dtype=np.int32)
+    n_env_tr = np.zeros(nk, dtype=np.int32)
+    n_up_pdf = np.zeros(nk, dtype=np.int32)
+    n_env_pdf = np.zeros(nk, dtype=np.int32)
     for k in range(nk):
-    # for k in krange:
-    # for k in range(nz):
         iz = krange[k]
         print('k', k, iz, nz)
 
-        n_up_tr = 0
-        n_env_tr = 0
-        n_up_pdf = 0
-        n_env_pdf = 0
-
+        # n_up_tr = 0
+        # n_env_tr = 0
+        # n_up_pdf = 0
+        # n_env_pdf = 0
         qt_env_tr = np.zeros(shape=(0), dtype=np.double)
         ql_env_tr = np.zeros(shape=(0), dtype=np.double)
-        th_env_tr = np.zeros(shape=(0), dtype=np.double)
         qt_up_tr = np.zeros(shape=(0), dtype=np.double)
         ql_up_tr = np.zeros(shape=(0), dtype=np.double)
-        th_up_tr = np.zeros(shape=(0), dtype=np.double)
         qt_env_pdf = np.zeros(shape=(0), dtype=np.double)
         ql_env_pdf = np.zeros(shape=(0), dtype=np.double)
-        th_env_pdf = np.zeros(shape=(0), dtype=np.double)
         qt_up_pdf = np.zeros(shape=(0), dtype=np.double)
         ql_up_pdf = np.zeros(shape=(0), dtype=np.double)
-        th_up_pdf = np.zeros(shape=(0), dtype=np.double)
+
+        if thetal_flag:
+            th_env_tr = np.zeros(shape=(0), dtype=np.double)
+            th_up_tr = np.zeros(shape=(0), dtype=np.double)
+            th_env_pdf = np.zeros(shape=(0), dtype=np.double)
+            th_up_pdf = np.zeros(shape=(0), dtype=np.double)
+
+        w_env_tr = np.zeros(shape=(0), dtype=np.double)
+        w_up_tr = np.zeros(shape=(0), dtype=np.double)
+        w_env_pdf = np.zeros(shape=(0), dtype=np.double)
+        w_up_pdf = np.zeros(shape=(0), dtype=np.double)
+
+        if buoyancy_flag:
+            buoy_env_tr = np.zeros(shape=(0), dtype=np.double)
+            buoy_up_tr = np.zeros(shape=(0), dtype=np.double)
+            buoy_env_pdf = np.zeros(shape=(0), dtype=np.double)
+            buoy_up_pdf = np.zeros(shape=(0), dtype=np.double)
 
         for i in range(nx):
             ishift = i*ny
@@ -140,51 +161,112 @@ def main():
                 ij = ishift + j
                 qt[ij,k] = qt_[i,j,iz]
                 ql[ij, k] = ql_[i, j,iz]
-                thetal[ij,k] = thetal_[i,j,iz]
+                w[ij,k] = w_[i,j,iz]
+                if thetal_flag:
+                    thetal[ij,k] = thetal_[i,j,iz]
+                if buoyancy_flag:
+                    buoy[ij,k] = buoyancy_[i,j,iz]
                 if labels_tracers[i,j,iz] == 0:
-                    # n_env_tr[k] += 1
-                    n_env_tr += 1
+                    n_env_tr[k] += 1
+                    # n_env_tr += 1
                     qt_env_tr = np.append(qt_env_tr, qt_[i, j, iz])
                     ql_env_tr = np.append(ql_env_tr, ql_[i, j, iz])
-                    th_env_tr = np.append(th_env_tr, thetal_[i, j, iz])
+                    w_env_tr = np.append(w_env_tr, w_[i,j,iz])
+                    if thetal_flag:
+                        th_env_tr = np.append(th_env_tr, thetal_[i, j, iz])
+                    if buoyancy_flag:
+                        buoy_env_tr = np.append(buoy_env_tr, buoyancy_[i, j, iz])
                 else:
-                    # n_up_tr[k] += 1
-                    n_up_tr += 1
+                    n_up_tr[k] += 1
+                    # n_up_tr += 1
                     qt_up_tr = np.append(qt_up_tr, qt_[i, j, iz])
                     ql_up_tr = np.append(ql_up_tr, ql_[i, j, iz])
-                    th_up_tr = np.append(th_up_tr, thetal_[i, j, iz])
+                    w_up_tr = np.append(w_up_tr, w_[i,j,iz])
+                    if thetal_flag:
+                        th_up_tr = np.append(th_up_tr, thetal_[i, j, iz])
+                    if buoyancy_flag:
+                        buoy_up_tr = np.append(buoy_up_tr, buoyancy_[i, j, iz])
 
                 if labels_pdf[i,j,k] == 0:
-                    # n_env_pdf[k] += 1
-                    n_env_pdf += 1
+                    n_env_pdf[k] += 1
+                    # n_env_pdf += 1
                     qt_env_pdf = np.append(qt_env_pdf, qt_[i,j,iz])
                     ql_env_pdf = np.append(ql_env_pdf, ql_[i,j,iz])
-                    th_env_pdf = np.append(th_env_pdf, thetal_[i,j,iz])
+                    w_env_pdf = np.append(w_env_pdf, w_[i,j,iz])
+                    if thetal_flag:
+                        th_env_pdf = np.append(th_env_pdf, thetal_[i,j,iz])
+                    if buoyancy_flag:
+                        buoy_env_pdf = np.append(buoy_env_pdf, buoyancy_[i, j, iz])
                 else:
-                    # n_up_pdf[k] += 1
-                    n_up_pdf += 1
+                    n_up_pdf[k] += 1
+                    # n_up_pdf += 1
                     qt_up_pdf = np.append(qt_up_pdf, qt_[i, j, iz])
                     ql_up_pdf = np.append(ql_up_pdf, ql_[i, j, iz])
-                    th_up_pdf = np.append(th_up_pdf, thetal_[i, j, iz])
+                    w_up_pdf = np.append(w_up_pdf, w_[i,j,iz])
+                    if thetal_flag:
+                        th_up_pdf = np.append(th_up_pdf, thetal_[i, j, iz])
+                    if buoyancy_flag:
+                        buoy_up_pdf = np.append(buoy_up_pdf, buoyancy_[i, j, iz])
+
+        ql_mean_up_tr = np.average(ql_up_tr)
+        ql_mean_env_tr = np.average(ql_env_tr)
+        qt_mean_up_tr = np.average(qt_up_tr)
+        qt_mean_env_tr = np.average(qt_env_tr)
+        w_mean_up_tr = np.average(w_up_tr)
+        w_mean_env_tr = np.average(w_env_tr)
+        b_mean_up_tr = np.average(buoy_up_tr)
+        b_mean_env_tr = np.average(buoy_env_tr)
+
+        ql_mean_up_pdf = np.average(ql_up_pdf)
+        ql_mean_env_pdf = np.average(ql_env_pdf)
+        qt_mean_up_pdf = np.average(qt_up_pdf)
+        qt_mean_env_pdf = np.average(qt_env_pdf)
+        w_mean_up_pdf = np.average(w_up_pdf)
+        w_mean_env_pdf = np.average(w_env_pdf)
+        b_mean_up_pdf = np.average(buoy_up_pdf)
+        b_mean_env_pdf = np.average(buoy_env_pdf)
 
 
+        type_ = 'Couvreux'
 
-        # type_ = 'Couvreux'
-        # file_name = 'data_env_vs_all_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.pdf'
-        # plot_data_scatter(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr, ql[:, k], ql_env_tr, ql_up_tr,
-        #               nx * ny, n_env_tr, n_up_tr, type_ , iz * dz, time_field, path_out, file_name)
-        # file_name = 'data_env_vs_all_' + type_  + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored.pdf'
-        # plot_data_scatter_colored(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
-        #                           ql[:, k], ql_env_tr, ql_up_tr,
-        #                             nx * ny, n_env_tr, n_up_tr, type_ , iz * dz, time_field, path_out, file_name)
+        file_name = 'data_env_vs_all_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.png'
+        plot_data_scatter(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
+                      nx * ny, n_env_tr, n_up_tr, type_ , iz * dz, time_field, path_out, file_name)
+        # plot data scattered, colored by ql
+        file_name = 'data_env_vs_all_' + type_  + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_ql.png'
+        plot_data_scatter_colored(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
+                                  ql[:, k], ql_env_tr, ql_up_tr, 'ql',
+                                    nx * ny, n_env_tr[k], n_up_tr[k], type_ , iz * dz, time_field, path_out, file_name)
+        # plot data scattered, colored by w
+        file_name = 'data_env_vs_all_' + type_ + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_w.png'
+        plot_data_scatter_colored(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
+                              w[:, k], w_env_tr, w_up_tr, 'w',
+                              nx * ny, n_env_tr[k], n_up_tr[k], type_, iz * dz, time_field, path_out, file_name)
+        if buoyancy_flag:
+            # plot data scattered, colored by buoyancy
+            file_name = 'data_env_vs_all_' + type_ + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_b.png'
+            plot_data_scatter_colored(qt[:, k], qt_env_tr, qt_up_tr, thetal[:, k], th_env_tr, th_up_tr,
+                                  buoy[:, k], buoy_env_tr, buoy_up_tr, 'buoyancy',
+                                  nx * ny, n_env_tr[k], n_up_tr[k], type_, iz * dz, time_field, path_out, file_name)
         type_ = 'PDF'
-        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
-        plot_data_scatter(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf, ql[:, k], ql_env_pdf, ql_up_pdf,
-                      nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
-        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored.png'
+        # file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
+        # plot_data_scatter(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf,
+        #               nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
+        # plot data scattered, colored by ql
+        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_ql.png'
         plot_data_scatter_colored(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf,
-                                  ql[:, k], ql_env_pdf, ql_up_pdf,
-                      nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
+                                ql[:, k], ql_env_pdf, ql_up_pdf, 'ql',
+                                nx * ny, n_env_pdf, n_up_pdf, type_ , iz * dz, time_field, path_out, file_name)
+        # plot data scattered, colored by w
+        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_w.png'
+        plot_data_scatter_colored(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf,
+                                  w[:, k], w_env_pdf, w_up_pdf, 'w',
+                                  nx * ny, n_env_pdf, n_up_pdf, type_, iz * dz, time_field, path_out, file_name)
+        # plot data scattered, colored by buoyancy
+        file_name = 'data_env_vs_all_' + 'pdf' + '_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '_colored_b.png'
+        plot_data_scatter_colored(qt[:, k], qt_env_pdf, qt_up_pdf, thetal[:, k], th_env_pdf, th_up_pdf,
+                                  buoy[:, k], buoy_env_pdf, buoy_up_pdf, 'buoyancy',
+                                  nx * ny, n_env_pdf, n_up_pdf, type_, iz * dz, time_field, path_out, file_name)
 
         end = time.time()
         print('k=' + str(k) + ', time: ' + str(end - ini))
@@ -201,7 +283,7 @@ def main():
 
 
 #----------------------------------------------------------------------
-def plot_data_scatter(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql_, ql_env_tr, ql_up_tr,
+def plot_data_scatter(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr,
                       n_tot, n_env_tr, n_up_tr, type_, z, t, path_, file_name):
     x_min = np.amin(thetal_)
     x_max = np.amax(thetal_)
@@ -234,7 +316,7 @@ def plot_data_scatter(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql
 
 
 
-def plot_data_scatter_colored(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql_, ql_env_tr, ql_up_tr,
+def plot_data_scatter_colored(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql_, ql_env_tr, ql_up_tr, color_name,
                           n_tot, n_env_tr, n_up_tr, type_, z, t, path_, file_name):
     # (B) Figure with ql-coloring
     ql_min = np.amin(ql_)
@@ -263,7 +345,7 @@ def plot_data_scatter_colored(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_u
     labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
     plt.title('updrafts (n=' + str(n_up_tr) + ')')
 
-    plt.suptitle('Updraft selection ' + type_ + ' (z=' + str(z) + 'm, t=' + str(t) + ')')
+    plt.suptitle('Updraft selection ' + type_ + ', color: '+  color_name + ' (z=' + str(z) + 'm, t=' + str(t) + ')')
     # # print('save:', os.path.join(path_, file_name))
     plt.savefig(os.path.join(path_, file_name))
     # plt.show()

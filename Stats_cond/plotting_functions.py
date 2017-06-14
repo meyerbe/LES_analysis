@@ -22,7 +22,7 @@ plt.rcParams['lines.linewidth'] = 0.8
 
 
 
-def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, path, save_name):
+def plot_PDF(data, data_norm, ql_all, var_name1, var_name2, clf, dk, ncomp, error, z, Lx, path, save_name):
     print('Plot PDF: ', os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '.png'))
 
     xmin = np.amin(data[:,0])
@@ -34,6 +34,9 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
     xmax_norm = np.amax(data_norm[:, 0])
     ymin_norm = np.amin(data_norm[:, 1])
     ymax_norm = np.amax(data_norm[:, 1])
+
+    ql_min = np.amin(ql_all)
+    ql_max = np.amax(ql_all)
 
     n_sample = np.int(1e2)
     nvar = 2
@@ -57,7 +60,8 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
 
     plt.figure(figsize=(16,8))
     plt.subplot(1,4,1)
-    plt.scatter(data[:,0], data[:,1], s=5, alpha=0.2)
+    # plt.scatter(data[:,0], data[:,1], s=5, alpha=0.2)
+    plt.scatter(data[:,0], data[:,1], c = ql_all[:], s = 5, alpha = 0.2, edgecolors = 'none', vmin = ql_min, vmax = ql_max)
     plt.title('data (n='+str(data.shape[0])+')' )
     labeling(var_name1, var_name2, xmin, xmax, ymin, ymax)
 
@@ -90,16 +94,10 @@ def plot_PDF(data, data_norm, var_name1, var_name2, clf, dk, ncomp, error, z, pa
     labeling(var_name1, var_name2, xmin_norm, xmax_norm, ymin_norm, ymax_norm)
     plt.title('PDF(thl, qt)')
 
-    plt.suptitle('GMM, ncomp='+str(ncomp)+', error: '+str(error)+'    (z='+str(z)+')')
-
-    # plt.savefig(
-    #     os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '_dz'+str(dk)+'.png'))
+    plt.suptitle('GMM, ncomp='+str(ncomp)+ ': error: '+str(error)+'    (Lx=' + str(Lx) + 'z='+str(z)+')')
+    # plt.savefig(os.path.join(path+'_figures', 'PDF_figures_' + str(z) + 'm' + '_ncomp' + str(ncomp) + '_dz'+str(dk)+'.png'))
     # plt.savefig(os.path.join(path+'_figures', save_name+'.pdf'))
     plt.savefig(os.path.join(path + '_figures', save_name + '.png'))
-    # try:
-    #     plt.savefig(os.path.join(path, 'CloudClosure_z_figures','PDF_figures_'+str(z)+'m'+'_ncomp'+str(ncomp)+'.png'))
-    # except:
-    #     print('!!!!! figure with ncomp='+str(ncomp)+', z='+str(z)+' not saved !!!!!')
     plt.close()
     return
 

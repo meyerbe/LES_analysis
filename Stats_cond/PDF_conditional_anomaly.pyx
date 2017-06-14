@@ -29,12 +29,13 @@ cdef class PDF_conditional:
         self.p_ref = None
         self.z_ref = None
         self.zrange = None
+        self.krange = None
         return
 
 
 
 
-    cpdef initialize(self, krange, path, case_name):
+    cpdef initialize(self, krange, zrange, path, case_name):
         print('')
         print('--- PDF conditional ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
@@ -57,10 +58,15 @@ cdef class PDF_conditional:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', self.path_ref)[:]
 
-        self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
-        self.zrange = np.double(krange) * dz
+        self.krange = krange
+        try:
+            self.z_ref = read_in_netcdf('z_half', 'profiles', self.path_ref)
+        except:
+            self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
+        self.zrange = zrange
         print('')
-        print('zrange', np.double(krange) * dz)
+        print('zrange: ' + str(np.double(krange) * dz))
+        print('z_ref: ' + str(self.z_ref[:]))
         print('')
 
 
@@ -93,7 +99,7 @@ cdef class PDF_conditional:
             int [:] krange = krange_
             int nk = len(krange)
             int dk = dk_ + 1
-            Py_ssize_t k, iz
+            Py_ssize_t k, iz, k_
             str d
             int dx = nml['grid']['dx']
             int dy = nml['grid']['dy']
@@ -137,15 +143,11 @@ cdef class PDF_conditional:
             double [:,:,:] s_
             double [:,:,:] T_
             double [:,:,:] qt_
-            # double [:,:] qt = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
-            # double [:,:] qt = np.ndarray(shape=(0,nk), dtype=np.double)
             double [:] qt = np.ndarray(shape=(0), dtype=np.double)
             double [:,:,:] ql_
-            # double [:,:] ql = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')         # <type 'CloudClosure._memoryviewslice'>
             double [:] ql = np.ndarray(shape=(0), dtype=np.double)
             double [:] ql_all
             double qi_ = 0.0
-            # double [:,:] theta_l = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:] theta_l = np.ndarray(shape=(0), dtype=np.double)
             double [:,:] theta_l_anomaly = np.zeros([dk*nx_*ny_,nk],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
             double [:,:,:] theta_l_ = np.zeros([nx,ny,nz],dtype=np.double,order='c')    # <type 'CloudClosure._memoryviewslice'>
@@ -162,9 +164,7 @@ cdef class PDF_conditional:
 
         # for Error Computation / <ql> intercomparison
         cdef:
-            double [:] ql_mean_domain = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
             double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
-            double [:] cf_domain = np.zeros(shape=(nk))                      # computation from 3D LES field
             double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
             int count_ncomp = 0
             double [:,:] error_ql_domain = np.zeros(shape=(nk,len(ncomp_range)))
@@ -178,12 +178,17 @@ cdef class PDF_conditional:
 
         # for Updraft / Environment Decompositoin
         cdef:
-            int n_env = 0
-            int n_updraft = 0
+            # int n_env = 0
+            # int n_updraft = 0
+            double [:] n_env = np.zeros(nk, dtype=np.double)
+            double [:] n_updraft = np.zeros(nk, dtype=np.double)
+            double [:] ql_mean_domain = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
             double [:] ql_mean_env = np.zeros(nk, dtype=np.double)
             double [:] ql_mean_updraft = np.zeros(nk, dtype=np.double)
+            double [:] cf_domain = np.zeros(shape=(nk))                      # computation from 3D LES field
             double [:] cf_env = np.zeros(nk, dtype=np.double)
             double [:] cf_updraft = np.zeros(nk, dtype=np.double)
+
 
 
         '''(1) Read in Fields & compute mean profiles'''
@@ -230,8 +235,8 @@ cdef class PDF_conditional:
                 '''(2) Compute liquid potential temperature from temperature and moisture'''
                 for k in range(nk):
                     iz = krange[k]
-                    n_env = 0
-                    n_updraft = 0
+                    # n_env = 0
+                    # n_updraft = 0
                     print('')
                     print('-- z = '+str(iz*dz)+ ', ncomp = '+str(ncomp)+' --')
                     theta_l = np.ndarray(shape=(0), dtype=np.double)
@@ -239,38 +244,36 @@ cdef class PDF_conditional:
                     ql = np.ndarray(shape=(0), dtype=np.double)
                     ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                     data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-
                     for k_ in range(0,dk):
                         print('----- k_='+str(k_), ' dk='+str(dk))
                     # k_ = 0
                         for i in range(nx_):
                             for j in range(ny_):
-                                if labels_tracers[i,j,iz] == 0:
-                                    n_env += 1
+                                ql_mean_domain[k] += ql_[i,j,iz+k_]
+                                if ql_[i,j,iz+k_] > 0.0:
+                                    cf_domain[k] += 1.0
+                                if labels_tracers[i,j,iz+k_] == 0:
+                                    n_env[k] += 1
                                     Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
                                     th_anomaly = theta_l_[i,j,iz+k_] - theta_l_mean[iz+k_]
                                     theta_l = np.append(theta_l, th_anomaly)
                                     qt_anomaly = qt_[i,j,iz+k_] - qt_mean[iz+k_]
-                                    # qt = np.append(qt, qt_[i, j, iz])
                                     qt = np.append(qt, qt_anomaly)
-                                    ql = np.append(ql, ql_[i, j, iz])
-                                    ql_mean_env[k] += ql_[i, j, iz]
-                                    if ql_[i,j,iz] > 0.0:
+                                    ql = np.append(ql, ql_[i,j,iz+k_])
+                                    ql_mean_env[k] += ql_[i,j,iz+k_]
+                                    if ql_[i,j,iz+k_] > 0.0:
                                         cf_env[k] += 1.0
                                 else:
-                                    n_updraft += 1
-                                    ql_mean_updraft[k] += ql_[i,j,iz]
-                                    if ql_[i,j,iz] > 0.0:
+                                    n_updraft[k] += 1
+                                    ql_mean_updraft[k] += ql_[i,j,iz+k_]
+                                    if ql_[i,j,iz+k_] > 0.0:
                                         cf_updraft[k] += 1.0
-                                ql_mean_domain[k] += ql_[i, j, iz]
-                                if ql_[i,j,iz] > 0.0:
-                                    cf_domain[k] += 1.0
-                        print('nenv='+str(n_env), theta_l.shape)
-                    # del s_, ql_, qt_, T_
 
-                    data = np.ndarray(shape=(n_env, nvar))
-        #             print('..')
-                    print('nup, nenv, dk', n_updraft, n_env, dk)
+                    print('n_env='+str(n_env[k]), theta_l.shape)
+                    # del s_, ql_, qt_, T_
+                    data = np.ndarray(shape=(n_env[k], nvar))
+                    print('..')
+                    print('n_up, n_env, dk', n_updraft[k], n_env[k], dk)
                     print(theta_l.shape, qt.shape, data.shape)
                     print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
                     data[:, 0] = theta_l[:]
@@ -278,12 +281,14 @@ cdef class PDF_conditional:
                     data_all = np.append(data_all, data, axis=0)
                     ql_all = np.append(ql_all, ql[:], axis=0)
 
-                    ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
-                    cf_domain[k] /= ( len(files)*dk*(nx_*ny_) )
-                    ql_mean_env[k] /= n_env
-                    cf_env[k] /= n_env
-                    ql_mean_updraft[k] /= n_updraft
-                    cf_updraft[k] /= n_updraft
+                    # ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
+                    # cf_domain[k] /= ( len(files)*dk*(nx_*ny_) )
+                    ql_mean_domain[k] /= ( 1*dk*(nx_*ny_) )
+                    cf_domain[k] /= ( 1*dk*(nx_*ny_) )
+                    ql_mean_env[k] /= n_env[k]
+                    cf_env[k] /= n_env[k]
+                    ql_mean_updraft[k] /= n_updraft[k]
+                    cf_updraft[k] /= n_updraft[k]
 
                     '''(3) Normalise Data'''
                     scaler = StandardScaler()
@@ -317,13 +322,13 @@ cdef class PDF_conditional:
                     print('ql_mean_comp[k], k', k, ql_mean_comp[k])
                     for i in range(n_sample-2):
                         # ??? ok to use same reference pressure for all ik+k_ points?
-                        T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz+k_], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
-                        ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
+                        T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0]+theta_l_mean[iz], Th_l[i, 1]+qt_mean[iz], CC, LH)
+                        ql_mean_comp[k] += ql_comp_thl[i]
                         if ql_comp_thl[i] > 0:
                             cf_comp[k] += 1
                     print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
-                    ql_mean_comp[k] = ql_mean_comp[k] / n_sample
-                    cf_comp[k] = cf_comp[k] / n_sample
+                    ql_mean_comp[k] = ql_mean_comp[k] / (n_sample-2)
+                    cf_comp[k] = cf_comp[k] / (n_sample-2)
                     error_ql_domain[k,count_ncomp] = ql_mean_comp[k] - ql_mean_domain[k]
                     error_cf_domain[k,count_ncomp] = cf_comp[k] - cf_domain[k]
                     error_ql_env[k,count_ncomp] = ql_mean_comp[k] - ql_mean_env[k]
@@ -347,8 +352,8 @@ cdef class PDF_conditional:
                     print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
                     print('')
                     print('CF from Cloud Closure Scheme: ', cf_comp[k])
-                    print('CF from ql fields (env): ', cf_env[k])
-                    print('CF from ql fields (domain): ', cf_domain[k])
+                    print('CF from ql fields (env):      ', cf_env[k])
+                    print('CF from ql fields (domain):   ', cf_domain[k])
                     print('error env:    '+str(error_cf_env[k,count_ncomp]))
                     print('error domain: '+str(error_cf_domain[k,count_ncomp]))
                     print('rel error env:    ', rel_error_cf_env[k,count_ncomp])
@@ -357,7 +362,8 @@ cdef class PDF_conditional:
 
                     '''(E) Plotting'''
                     save_name = 'PDF_figures_anomaly_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-                    plot_PDF(data_all, data_all_norm, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, self.path_out, save_name)
+                    plot_PDF(data_all, data_all_norm, ql_all, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
+                    # # save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_Lx' + str(Lx_) +'_dk'+str(dk-1) + '_z' + str(iz*dz)+'m.png'
                     # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                     # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
                     # # plot_hist(ql, path_out)
@@ -377,6 +383,15 @@ cdef class PDF_conditional:
                 #     print('ncomp', ncomp, ncomp_range)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_env[:]), 'n_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraf', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_env[:]), 'ql_mean_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_domain[:]), 'ql_mean_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_env[:]), 'cf_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_domain[:]), 'cf_domain', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env[:,count_ncomp]), 'error_ql_env', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain[:,count_ncomp]), 'error_ql_domain', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env[:,count_ncomp]), 'rel_error_ql_env', ncomp, nvar, nk)
@@ -390,12 +405,13 @@ cdef class PDF_conditional:
 
             error_file_name = 'PDF_cond_alltime_' + type_ + '_allcomp_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
             self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
-                                 np.asarray(ql_mean_comp), np.asarray(ql_mean_env), np.asarray(ql_mean_domain),
-                                 np.asarray(cf_comp), np.asarray(cf_env), np.asarray(cf_domain),
+                                 np.asarray(ql_mean_env), np.asarray(ql_mean_domain),
+                                 np.asarray(cf_env), np.asarray(cf_domain),
                                  np.asarray(error_ql_env), np.asarray(error_ql_domain),
                                  np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
                                  np.asarray(error_cf_env), np.asarray(error_cf_domain),
-                                 np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain))
+                                 np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain),
+                                 np.asarray(n_env), np.asarray(n_updraft))
         # del s_, ql_, qt_, T_
         del ql_, qt_, T_
 
@@ -410,10 +426,11 @@ cdef class PDF_conditional:
     #----------------------------------------------------------------------
 
     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
-                        ql_mean_comp, ql_mean_env, ql_mean_domain,
-                        cf_comp, cf_env, cf_domain,
+                        ql_mean_env, ql_mean_domain,
+                        cf_env, cf_domain,
                         error_ql_env, error_ql_domain, rel_error_ql_env, rel_error_ql_domain,
-                        error_cf_env, error_cf_domain, rel_error_cf_env, rel_error_cf_domain):
+                        error_cf_env, error_cf_domain, rel_error_cf_env, rel_error_cf_domain,
+                        n_env, n_updraft):
         print('---------- dump error ---------- ')
         print(os.path.join(path, file_name))
         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
@@ -421,21 +438,22 @@ cdef class PDF_conditional:
         prof_grp.createDimension('nz', nz_)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
+        var = prof_grp.createVariable('krange', 'f8', ('nz'))
+        var[:] = np.asarray(self.krange)[:]
 
-        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz'))
-        var[:] = ql_mean_comp[:]
-        var = prof_grp.createVariable('ql_mean_env', 'f8', ('nz'))
+        var = prof_grp.createVariable('ql_mean_environment', 'f8', ('nz'))
         var[:] = ql_mean_env[:]
         var = prof_grp.createVariable('ql_mean_domain', 'f8', ('nz'))
         var[:] = ql_mean_domain[:]
-        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz'))
-        var[:] = cf_comp[:]
-        var = prof_grp.createVariable('cf_env', 'f8', ('nz'))
+        var = prof_grp.createVariable('cf_environment', 'f8', ('nz'))
         var[:] = cf_env[:]
         var = prof_grp.createVariable('cf_domain', 'f8', ('nz'))
         var[:] = cf_domain[:]
-        # print(type(ql_mean_comp), type(ql_mean_env))
-        # print(type(error_ql))
+
+        var = prof_grp.createVariable('n_environment', 'f8', ('nz'))
+        var[:] = n_env[:]
+        var = prof_grp.createVariable('n_updraft', 'f8', ('nz'))
+        var[:] = n_updraft[:]
 
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
@@ -483,23 +501,23 @@ cdef class PDF_conditional:
         weights_grp.createDimension('ncomp', ncomp)
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
-        prof_grp = rootgrp.createGroup('profiles')
-        prof_grp.createDimension('nz', nz_)
 
         var = ts_grp.createVariable('t','f8',('nt'))
         for i in range(len(time)-1):
             var[i] = time[i+1]
-        z_grp = rootgrp.createGroup('z-profile')
+        z_grp = rootgrp.createGroup('profiles')
         z_grp.createDimension('nz', nz_)
-        var = z_grp.createVariable('height', 'f8', ('nz'))
+        var = z_grp.createVariable('z', 'f8', ('nz'))
         for i in range(nz_):
             var[i] = self.zrange[i]
+        var = z_grp.createVariable('k', 'f8', ('nz'))
+        for i in range(nz_):
+            var[i] = self.krange[i]
         rootgrp.close()
         return
 
 
 #----------------------------------------------------------------------
-
 def dump_variable(path, group_name, data_, var_name, ncomp, nvar, nz_):
     print('-------- dump variable --------', var_name, group_name, path)
     # print('dump variable', path, group_name, var_name, data_.shape, ncomp, nvar)
