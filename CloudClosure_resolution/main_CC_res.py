@@ -2,6 +2,7 @@ import sys, os
 import argparse
 import json as simplejson
 import numpy as np
+import netCDF4 as nc
 
 import CloudClosure_res
 import CloudClosure_res_acc
@@ -58,23 +59,36 @@ def main():
 
     files = os.listdir(os.path.join(path, 'fields'))
     print('Found the follwing files: ' + str(files))
+    try:
+        root = nc.Dataset(os.path.join(path, 'fields', files[0]))
+        zrange_field = root.groups['fields'].variables['z'][:]
+        root.close()
+    except:
+        print('no zrange in fields given')
+        root = nc.Dataset(path_ref)
+        zrange_field = root.groups['profiles'].variables['z_half'][:]
+        root.close()
+
 
     krange, files = set_zrange(case_name)
+    zrange = np.zeros(shape=krange.shape)
+    for k in range(krange.shape[0]):
+        zrange[k] = zrange_field[krange[k]]
     N = len(files)
     print('')
     print(path)
     print('')
     print('Use the following files' +  str(files) + ', N=' +str(N))
-    print('zrange: ' + str(krange * dz))
     print('dz: ' + str(dz), 'dx: '+str(dx))
     print('ncomp: ' + str(ncomp_range))
     print('krange', krange, type(krange), type(krange[0]))
+    print('zrange: ' + str(zrange))#str(krange * dz))
     print('dk_range: ' + str(dk_range) + ', ' + str(np.asarray(dk_range)*dz))
     print('Lx_range: ' + str(Lx_range))
     print('')
 
 
-    ClCl.initialize(krange, path, case_name)
+    ClCl.initialize(krange, zrange, path, case_name)
     n_sample = 1e6
 
     # dk_range: number of layers below and above added to data
@@ -132,17 +146,18 @@ def set_zrange(case_name):
         # files = ['21600.nc']
         ## Bomex (dz=20)
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
-        files = ['18000.nc', '19800.nc', '21600.nc']
+        # files = ['18000.nc', '19800.nc', '21600.nc']
+        files = ['14400.nc']
         # Bomex test
-        files = ['21600.nc']
+        # files = ['21600.nc']
         # krange = np.asarray([10, 17, 20, 25, 50])
         # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
-        krange = np.asarray([20, 30, 50], dtype=np.int32)
+        # krange = np.asarray([20, 30, 50], dtype=np.int32)
         # krange = np.asarray([18,30,38])
     elif case_name == 'TRMM_LBA':
-        # files = ['1014400.nc']
-        files = ['1014400.nc', '1016200.nc', '1018000.nc']
-        krange = np.asarray([10, 20, 30, 40, 50, 75, 85, 95, 105, 127], dtype=np.int32)
+        files = ['1018000.nc']
+        # files = ['1014400.nc', '1016200.nc', '1018000.nc']
+        krange = np.asarray([10, 20, 30, 40, 50, 60, 68, 75, 85, 95, 105, 127], dtype=np.int32)
 
     return krange, files
 

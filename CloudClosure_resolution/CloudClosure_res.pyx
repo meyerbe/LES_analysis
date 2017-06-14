@@ -189,13 +189,14 @@ cdef class CloudClosure:
 
         '''(1) Read in Fields'''
         var_list = ['s', 'qt', 'temperature', 'ql']
+        tt = files[0][0:-3]
+
         data = np.ndarray(shape=((nx_ * ny_ * dk), nvar))
         for ncomp in ncomp_range:
             means_ = np.zeros(shape=(nk, ncomp, nvar))
             covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
             ''' (b) initialize Statistics File '''
-            tt = files[0][0:-3]
             nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
                                +'_time'+str(tt)+'.nc'
             self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
