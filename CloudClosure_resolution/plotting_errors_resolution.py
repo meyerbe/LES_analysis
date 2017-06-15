@@ -41,7 +41,7 @@ def main():
     path = args.path
 
 
-    time_field = args.time
+    time_field = np.int(args.time)
     if args.Lx:
         Lx_range = np.round(np.double(args.Lx),1)
     else:
@@ -85,16 +85,17 @@ def main():
 
     ''' Read in zrange from Cloud Closure file '''
     print('')
-    file_name = 'CC_alltime_anomaly_res_error' + '_Lx' + str(Lx_range[0]) + 'Ly' + str(Lx_range[0]) \
-                + '_dz' + str(dz_range[0]) + '_time' + time_field + '.nc'
-    # file_name = 'CC_alltime_res_error' + '_Lx10000.0Ly10000.0_dz20' + '_time' + time_field + '.nc'
-    path_in = os.path.join(path, 'CloudClosure_res_anomaly_5h')
-    # path_in = os.path.join(path, 'CloudClosure_res')
+    # file_name = 'CC_alltime_anomaly_res_error' + '_Lx' + str(Lx_range[0]) + 'Ly' + str(Lx_range[0]) \
+    #             + '_dz' + str(dz_range[0]) + '_time' + str(time_field) + '.nc'
+    file_name = 'CC_alltime_res_error' + '_Lx10000.0Ly10000.0_dz20' + '_time' + str(time_field) + '.nc'
+    # path_in = os.path.join(path, 'CloudClosure_res_anomaly_5h')
+    path_in = os.path.join(path, 'CloudClosure_res_4h')
     fullpath_in = os.path.join(path_in, file_name)
     print(path_in)
     print('')
     rootgrp = nc.Dataset(fullpath_in, 'r')
     zrange = rootgrp.groups['profiles'].variables['zrange'][:]
+    krange_ = rootgrp.groups['profiles'].variables['krange'][:]
     rootgrp.close()
 
     ''' read in zrange from Stats-file '''
@@ -109,15 +110,26 @@ def main():
     cf_stats_ = root.groups['profiles'].variables['cloud_fraction'][:]
     ql_mean_stats = np.zeros(shape=zrange.shape[0])
     cf_stats = np.zeros(shape=zrange.shape[0])
+    zrange_stats = root.groups['profiles'].variables['z_half'][:]
     if case_name == 'TRMM_LBA':
         krange = np.asarray([10, 20, 30, 40, 50, 75, 85, 95, 105, 127], dtype=np.int32)
         zrange_stats = root.groups['profiles'].variables['z_half'][:]
-        for k in range(zrange.shape[0]):
-            zrange[k] = zrange_stats[krange[k]]
-            ql_mean_stats[k] = ql_mean_stats_[time_stats, krange[k]]
-            cf_stats[k] = cf_stats_[time_stats, krange[k]]
     root.close()
-    print('zrange: ', zrange)
+
+    zrange_ = np.zeros(shape=krange_.shape)
+    krange = np.zeros(shape=krange_.shape, dtype=np.int)
+    for k in range(zrange.shape[0]):
+        krange[k] = np.int(krange_[k])
+        zrange_[k] = zrange_stats[krange[k]]
+        ql_mean_stats[k] = ql_mean_stats_[time_stats, krange[k]]
+        cf_stats[k] = cf_stats_[time_stats, krange[k]]
+    if zrange_.any() != zrange.any():
+        print('!! problem in zrange !! ')
+        sys.exit()
+    else:
+        del zrange_
+    # print('zrange: ', zrange)
+    del krange_
     print('')
 
     ''' Read in error profiles (from CC_alltime_res_error) and mean profiles (from CC_alltime) '''
@@ -137,9 +149,9 @@ def main():
         for j in range(len(dz_range)):
             print('')
             delta_z = dz_range[j]
-            # file_name = 'CC_alltime_res_error' + '_Lx' + str(Lx) + 'Ly' + str(Lx) + '_dz' + str(delta_z) + '_time' + time_field + '.nc'
-            file_name = 'CC_alltime_anomaly_res_error' + '_Lx' + str(Lx) + 'Ly' + str(Lx) + '_dz' + str(
-                delta_z) + '_time' + time_field + '.nc'
+            file_name = 'CC_alltime_res_error' + '_Lx' + str(Lx) + 'Ly' + str(Lx) + '_dz' + str(delta_z) + '_time' + str(time_field) + '.nc'
+            # file_name = 'CC_alltime_anomaly_res_error' + '_Lx' + str(Lx) + 'Ly' + str(Lx) + '_dz' + str(
+            #     delta_z) + '_time' + str(time_field) + '.nc'
             print(file_name)
             fullpath_in = os.path.join(path_in, file_name)
             print(fullpath_in)
@@ -154,9 +166,10 @@ def main():
             rootgrp.close()
 
             for ncomp in range(0,ncomp_max):
-                # file_name = 'CC_alltime_ncomp' +str(ncomp+1) + '_Lx' + str(np.int(Lx)) + 'Ly' + str(np.int(Lx)) + '_dz' + str(delta_z) + '_time' + time_field + '.nc'
-                file_name = 'CC_alltime_anomaly_ncomp' + str(ncomp+1) + '_Lx' + str(np.int(Lx)) + 'Ly' + str(np.int(Lx)) + '_dz' + str(
-                    delta_z) + '_time' + time_field + '.nc'
+                file_name = 'CC_alltime_ncomp' +str(ncomp+1) + '_Lx' + str(np.int(Lx)) + 'Ly' + str(np.int(Lx)) + \
+                            '_dz' + str(delta_z) + '_time' + str(time_field) + '.nc'
+                # file_name = 'CC_alltime_anomaly_ncomp' + str(ncomp+1) + '_Lx' + str(np.int(Lx)) + 'Ly' + str(np.int(Lx)) + '_dz' + str(
+                #     delta_z) + '_time' + str(time_field) + '.nc'
                 # print(file_name)
                 fullpath_in = os.path.join(path_in, file_name)
                 print('')
@@ -171,26 +184,28 @@ def main():
             if zrange_.any() != zrange.any():
                 print('differences in zrange')
                 sys.exit()
+            else:
+                del zrange_
 
     markers = ['o', 'v', '*', 'd', 'p']
-    # path_out = os.path.join(path, 'CloudClosure_res_figures')
-    path_out = os.path.join(path, 'CloudClosure_res_anomaly_figures_5h')
-    # plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
-    #                     ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
-    #                            ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zrange,
-    #                               ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zrange,
-    #                               ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    path_out = os.path.join(path, 'CloudClosure_res_4h_figures')
+    # path_out = os.path.join(path, 'CloudClosure_res_anomaly_figures_5h')
+    plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+                        ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_ql_rel, error_cf, error_cf_rel, zrange,
+                               ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zrange,
+                                  ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zrange,
+                                  ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
 
-    plot_ql_fromsampling_allres(ql_mean_stats, ql_mean_field, ql_mean_pdf, zrange,
-                                  ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
-    plot_cf_fromsampling_allres(cf_stats, cf_field, cf_pdf, zrange,
-                                ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
-
-    plot_mean_ql_allres(ql_mean_field, ql_mean_stats, zrange, ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
-    plot_mean_cf_allres(cf_field, cf_stats, zrange, ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    # plot_ql_fromsampling_allres(ql_mean_stats, ql_mean_field, ql_mean_pdf, zrange,
+    #                               ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
+    # plot_cf_fromsampling_allres(cf_stats, cf_field, cf_pdf, zrange,
+    #                             ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    #
+    # plot_mean_ql_allres(ql_mean_field, ql_mean_stats, zrange, ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
+    # plot_mean_cf_allres(cf_field, cf_stats, zrange, ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
 
     return
 
@@ -500,12 +515,13 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
     for nl in range(n_lx):
         plt.subplot(1, n_lx, nl+1)
         for ndz in range(n_dz):
+            n_col = np.double(ndz) / n_dz
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
             for nc in range(ncomp_max):
                 n_col = np.double(nc) / ncomp_max
                 plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            plt.plot(-ql_mean_stats[:], zrange[:], 'k--', label='- <ql> (stats)')
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
@@ -524,12 +540,13 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
+            n_col = np.double(nl) / n_lx
+            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
             for nc in range(ncomp_max):
                 n_col = np.double(nc) / ncomp_max
                 plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                          label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
-            plt.plot(-ql_mean_stats[:], zrange[:], 'k--', label='- <ql> (stats)')
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -547,12 +564,13 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
             if Lx_range[nl]>1000:
+                n_col = np.double(nl) / n_lx
+                plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
                 for nc in range(ncomp_max):
                     n_col = np.double(nc) / ncomp_max
                     plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-                plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
-                plt.plot(-ql_mean_stats[:], zrange[:], 'k--', label='- <ql> (stats)')
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -589,12 +607,13 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, er
     plt.figure(figsize=(9 * n_lx, 10))
     for nl in range(n_lx):
         plt.subplot(1, n_lx, nl + 1)
+        plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
         for ndz in range(n_dz):
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
+            # plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=1)
         # plt.xlim(xlimits_ql)
         plt.xlim([-1.1, 1.1])
@@ -611,6 +630,7 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, er
     # plt.figure(figsize=(9 * n_lx, 12))
     # for ndz in range(n_dz):
     #     plt.subplot(1, n_dz, ndz + 1)
+    #     plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
     #     for nl in range(n_lx):
     #         for nc in range(ncomp_max):
     #             col = cm1(np.double(nc) / ncomp_max)
@@ -632,13 +652,14 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, er
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
+        plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
         for nl in range(n_lx):
             if Lx_range[nl] > 1000:
                 for nc in range(ncomp_max):
                     col = cm1(np.double(nc) / ncomp_max)
                     plt.plot(error_ql_rel[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-                plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
+                # plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], 'k--', label='- mean ql (Lx=' + str(Lx_range[nl]) + ')')
         plt.legend(loc=1)
         # plt.xlim(xlimits_ql)
         plt.xlim([-1.1,1.1])
@@ -683,12 +704,15 @@ def plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zr
     plt.figure(figsize=(9 * n_lx, 10))
     for nl in range(n_lx):
         plt.subplot(1, n_lx, nl + 1)
+        plt.plot(-cf_stats, zrange, 'k', linewidth=1, label='- CF stats')
         for ndz in range(n_dz):
+            n_col = np.double(ndz) / n_dz
+            plt.plot(-cf_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- CF (dz=' + str(dz_range[ndz]) + ')')
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_cf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=col,
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-            plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (dz=' + str(dz_range[ndz]) + ')')
+        plt.plot(-cf_stats, zrange, 'k', linewidth=3, label='- CF stats')
         plt.legend(loc=2)
         plt.xlim(xlimits_cf)
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
@@ -705,11 +729,13 @@ def plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zr
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
+            n_col = np.double(nl) / n_lx
+            plt.plot(-cf_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- CF (Lx=' + str(Lx_range[nl]) + ')')
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
                 plt.plot(error_cf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
                          label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-            plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (Lx=' + str(Lx_range[nl]) + ')')
+        plt.plot(-cf_stats, zrange, 'k', linewidth=3, label='- CF stats')
         plt.legend(loc=2)
         # plt.xlim(-1.1,0.3)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -727,11 +753,13 @@ def plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zr
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
             if Lx_range[nl] > 1000:
+                n_col = np.double(nl) / n_lx
+                plt.plot(-cf_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- CF (Lx=' + str(Lx_range[nl]) + ')')
                 for nc in range(ncomp_max):
                     col = cm1(np.double(nc) / ncomp_max)
                     plt.plot(error_cf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=col,
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-                plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (Lx=' + str(Lx_range[nl]) + ')')
+        plt.plot(-cf_stats, zrange, 'k', linewidth=3, label='- CF stats')
         plt.legend(loc=2)
         plt.xlim(xlimits_cf)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -768,6 +796,7 @@ def plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel
     plt.figure(figsize=(9 * n_lx, 10))
     for nl in range(n_lx):
         plt.subplot(1, n_lx, nl + 1)
+        plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
         for ndz in range(n_dz):
             for nc in range(ncomp_max):
                 col = cm1(np.double(nc) / ncomp_max)
@@ -775,7 +804,6 @@ def plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
             plt.plot(-cf_field[nl, ndz, :], zrange[:], 'k--', label='- CF (dz=' + str(dz_range[ndz]) + ')')
         plt.legend(loc=1)
-        # plt.xlim(xlimits_cf)
         plt.xlim([-1.1, 1.1])
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
         plt.xlabel(r'$\epsilon(CF) / CF$')
@@ -811,6 +839,7 @@ def plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel
     plt.figure(figsize=(9 * n_lx, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
+        plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
         for nl in range(n_lx):
             if Lx_range[nl] > 1000:
                 for nc in range(ncomp_max):
