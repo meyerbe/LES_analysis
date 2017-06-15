@@ -219,11 +219,22 @@ cdef class PDF_conditional:
             double [:] T_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:] ql_comp_thl = np.zeros([n_sample],dtype=np.double,order='c')
             double [:,:] Th_l = np.zeros([n_sample, nvar], dtype=np.double, order='c')
+            double [:] T_comp_thl_log = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:] ql_comp_thl_log = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:,:] Th_l_log = np.zeros([n_sample, nvar], dtype=np.double, order='c')
+            double [:] T_comp_thl_loglog = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:] ql_comp_thl_loglog = np.zeros([n_sample],dtype=np.double,order='c')
+            double [:,:] Th_l_loglog = np.zeros([n_sample, nvar], dtype=np.double, order='c')
 
         # for Error Computation / <ql> intercomparison
         cdef:
             double [:, :] ql_mean_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
             double [:, :] cf_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+            double [:, :] ql_mean_comp_log = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+            double [:, :] cf_comp_log = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+            double [:, :] ql_mean_comp_loglog = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+            double [:, :] cf_comp_loglog = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+
             int count_ncomp = 0
             double [:,:] error_ql_domain = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] error_ql_env = np.zeros(shape=(nk,len(ncomp_range)))
@@ -237,6 +248,24 @@ cdef class PDF_conditional:
             double [:,:] rel_error_cf_domain = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] rel_error_cf_env = np.zeros(shape=(nk,len(ncomp_range)))
             # double [:,:] rel_error_cf_up = np.zeros(shape=(nk,len(ncomp_range)))
+
+            double [:,:] error_ql_domain_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_ql_env_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_domain_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_env_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_domain_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_env_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_domain_log = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_env_log = np.zeros(shape=(nk,len(ncomp_range)))
+
+            double [:,:] error_ql_domain_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_ql_env_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_domain_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_ql_env_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_domain_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] error_cf_env_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_domain_loglog = np.zeros(shape=(nk,len(ncomp_range)))
+            double [:,:] rel_error_cf_env_loglog = np.zeros(shape=(nk,len(ncomp_range)))
 
         # for Updraft / Environment Decompositoin
         cdef:
@@ -274,8 +303,18 @@ cdef class PDF_conditional:
                 means_log_ = np.zeros(shape=(nk, ncomp, nvar))
                 covariances_log_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
                 weights_log_ = np.zeros(shape=(nk, ncomp))
+                means_loglog_ = np.zeros(shape=(nk, ncomp, nvar))
+                covariances_loglog_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
+                weights_loglog_ = np.zeros(shape=(nk, ncomp))
                 n_env = np.zeros(nk, dtype=np.int32)
                 n_updraft = np.zeros(nk, dtype=np.int32)
+                ql_mean_domain = np.zeros(nk, dtype=np.double)
+                ql_mean_env = np.zeros(nk, dtype=np.double)
+                ql_mean_updraft = np.zeros(nk, dtype=np.double)
+                cf_domain = np.zeros(nk, dtype=np.double)
+                cf_env = np.zeros(nk, dtype=np.double)
+                cf_updraft = np.zeros(nk, dtype=np.double)
+
                 ''' (b) initialize Statistics File '''
                 nc_file_name_out = 'PDF_cond_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
@@ -304,7 +343,7 @@ cdef class PDF_conditional:
                     ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                     data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
                     data_all_log = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                    data_all_log_log = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                    data_all_loglog = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
                     for k_ in range(0,dk):
                         print('----- k_='+str(k_), ' dk='+str(dk))
                         # k_ = 0
@@ -346,6 +385,8 @@ cdef class PDF_conditional:
                     data[:, 0] = theta_l[:]
                     data[:, 1] = qt_log[:]
                     data_all_log = np.append(data_all_log, data, axis=0)
+                    data[:, 0] = theta_l_log[:]
+                    data_all_loglog = np.append(data_all_loglog, data, axis=0)
                     del data
 
                     # ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
@@ -362,6 +403,8 @@ cdef class PDF_conditional:
                     data_all_norm = scaler.fit_transform(data_all)
                     scaler_log = StandardScaler()
                     data_all_log_norm = scaler_log.fit_transform(data_all_log)
+                    scaler_loglog = StandardScaler()
+                    data_all_loglog_norm = scaler_loglog.fit_transform(data_all_loglog)
 
                     '''(4) Compute bivariate PDF for (th_l,qt)'''
                     clf_thl_norm = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
@@ -375,6 +418,12 @@ cdef class PDF_conditional:
                     means_log_[k, :, :] = clf_thl_log.means_[:, :]
                     covariances_log_[k,:,:,:] = clf_thl_log.covariances_[:,:,:]
                     weights_log_[k,:] = clf_thl_log.weights_[:]
+
+                    clf_thl_loglog = mixture.GaussianMixture(n_components=ncomp,covariance_type='full')
+                    clf_thl_loglog.fit(data_all_loglog_norm)
+                    means_loglog_[k, :, :] = clf_thl_loglog.means_[:, :]
+                    covariances_loglog_[k,:,:,:] = clf_thl_loglog.covariances_[:,:,:]
+                    weights_loglog_[k,:] = clf_thl_loglog.weights_[:]
 
                     # '''(5) Compute Kernel-Estimate PDF '''
                     # kde, kde_aux = Kernel_density_estimate(data, 'T', 'qt', np.int(d[0:-3]), iz * dz, path_in)
@@ -391,109 +440,195 @@ cdef class PDF_conditional:
                     '''(1) Draw samples'''
                     Th_l_norm, y_norm = clf_thl_norm.sample(n_samples=n_sample)
                     Th_l_log_norm, y_log_norm = clf_thl_log.sample(n_samples=n_sample)
+                    Th_l_loglog_norm, y_loglog_norm = clf_thl_loglog.sample(n_samples=n_sample)
                     '''(2) Rescale theta_l and qt'''
                     Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
                     Th_l_log = scaler_log.inverse_transform(Th_l_log_norm)
+                    Th_l_loglog = scaler_loglog.inverse_transform(Th_l_loglog_norm)
 
-            #         '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-            #         print('ql_mean_comp[k], k', k, ql_mean_comp[k, count_ncomp])
-            #         for i in range(n_sample-2):
-            #             # ??? ok to use same reference pressure for all ik+k_ points?
-            #             T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-            #             ql_mean_comp[k, count_ncomp] += ql_comp_thl[i]
-            #             if ql_comp_thl[i] > 0:
-            #                 cf_comp[k, count_ncomp] += 1
+                    '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
+                    print('ql_mean_comp[k], k', k, ql_mean_comp[k, count_ncomp])
+                    for i in range(n_sample-2):
+                        # ??? ok to use same reference pressure for all ik+k_ points?
+                        T_comp_thl[i], ql_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
+                        ql_mean_comp[k, count_ncomp] += ql_comp_thl[i]
+                        if ql_comp_thl[i] > 0:
+                            cf_comp[k, count_ncomp] += 1
+                        T_comp_thl_log[i], ql_comp_thl_log[i] = sat_adj_fromthetali(p_ref[iz], Th_l_log[i, 0], Th_l_log[i, 1], CC, LH)
+                        ql_mean_comp_log[k, count_ncomp] += ql_comp_thl_log[i]
+                        if ql_comp_thl_log[i] > 0:
+                            cf_comp_log[k, count_ncomp] += 1
+                        T_comp_thl_loglog[i], ql_comp_thl_loglog[i] = sat_adj_fromthetali(p_ref[iz], Th_l_loglog[i, 0], Th_l_loglog[i, 1], CC, LH)
+                        ql_mean_comp_loglog[k, count_ncomp] += ql_comp_thl_loglog[i]
+                        if ql_comp_thl_loglog[i] > 0:
+                            cf_comp_loglog[k, count_ncomp] += 1
             #         print('ql_mean_comp[k], k', k, ql_mean_comp[k, count_ncomp], T_comp_thl[i], ql_comp_thl[i])
-            #         ql_mean_comp[k, count_ncomp] = ql_mean_comp[k, count_ncomp] / (n_sample-2)
-            #         cf_comp[k, count_ncomp] = cf_comp[k, count_ncomp] / (n_sample-2)
-            #         error_ql_domain[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]
-            #         error_cf_domain[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_domain[k]
-            #         error_ql_env[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_env[k]
-            #         error_cf_env[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_env[k]
-            #         if ql_mean_domain[k] > 0.0:
-            #             rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
-            #         if cf_domain[k] > 0.0:
-            #             rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
-            #         if ql_mean_env[k] > 0.0:
-            #             rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
-            #         if cf_env[k] > 0.0:
-            #             rel_error_cf_env[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_env[k]
-            #
-            #         print('')
-            #         print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
-            #         print('<ql> from ql fields (env):     ', ql_mean_env[k])
-            #         print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
-            #         print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
-            #         print('error domain (<ql>_CC - <ql>_domain): '+str(error_ql_domain[k,count_ncomp]))
-            #         print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
-            #         print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
-            #         print('')
-            #         print('CF from Cloud Closure Scheme: ', cf_comp[k])
-            #         print('CF from ql fields (env):      ', cf_env[k])
-            #         print('CF from ql fields (domain):   ', cf_domain[k])
-            #         print('error env:    '+str(error_cf_env[k,count_ncomp]))
-            #         print('error domain: '+str(error_cf_domain[k,count_ncomp]))
-            #         print('rel error env:    ', rel_error_cf_env[k,count_ncomp])
-            #         print('rel error domain: ', rel_error_cf_domain[k,count_ncomp])
-            #         print('')
-            #
-            #         '''(E) Plotting'''
-            #         save_name = 'PDF_figures_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-            #         plot_PDF(data_all, data_all_norm, ql_all, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
-            #         # save_name = 'PDF_figures_log_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
-            #         # plot_PDF(data_all_log, data_all_log_norm, ql_all, 'thl', 'qt', clf_thl_log, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
-            #         # # save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_Lx' + str(Lx_) +'_dk'+str(dk-1) + '_z' + str(iz*dz)+'m.png'
-            #         # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-            #         # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
-            #         # # plot_hist(ql, path_out)
-            #         # print('')
-            #
-            #         # plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-            #         # plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-            #         # plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
-            #         #
-            #         # plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
-            #
-            #     del s_, ql_, qt_, T_
-            #
-            #     '''(F) Save Gaussian Mixture PDFs '''
-            #     print('')
-            #     print('Dumping files: '+ self.path_out)
-            #     #     print('ncomp', ncomp, ncomp_range)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_env[:]), 'n_environment', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraf', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:, count_ncomp]), 'ql_mean_comp', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_env[:]), 'ql_mean_environment', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_updraft[:]), 'ql_mean_updraft', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_domain[:]), 'ql_mean_domain', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:, count_ncomp]), 'cf_comp', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_env[:]), 'cf_environment', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_updraft[:]), 'cf_updraft', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_domain[:]), 'cf_domain', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env[:,count_ncomp]), 'error_ql_env', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain[:,count_ncomp]), 'error_ql_domain', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env[:,count_ncomp]), 'rel_error_ql_env', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain[:,count_ncomp]), 'rel_error_ql_domain', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env[:,count_ncomp]), 'error_cf_env', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain[:,count_ncomp]), 'error_cf_domain', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env[:,count_ncomp]), 'rel_error_cf_env', ncomp, nvar, nk)
-            #     dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_domain[:,count_ncomp]), 'rel_error_cf_domain', ncomp, nvar, nk)
-            #
-            #     count_ncomp += 1
-            #
-            # error_file_name = 'PDF_cond_' + type_ + '_allcomp_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
-            # self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
-            #                      np.asarray(ql_mean_env), np.asarray(ql_mean_updraft), np.asarray(ql_mean_domain),
-            #                      np.asarray(cf_env), np.asarray(cf_updraft), np.asarray(cf_domain),
-            #                      np.asarra(ql_mean_comp), np.asarray(cf_comp),
-            #                      np.asarray(error_ql_env), np.asarray(error_ql_domain),
-            #                      np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
-            #                      np.asarray(error_cf_env), np.asarray(error_cf_domain),
-            #                      np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain),
-            #                      np.asarray(n_env), np.asarray(n_updraft))
+                    ql_mean_comp[k, count_ncomp] /= (n_sample-2)
+                    cf_comp[k, count_ncomp] /= (n_sample-2)
+                    error_ql_domain[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]
+                    error_cf_domain[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_domain[k]
+                    error_ql_env[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_env[k]
+                    error_cf_env[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_env[k]
+                    if ql_mean_domain[k] > 0.0:
+                        rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                    if cf_domain[k] > 0.0:
+                        rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                    if ql_mean_env[k] > 0.0:
+                        rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                    if cf_env[k] > 0.0:
+                        rel_error_cf_env[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_env[k]
+
+                    ql_mean_comp_log[k, count_ncomp] /= (n_sample-2)
+                    cf_comp_log[k, count_ncomp] /= (n_sample-2)
+                    error_ql_domain_log[k,count_ncomp] = ql_mean_comp_log[k, count_ncomp] - ql_mean_domain[k]
+                    error_cf_domain_log[k,count_ncomp] = cf_comp_log[k, count_ncomp] - cf_domain[k]
+                    error_ql_env_log[k,count_ncomp] = ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]
+                    error_cf_env_log[k,count_ncomp] = cf_comp_log[k, count_ncomp] - cf_env[k]
+                    if ql_mean_domain[k] > 0.0:
+                        rel_error_ql_domain_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                    if cf_domain[k] > 0.0:
+                        rel_error_cf_domain_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                    if ql_mean_env[k] > 0.0:
+                        rel_error_ql_env_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                    if cf_env[k] > 0.0:
+                        rel_error_cf_env_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_env[k]) / cf_env[k]
+
+                    ql_mean_comp_loglog[k, count_ncomp] /= (n_sample-2)
+                    cf_comp_loglog[k, count_ncomp] /= (n_sample-2)
+                    error_ql_domain_loglog[k,count_ncomp] = ql_mean_comp_loglog[k, count_ncomp] - ql_mean_domain[k]
+                    error_cf_domain_loglog[k,count_ncomp] = cf_comp_loglog[k, count_ncomp] - cf_domain[k]
+                    error_ql_env_loglog[k,count_ncomp] = ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]
+                    error_cf_env_loglog[k,count_ncomp] = cf_comp_loglog[k, count_ncomp] - cf_env[k]
+                    if ql_mean_domain[k] > 0.0:
+                        rel_error_ql_domain_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                    if cf_domain[k] > 0.0:
+                        rel_error_cf_domain_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                    if ql_mean_env[k] > 0.0:
+                        rel_error_ql_env_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                    if cf_env[k] > 0.0:
+                        rel_error_cf_env_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_env[k]) / cf_env[k]
+
+                    print('')
+                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+                    print('<ql> from ql fields (env):     ', ql_mean_env[k])
+                    print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
+                    print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
+                    print('error domain (<ql>_CC - <ql>_domain): '+str(error_ql_domain[k,count_ncomp]))
+                    print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
+                    print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
+                    print('')
+                    print('CF from Cloud Closure Scheme: ', cf_comp[k])
+                    print('CF from ql fields (env):      ', cf_env[k])
+                    print('CF from ql fields (domain):   ', cf_domain[k])
+                    print('error env:    '+str(error_cf_env[k,count_ncomp]))
+                    print('error domain: '+str(error_cf_domain[k,count_ncomp]))
+                    print('rel error env:    ', rel_error_cf_env[k,count_ncomp])
+                    print('rel error domain: ', rel_error_cf_domain[k,count_ncomp])
+                    print('')
+
+                    '''(E) Plotting'''
+                    save_name = 'PDF_figures_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+                    plot_PDF(data_all, data_all_norm, ql_all, 'thl', 'qt', clf_thl_norm, dk, ncomp, error_ql_env[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
+                    save_name = 'PDF_figures_log_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+                    plot_PDF(data_all_log, data_all_log_norm, ql_all, 'thl', 'qt', clf_thl_log, dk, ncomp,
+                             error_ql_env_log[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
+                    save_name = 'PDF_figures_loglog_'+str(iz*dz)+'m'+ type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'_dk'+str(dk-1)
+                    plot_PDF(data_all_loglog, data_all_loglog_norm, ql_all, 'thl', 'qt', clf_thl_loglog, dk, ncomp,
+                             error_ql_env_loglog[k,count_ncomp], iz*dz, Lx_, self.path_out, save_name)
+                    # # save_name = 'sample_figure_'+'ncomp'+str(ncomp)+'_Lx' + str(Lx_) +'_dk'+str(dk-1) + '_z' + str(iz*dz)+'m.png'
+                    # # plot_samples('norm', data_all_norm, ql_all[:], Th_l_norm, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                    # # plot_samples('original', data_all, ql_all[:], Th_l, ql_comp_thl, 'thl', 'qt', scaler, ncomp, iz*dz, path_out)
+                    # # plot_hist(ql, path_out)
+                    # print('')
+
+                    # plot_error_vs_ncomp_ql(error_ql, rel_error_ql, n_sample, ql_mean_field, ql_mean_comp, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+                    # plot_error_vs_ncomp_cf(error_cf, rel_error_cf, n_sample, cf_field, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+                    # plot_abs_error(error_ql, ql_mean_field, error_cf, cf_field, n_sample, ncomp_range, krange, dz, Lx_, dk-1, self.path_out)
+                    #
+                    # plot_PDF_components(means_, covariances_, weights_, ncomp, krange, dz, Lx_, dk-1, self.path_out)
+
+                del s_, ql_, qt_, T_
+
+                '''(F) Save Gaussian Mixture PDFs '''
+                print('')
+                print('Dumping files: '+ self.path_out)
+                #     print('ncomp', ncomp, ncomp_range)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qt_th', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qt_th', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qt_th', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_log_, 'qt_log_th', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_log_, 'qt_log_th', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_log_, 'qt_log_th', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_loglog_, 'qt_log_th_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_loglog_, 'qt_log_th_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_loglog_, 'qt_log_th_log', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_env[:]), 'n_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraf', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_domain[:]), 'ql_mean_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_env[:]), 'ql_mean_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_updraft[:]), 'ql_mean_updraft', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_domain[:]), 'cf_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_env[:]), 'cf_environment', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_updraft[:]), 'cf_updraft', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:, count_ncomp]), 'ql_mean_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:, count_ncomp]), 'cf_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env[:,count_ncomp]), 'error_ql_env', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain[:,count_ncomp]), 'error_ql_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env[:,count_ncomp]), 'rel_error_ql_env', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain[:,count_ncomp]), 'rel_error_ql_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env[:,count_ncomp]), 'error_cf_env', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain[:,count_ncomp]), 'error_cf_domain', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env[:,count_ncomp]), 'rel_error_cf_env', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_domain[:,count_ncomp]), 'rel_error_cf_domain', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp_log[:, count_ncomp]), 'ql_mean_comp_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp_log[:, count_ncomp]), 'cf_comp_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env_log[:,count_ncomp]), 'error_ql_env_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain_log[:,count_ncomp]), 'error_ql_domain_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env_log[:,count_ncomp]), 'rel_error_ql_env_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain_log[:,count_ncomp]), 'rel_error_ql_domain_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env_log[:,count_ncomp]), 'error_cf_env_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain_log[:,count_ncomp]), 'error_cf_domain_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env_log[:,count_ncomp]), 'rel_error_cf_env_log', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_domain_log[:,count_ncomp]), 'rel_error_cf_domain_log', ncomp, nvar, nk)
+
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp_loglog[:, count_ncomp]), 'ql_mean_comp_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp_loglog[:, count_ncomp]), 'cf_comp_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_env_loglog[:,count_ncomp]), 'error_ql_env_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql_domain_loglog[:,count_ncomp]), 'error_ql_domain_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_env_loglog[:,count_ncomp]), 'rel_error_ql_env_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql_domain_loglog[:,count_ncomp]), 'rel_error_ql_domain_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_env_loglog[:,count_ncomp]), 'error_cf_env_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_cf_domain_loglog[:,count_ncomp]), 'error_cf_domain_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_env_loglog[:,count_ncomp]), 'rel_error_cf_env_loglog', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_cf_domain_loglog[:,count_ncomp]), 'rel_error_cf_domain_loglog', ncomp, nvar, nk)
+
+                count_ncomp += 1
+
+            error_file_name = 'PDF_cond_' + type_ + '_allcomp_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
+            self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
+                                 np.asarray(ql_mean_env), np.asarray(ql_mean_updraft), np.asarray(ql_mean_domain),
+                                 np.asarray(cf_env), np.asarray(cf_updraft), np.asarray(cf_domain),
+                                 np.asarray(ql_mean_comp), np.asarray(cf_comp),
+                                 np.asarray(ql_mean_comp_log), np.asarray(cf_comp_log),
+                                 np.asarray(ql_mean_comp_loglog), np.asarray(cf_comp_loglog),
+                                 np.asarray(error_ql_env), np.asarray(error_ql_domain),
+                                 np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
+                                 np.asarray(error_cf_env), np.asarray(error_cf_domain),
+                                 np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain),
+                                 np.asarray(error_ql_env_log), np.asarray(error_ql_domain_log),
+                                 np.asarray(rel_error_ql_env_log), np.asarray(rel_error_ql_domain_log),
+                                 np.asarray(error_cf_env_log), np.asarray(error_cf_domain_log),
+                                 np.asarray(rel_error_cf_env_log), np.asarray(rel_error_cf_domain_log),
+                                 np.asarray(error_ql_env_loglog), np.asarray(error_ql_domain_loglog),
+                                 np.asarray(rel_error_ql_env_loglog), np.asarray(rel_error_ql_domain_loglog),
+                                 np.asarray(error_cf_env_loglog), np.asarray(error_cf_domain_loglog),
+                                 np.asarray(rel_error_cf_env_loglog), np.asarray(rel_error_cf_domain_loglog),
+                                 np.asarray(n_env), np.asarray(n_updraft))
         return
 
 
@@ -510,12 +645,21 @@ cdef class PDF_conditional:
                         ql_mean_comp, cf_comp,
                         error_ql_env, error_ql_domain, rel_error_ql_env, rel_error_ql_domain,
                         error_cf_env, error_cf_domain, rel_error_cf_env, rel_error_cf_domain,
+                        ql_mean_comp_log, cf_comp_log,
+                        error_ql_env_log, error_ql_domain_log, rel_error_ql_env_log, rel_error_ql_domain_log,
+                        error_cf_env_log, error_cf_domain_log, rel_error_cf_env_log, rel_error_cf_domain_log,
+                        ql_mean_comp_loglog, cf_comp_loglog,
+                        error_ql_env_loglog, error_ql_domain_loglog, rel_error_ql_env_loglog, rel_error_ql_domain_loglog,
+                        error_cf_env_loglog, error_cf_domain_loglog, rel_error_cf_env_loglog, rel_error_cf_domain_loglog,
                         n_env, n_updraft):
         print('---------- dump error ---------- ')
         print(os.path.join(path, file_name))
+        N_comp = max(comp_range)
+
         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
         prof_grp = rootgrp.createGroup('profiles')
         prof_grp.createDimension('nz', nz_)
+        prof_grp.createDimension('Ncomp', N_comp)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
         var = prof_grp.createVariable('krange', 'f8', ('nz'))
@@ -546,7 +690,6 @@ cdef class PDF_conditional:
 
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
-        N_comp = max(comp_range)
         error_grp.createDimension('Ncomp', N_comp)
         var = error_grp.createVariable('error_ql_env', 'f8', ('nz', 'Ncomp'))
         var[:,:] = error_ql_env[:,:]
@@ -564,6 +707,40 @@ cdef class PDF_conditional:
         var[:,:] = rel_error_cf_env[:,:]
         var = error_grp.createVariable('rel_error_cf_domain', 'f8', ('nz', 'Ncomp'))
         var[:,:] = rel_error_cf_domain[:,:]
+
+        var = error_grp.createVariable('error_ql_env_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_env_log[:,:]
+        var = error_grp.createVariable('error_ql_domain_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_domain_log[:,:]
+        var = error_grp.createVariable('rel_error_ql_env_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_env_log[:,:]
+        var = error_grp.createVariable('rel_error_ql_domain_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_domain_log[:,:]
+        var = error_grp.createVariable('error_cf_env_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_env_log[:,:]
+        var = error_grp.createVariable('error_cf_domain_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_domain_log[:,:]
+        var = error_grp.createVariable('rel_error_cf_env_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_env_log[:,:]
+        var = error_grp.createVariable('rel_error_cf_domain_log', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_domain_log[:,:]
+
+        var = error_grp.createVariable('error_ql_env_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_env_loglog[:,:]
+        var = error_grp.createVariable('error_ql_domain_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_ql_domain_loglog[:,:]
+        var = error_grp.createVariable('rel_error_ql_env_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_env_loglog[:,:]
+        var = error_grp.createVariable('rel_error_ql_domain_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_ql_domain_loglog[:,:]
+        var = error_grp.createVariable('error_cf_env_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_env_loglog[:,:]
+        var = error_grp.createVariable('error_cf_domain_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = error_cf_domain_loglog[:,:]
+        var = error_grp.createVariable('rel_error_cf_env_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_env_loglog[:,:]
+        var = error_grp.createVariable('rel_error_cf_domain_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:,:] = rel_error_cf_domain_loglog[:,:]
 
         rootgrp.close()
         return

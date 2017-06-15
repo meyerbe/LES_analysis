@@ -21,7 +21,7 @@ plt.rcParams['ytick.labelsize'] = label_size
 plt.rcParams['axes.labelsize'] = 10
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
-plt.rcParams['legend.fontsize'] = 8
+plt.rcParams['legend.fontsize'] = 6
 plt.rcParams['figure.titlesize'] = 10
 plt.rcParams['lines.linewidth'] = 0.8
 
@@ -36,12 +36,12 @@ def main():
     parser.add_argument("--type", nargs='+', type=str)
     args = parser.parse_args()
     path = args.path
-    # path_out = os.path.join(path, 'PDF_cond_figures', 'scatter_plots')
-    path_out = os.path.join(path, 'PDF_cond_t5h_figures', 'scatter_plots_log')
+    # path_out_ = os.path.join(path, 'PDF_cond_figures')
+    path_out_ = os.path.join(path, 'PDF_cond_t5h_figures')
     case_name = args.casename
     time_field = args.time_field
     print('')
-    print('path out: ' + path_out)
+    print('path out: ' + path_out_)
 
     if args.type:
         type_list = args.type
@@ -105,6 +105,7 @@ def main():
         thetal_flag = False
         print('!! thetal not in fields')
     root.close()
+
 
     # (2) read in Labels
     for type_ in type_list:
@@ -189,14 +190,31 @@ def main():
             b_mean_up = np.average(buoy_up[:])
             b_mean_env = np.average(buoy_env[:])
 
+            # (1a) plot histogram of qt
+            if type_ == 'PDF':
+                # print('k: ', k, iz*dz)
+                path_out = os.path.join(path_out_, 'scatter_plots_log')
+                # file_name = 'hist_qt_env_z' + str(np.int(iz*dz)) + '_t' + str(time_field) + '.png'
+                # plot_hist(qt[:,k], qt_env, 'qt', 'qt_env', path_out, file_name)
+                # file_name = 'hist_qt_up_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
+                # plot_hist(qt[:, k], qt_up, 'qt', 'qt_up', path_out, file_name)
+                file_name = 'hist_qt_all_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
+                plot_hist_all(qt[:, k], qt_env, qt_up, 'qt', 'qt_env', 'qt_up',
+                              iz * dz, time_field, path_out, file_name)
+                file_name = 'hist_thetal_all_z' + str(np.int(iz * dz)) + '_t' + str(time_field) + '.png'
+                plot_hist_all(thetal[:, k], th_env, th_up, 'theta_l', 'thl_env', 'thl_up',
+                              iz * dz, time_field, path_out, file_name)
+                # sys.exit()
 
-            # Plot log(qt) vs. qt
-            file_name = 'data_log_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.png'
-            plot_data_scatter(qt[:,k], thetal[:,k], ' ', ' ',
-                              qt_env, th_env, ' ', ' ',
-                              np.log(qt_env), th_env, 'log(qt)', 'th_l',
-                              nx * ny, n_env[k], n_up[k], type_, iz * dz, time_field, path_out, file_name)
 
+            # # Plot log(qt) vs. qt
+            # file_name = 'data_log_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.png'
+            # plot_data_scatter(qt[:,k], thetal[:,k], ' ', ' ',
+            #                   qt_env, th_env, ' ', ' ',
+            #                   np.log(qt_env), th_env, 'log(qt)', 'th_l',
+            #                   nx * ny, n_env[k], n_up[k], type_, iz * dz, time_field, path_out, file_name)
+            #
+            # path_out = os.path.join(path_out_, 'scatter_plots')
             # Plot normal data
             # file_name = 'data_env_vs_all_' + type_  + '_z'+str(np.int(iz*dz)) + '_t' + str(time_field) + '.png'
             # plot_data_scatter(qt[:, k], thetal[:, k], ' ', ' ',
@@ -220,6 +238,218 @@ def main():
             #                           buoy[:, k], buoy_env, buoy_up, 'buoyancy', b_mean_up, b_mean_env,
             #                           nx * ny, n_env[k], n_up[k], type_, iz * dz, time_field, path_out, file_name)
 
+
+    return
+
+#----------------------------------------------------------------------
+def plot_hist(data, data_env, xname_1, xname_2, path_, file_name):
+    print('')
+    print('-- plotting histogram: --')
+    # mu, sigma = 100, 15
+    # x = mu + sigma * np.random.randn(10000)
+    # mu = np.average(data)
+    # mu_log = np.average(np.log(data))
+    # sigma = 10
+    # sigma_log = 1
+
+    yname = 'PDF'
+    yname = 'PDF'
+    min = np.amin(data)
+    max = np.amax(data)
+    bins = np.arange(min, max, 10e-5)
+    min = np.amin(np.log(data))
+    max = np.amax(np.log(data))
+    bins_log = np.arange(min, max, 5e-3)
+
+    plt.figure(figsize=(12,12))
+    plt.subplot(2,3,1)
+    plt.hist(data_env[:], bins, normed=True)
+    plt.xlabel(xname_2)
+    plt.ylabel(yname)
+    plt.subplot(2,3,2)
+    plt.hist(data, bins, normed=True)
+    plt.xlabel(xname_1)
+    plt.ylabel(yname)
+    plt.subplot(2,3,3)
+    plt.hist(data[:], bins, normed=False)
+    plt.hist(data_env, bins, normed=False, facecolor='red', alpha=1.)
+    plt.xlabel(xname_1 + ' + ' + xname_2)
+    plt.ylabel(yname)
+    plt.subplot(2, 3, 4)
+    plt.hist(np.log(data_env), bins_log, normed=True)
+    plt.xlabel('log(' + xname_2 + ')')
+    plt.ylabel(yname)
+    plt.subplot(2, 3, 5)
+    plt.hist(np.log(data), bins_log, normed=True)
+    plt.xlabel('log(' + xname_1 + ')')
+    plt.ylabel(yname)
+    plt.subplot(2, 3, 6)
+    plt.hist(np.log(data), bins_log)
+    plt.hist(np.log(data_env), bins_log, normed=False, facecolor='red')
+    plt.xlabel('log(' + xname_1 + ') + log('+ xname_2 + ')')
+    plt.ylabel(yname)
+
+    # # # add a 'best fit' line
+    # y = mlab.normpdf(bins, mu, sigma)
+    # l = plt.plot(bins, y, 'r--', linewidth=1)
+    # plt.grid(True)
+    plt.suptitle('Histogram of '+ xname_1)
+    plt.savefig(os.path.join(path_, file_name))
+    plt.close()
+    return
+
+
+def plot_hist_all(data, data_env, data_up, xname_, xname_env, xname_up, z_, time_, path_, file_name):
+    print('')
+    print('-- plotting histogram: --')
+    # mu, sigma = 100, 15
+    # x = mu + sigma * np.random.randn(10000)
+    # mu = np.average(data)
+    # mu_log = np.average(np.log(data))
+    # sigma = 10
+    # sigma_log = 1
+    n_bins = 50
+
+    yname = 'PDF'
+    min = np.amin(data)
+    max = np.amax(data)
+    # bins = np.arange(min, max, 10e-5)
+    bins = np.linspace(min, max, n_bins)
+
+    data_log = np.log(data)
+    min = np.amin(data_log)
+    max = np.amax(data_log)
+    # bins_log = np.arange(min, max, 5e-3)
+    # bins_log = np.log(bins)
+    bins_log = np.linspace(min, max, n_bins)
+
+    data_exp = np.exp(data)
+    min = np.amin(data_exp)
+    max = np.amax(data_exp)
+    # bins_exp = np.arange(min, max, 1e-4)
+    bins_exp = np.linspace(min, max, n_bins)
+    # bins_exp = np.exp(bins)
+
+    # sigma = 4.e-4
+    mu = np.average(data)
+    sigma = np.std(data)
+    mu_up = np.average(data_up)
+    sigma_up = np.std(data_up)
+    mu_env = np.average(data_env)
+    sigma_env = np.std(data_env)
+    gauss = mlab.normpdf(bins, mu, sigma)
+    gauss_up = mlab.normpdf(bins, mu_up, sigma_up)
+    gauss_env = mlab.normpdf(bins, mu_env, sigma_env)
+    # sigma_exp = 3.7e-4
+    mu_exp = np.average(data_exp)
+    sigma_exp = np.std(data_exp)
+    mu_up_exp = np.average(np.exp(data_up))
+    sigma_up_exp = np.std(np.exp(data_up))
+    gauss_exp = mlab.normpdf(bins_exp, mu_exp, sigma_exp)
+    gauss_up_exp = mlab.normpdf(bins_exp, mu_up_exp, sigma_up_exp)
+    # sigma_log = 2.2e-2
+    mu_log = np.average(data_log)
+    sigma_log = np.std(data_log)
+    gauss_log = mlab.normpdf(bins_log, mu_log, sigma_log)
+    mu_env_log = np.average(np.log(data_env))
+    sigma_env_log = np.std(np.log(data_env))
+    gauss_env_log = mlab.normpdf(bins_log, mu_env_log, sigma_env_log)
+    mu_up_log = np.average(np.log(data_up))
+    sigma_up_log = np.std(np.log(data_up))
+    gauss_up_log = mlab.normpdf(bins_log, mu_up_log, sigma_up_log)
+
+
+    plt.figure(figsize=(20,12))
+    plt.subplot(3,4,1)
+    plt.hist(data, bins, normed=True)
+    plt.plot(bins, gauss, 'r-', linewidth=2)
+    plt.xlabel(xname_)
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3,4,2)
+    plt.hist(data_env, bins, normed=True)
+    plt.plot(bins, gauss_env, 'r-', linewidth=2)
+    plt.xlabel(xname_env)
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3,4,3)
+    plt.hist(data_up, bins, normed=True)
+    plt.plot(bins, gauss_up, 'r-', linewidth=2)
+    plt.xlabel(xname_up)
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3,4,4)
+    plt.hist(data, bins, normed=False, label='total')
+    plt.hist(data_env, bins, normed=False, facecolor='green', alpha=0.9, label='environment')
+    plt.hist(data_up, bins, normed=False, facecolor='red', alpha=0.4, label='updraft')
+    plt.legend()
+    plt.xlabel(xname_ + ' + ' + xname_env + ' + ' + xname_up)
+    plt.ylabel(yname)
+
+    plt.subplot(3, 4, 5)
+    # plt.hist(np.log(1/data), bins_log, normed=False)
+    plt.hist(np.log(data), bins_log, normed=True)
+    plt.plot(bins_log, gauss_log, 'r-', linewidth=2)
+    plt.xlabel('log(' + xname_ + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3, 4, 6)
+    # plt.hist(np.log(1/data_env), bins_log, normed=False)
+    plt.hist(np.log(data_env), bins_log, normed=True)
+    plt.plot(bins_log, gauss_env_log, 'r-', linewidth=2)
+    plt.xlabel('log(' + xname_env + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3, 4, 7)
+    # plt.hist(np.log(1/data_up), bins_log, normed=False)
+    plt.hist(np.log(data_up), bins_log, normed=True)
+    plt.plot(bins_log, gauss_up_log, 'r-', linewidth=2)
+    plt.xlabel('log(' + xname_up + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3, 4, 8)
+    # plt.hist(np.log(1/data), bins_log, normed=False)
+    # plt.hist(np.log(1/data_env), bins_log, normed=False, facecolor='green', alpha=0.9)
+    # plt.hist(np.log(1/data_up), bins_log, normed=False, facecolor='red', alpha=0.4)
+    plt.hist(np.log(data), bins_log, normed=False, label='total')
+    plt.hist(np.log(data_env), bins_log, normed=False, facecolor='green', alpha=0.9, label='environment')
+    plt.hist(np.log(data_up), bins_log, normed=False, facecolor='red', alpha=0.4, label='updraft')
+    plt.xlabel('log(' + xname_ + ') + log(' + xname_env + ') + log(' + xname_up + ')')
+    plt.ylabel(yname)
+
+    plt.subplot(3,4,9)
+    plt.hist(np.exp(data), bins_exp, normed=True)
+    plt.plot(bins_exp, gauss_exp, 'r-', linewidth=2)
+    plt.xlabel('exp(' + xname_ + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3,4,10)
+    plt.hist(np.exp(data_env), bins_exp, normed=True)
+    plt.xlabel('exp(' + xname_env + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3, 4,11)
+    plt.hist(np.exp(data_up), bins_exp, normed=True)
+    # plt.plot(bins_exp, mlab.normpdf(bins_exp, mu_up_exp, 2e-4), '-o', linewidth=1)
+    plt.plot(bins_exp, gauss_up_exp , 'r-', linewidth=2)
+    plt.xlabel('exp(' + xname_up + ')')
+    plt.ylabel(yname + ' normed')
+    plt.subplot(3,4,12)
+    plt.hist(np.exp(data), bins_exp, normed=False, label='total')
+    plt.hist(np.exp(data_env), bins_exp, normed=False, facecolor='green', alpha=0.9, label='environment')
+    plt.hist(np.exp(data_up), bins_exp, normed=False, facecolor='red', alpha=0.4, label='updraft')
+    plt.xlabel('exp(' + xname_ + ') + exp('+ xname_env + ') + exp(' + xname_up + ')' )
+    plt.ylabel(yname)
+
+    # plt.grid(True)
+    plt.suptitle('Histogram of '+ xname_ + ', '+xname_env +' and ' + xname_up
+                 + '   (z=' + str(z_)  + ', t='+str(time_)+')')
+    plt.savefig(os.path.join(path_, file_name))
+    plt.close()
+
+    plt.figure()
+    plt.hist(data, bins, normed=False, label='total')
+    plt.hist(data_env, bins, normed=False, facecolor='green', alpha=0.9, label='environment')
+    plt.hist(data_up, bins, normed=False, facecolor='red', alpha=0.4, label='updraft')
+    plt.legend()
+    plt.xlabel(xname_ + ' + ' + xname_env + ' + ' + xname_up)
+    plt.ylabel(yname)
+    plt.title('Histogram of ' + xname_ + ', ' + xname_env + ' and ' + xname_up
+                 + '   (z=' + str(z_) + ', t=' + str(time_) + ')')
+    plt.savefig(os.path.join(path_, '_' + file_name))
+    plt.close()
 
     return
 

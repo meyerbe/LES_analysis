@@ -273,6 +273,13 @@ cdef class PDF_conditional:
                 weights_ = np.zeros(shape=(nk, ncomp))
                 n_env = np.zeros(nk, dtype=np.int32)
                 n_updraft = np.zeros(nk, dtype=np.int32)
+                ql_mean_domain = np.zeros(nk, dtype=np.double)
+                ql_mean_env = np.zeros(nk, dtype=np.double)
+                ql_mean_updraft = np.zeros(nk, dtype=np.double)
+                cf_domain = np.zeros(nk, dtype=np.double)
+                cf_env = np.zeros(nk, dtype=np.double)
+                cf_updraft = np.zeros(nk, dtype=np.double)
+
                 ''' (b) initialize Statistics File '''
                 nc_file_name_out = 'PDF_cond_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
@@ -322,14 +329,14 @@ cdef class PDF_conditional:
                                     if ql_[i,j,iz+k_] > 0.0:
                                         cf_updraft[k] += 1.0
 
-                    print('n_env='+str(n_env[k]), theta_l.shape)
+                    # print('n_env='+str(n_env[k]), theta_l.shape)
                     # del s_, ql_, qt_, T_
                     data = np.ndarray(shape=(n_env[k], nvar))
-                    print('..')
-                    print('n_up, n_env, dk', n_updraft[k], n_env[k], dk)
-                    print(n_env)
-                    print(theta_l.shape, qt.shape, data.shape)
-                    print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
+                    # print('..')
+                    # print('n_up, n_env, dk', n_updraft[k], n_env[k], dk)
+                    # print(n_env)
+                    # print(theta_l.shape, qt.shape, data.shape)
+                    # print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
                     data[:, 0] = theta_l[:]
                     data[:, 1] = qt[:]
                     data_all = np.append(data_all, data, axis=0)
@@ -463,7 +470,7 @@ cdef class PDF_conditional:
             self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                                  np.asarray(ql_mean_env), np.asarray(ql_mean_updraft), np.asarray(ql_mean_domain),
                                  np.asarray(cf_env), np.asarray(cf_updraft), np.asarray(cf_domain),
-                                 np.asarra(ql_mean_comp), np.asarray(cf_comp),
+                                 np.asarray(ql_mean_comp), np.asarray(cf_comp),
                                  np.asarray(error_ql_env), np.asarray(error_ql_domain),
                                  np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
                                  np.asarray(error_cf_env), np.asarray(error_cf_domain),
@@ -488,9 +495,12 @@ cdef class PDF_conditional:
                         n_env, n_updraft):
         print('---------- dump error ---------- ')
         print(os.path.join(path, file_name))
+        N_comp = max(comp_range)
+
         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
         prof_grp = rootgrp.createGroup('profiles')
         prof_grp.createDimension('nz', nz_)
+        prof_grp.createDimension('Ncomp', N_comp)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
         var = prof_grp.createVariable('krange', 'f8', ('nz'))
@@ -521,7 +531,6 @@ cdef class PDF_conditional:
 
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
-        N_comp = max(comp_range)
         error_grp.createDimension('Ncomp', N_comp)
         var = error_grp.createVariable('error_ql_env', 'f8', ('nz', 'Ncomp'))
         var[:,:] = error_ql_env[:,:]
