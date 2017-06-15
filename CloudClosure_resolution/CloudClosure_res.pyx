@@ -176,9 +176,9 @@ cdef class CloudClosure:
         # for Error Computation / <ql> intercomparison
         cdef:
             double [:] ql_mean_field = np.zeros(nk, dtype=np.double)        # computation from 3D LES field
-            double [:] ql_mean_comp = np.zeros(nk, dtype=np.double)         # computation from PDF sampling
             double [:] cf_field = np.zeros(shape=(nk))                      # computation from 3D LES field
-            double [:] cf_comp = np.zeros(nk, dtype=np.double)              # computation from PDF sampling
+            double [:, :] ql_mean_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)                 # computation from PDF sampling
+            double [:, :] cf_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)                      # computation from PDF sampling
             int count_ncomp = 0
             double [:,:] error_ql = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] rel_error_ql = np.zeros(shape=(nk,len(ncomp_range)))
@@ -196,6 +196,9 @@ cdef class CloudClosure:
             means_ = np.zeros(shape=(nk, ncomp, nvar))
             covariances_ = np.zeros(shape=(nk, ncomp, nvar, nvar))
             weights_ = np.zeros(shape=(nk, ncomp))
+            ql_mean_field = np.zeros(nk, dtype=np.double)
+            cf_field = np.zeros(nk, dtype=np.double)
+
             ''' (b) initialize Statistics File '''
             nc_file_name_out = 'CC_alltime_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz)\
                                +'_time'+str(tt)+'.nc'
@@ -283,30 +286,30 @@ cdef class CloudClosure:
                 Th_l = scaler.inverse_transform(Th_l_norm)      # Inverse Normalisation
 
                 '''(3) Compute ql (saturation adjustment) & Cloud Fraction '''
-                print('ql_mean_comp[k], k', k, ql_mean_comp[k])
+                print('ql_mean_comp[k], k', k, ql_mean_comp[k, count_ncomp])
                 for i in range(n_sample-2):
                     # ??? ok to use same reference pressure for all ik+k_ points?
                     T_comp_thl[i], ql_comp_thl[i], alpha_comp_thl[i] = sat_adj_fromthetali(p_ref[iz], Th_l[i, 0], Th_l[i, 1], CC, LH)
-                    ql_mean_comp[k] = ql_mean_comp[k] + ql_comp_thl[i]
+                    ql_mean_comp[k, count_ncomp] = ql_mean_comp[k, count_ncomp] + ql_comp_thl[i]
                     if ql_comp_thl[i] > 0:
-                        cf_comp[k] += 1
-                print('ql_mean_comp[k], k', k, ql_mean_comp[k], T_comp_thl[i], ql_comp_thl[i])
-                ql_mean_comp[k] = ql_mean_comp[k] / (n_sample-2)
-                cf_comp[k] = cf_comp[k] / n_sample
-                error_ql[k,count_ncomp] = ql_mean_comp[k] - ql_mean_field[k]
-                error_cf[k,count_ncomp] = cf_comp[k] - cf_field[k]
+                        cf_comp[k, count_ncomp] += 1
+                print('ql_mean_comp[k], k', k, ql_mean_comp[k, count_ncomp], T_comp_thl[i], ql_comp_thl[i])
+                ql_mean_comp[k, count_ncomp] = ql_mean_comp[k, count_ncomp] / (n_sample-2)
+                cf_comp[k, count_ncomp] = cf_comp[k, count_ncomp] / (n_sample - 2)
+                error_ql[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_field[k]
+                error_cf[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_field[k]
                 if ql_mean_field[k] > 0.0:
-                    rel_error_ql[k,count_ncomp] = (ql_mean_comp[k] - ql_mean_field[k]) / ql_mean_field[k]
+                    rel_error_ql[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_field[k]) / ql_mean_field[k]
                 if cf_field[k] > 0.0:
-                    rel_error_cf[k,count_ncomp] = (cf_comp[k] - cf_field[k]) / cf_field[k]
+                    rel_error_cf[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_field[k]) / cf_field[k]
 
                 print('')
-                print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+                print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp])
                 print('<ql> from ql fields:           ', ql_mean_field[k])
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
                 print('')
-                print('CF from Cloud Closure Scheme: ', cf_comp[k])
+                print('CF from Cloud Closure Scheme: ', cf_comp[k, count_ncomp])
                 print('CF from ql fields: ', cf_field[k])
                 print('error: '+str(error_cf[k,count_ncomp]))
                 print('rel error: ', rel_error_cf[k,count_ncomp])
@@ -335,9 +338,9 @@ cdef class CloudClosure:
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'means', means_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'covariances', covariances_, 'qtT', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
-            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:]), 'ql_mean_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:, count_ncomp]), 'ql_mean_pdf', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_field[:]), 'ql_mean_field', ncomp, nvar, nk)
-            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:]), 'cf_comp', ncomp, nvar, nk)
+            dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:, count_ncomp]), 'cf_pdf', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_field[:]), 'cf_field', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(error_ql[:,count_ncomp]), 'error_ql', ncomp, nvar, nk)
             dump_variable(os.path.join(self.path_out, nc_file_name_out), 'error', np.asarray(rel_error_ql[:,count_ncomp]), 'rel_error_ql', ncomp, nvar, nk)
@@ -349,6 +352,7 @@ cdef class CloudClosure:
         error_file_name = 'CC_alltime_res_error'+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
         self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                         np.asarray(ql_mean_field), np.asarray(cf_field),
+                        np.asarray(ql_mean_comp), np.asarray(cf_comp),
                         np.asarray(error_ql), np.asarray(rel_error_ql),
                         np.asarray(error_cf), np.asarray(rel_error_cf))
         return
@@ -445,12 +449,16 @@ cdef class CloudClosure:
 
     def dump_error_file(self, path, file_name, time, comp_range, nvar, nz_,
                         ql_mean_field, cf_field,
+                        ql_mean_comp, cf_comp,
                         error_ql, rel_error_ql,
                         error_cf, rel_error_cf):
         print('---------- dump error ---------- ')
+        N_comp = max(comp_range)
+
         rootgrp = nc.Dataset(os.path.join(path, file_name), 'w', format = 'NETCDF4')
         prof_grp = rootgrp.createGroup('profiles')
         prof_grp.createDimension('nz', nz_)
+        prof_grp.createDimension('Ncomp', N_comp)
         var = prof_grp.createVariable('zrange', 'f8', ('nz'))
         var[:] = np.asarray(self.zrange)[:]
         var = prof_grp.createVariable('krange', 'f8', ('nz'))
@@ -465,9 +473,13 @@ cdef class CloudClosure:
         var = prof_grp.createVariable('cf_field', 'f8', ('nz'))
         var[:] = cf_field[:]
 
+        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz', 'Ncomp'))
+        var[:] = ql_mean_comp[:,:]
+        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz', 'Ncomp'))
+        var[:] = cf_comp[:,:]
+
         error_grp = rootgrp.createGroup('error')
         error_grp.createDimension('nz', nz_)
-        N_comp = max(comp_range)
         error_grp.createDimension('Ncomp', N_comp)
         var = error_grp.createVariable('error_ql', 'f8', ('nz', 'Ncomp'))
         var[:,:] = error_ql[:,:]
