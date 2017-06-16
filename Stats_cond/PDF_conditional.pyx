@@ -222,8 +222,8 @@ cdef class PDF_conditional:
 
         # for Error Computation / <ql> intercomparison
         cdef:
-            double [:, :] ql_mean_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
-            double [:, :] cf_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)              # computation from PDF sampling
+            double [:, :] ql_mean_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)                 # computation from PDF sampling
+            double [:, :] cf_comp = np.zeros(shape=(nk,len(ncomp_range)), dtype=np.double)                      # computation from PDF sampling
             int count_ncomp = 0
             double [:,:] error_ql_domain = np.zeros(shape=(nk,len(ncomp_range)))
             double [:,:] error_ql_env = np.zeros(shape=(nk,len(ncomp_range)))
@@ -404,7 +404,7 @@ cdef class PDF_conditional:
                         rel_error_cf_env[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_env[k]
 
                     print('')
-                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp])
                     print('<ql> from ql fields (env):     ', ql_mean_env[k])
                     print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
                     print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
@@ -412,7 +412,7 @@ cdef class PDF_conditional:
                     print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
                     print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
                     print('')
-                    print('CF from Cloud Closure Scheme: ', cf_comp[k])
+                    print('CF from Cloud Closure Scheme: ', cf_comp[k, count_ncomp])
                     print('CF from ql fields (env):      ', cf_env[k])
                     print('CF from ql fields (domain):   ', cf_domain[k])
                     print('error env:    '+str(error_cf_env[k,count_ncomp]))
@@ -447,11 +447,11 @@ cdef class PDF_conditional:
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_, 'qtT', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_env[:]), 'n_environment', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraf', ncomp, nvar, nk)
-                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:, count_ncomp]), 'ql_mean_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_comp[:, count_ncomp]), 'ql_mean_pdf', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_env[:]), 'ql_mean_environment', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_updraft[:]), 'ql_mean_updraft', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_domain[:]), 'ql_mean_domain', ncomp, nvar, nk)
-                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:, count_ncomp]), 'cf_comp', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_comp[:, count_ncomp]), 'cf_pdf', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_env[:]), 'cf_environment', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_updraft[:]), 'cf_updraft', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(cf_domain[:]), 'cf_domain', ncomp, nvar, nk)
@@ -524,9 +524,9 @@ cdef class PDF_conditional:
         var = prof_grp.createVariable('cf_domain', 'f8', ('nz'))
         var[:] = cf_domain[:]
 
-        var = prof_grp.createVariable('ql_mean_comp', 'f8', ('nz', 'Ncomp'))
+        var = prof_grp.createVariable('ql_mean_pdf', 'f8', ('nz', 'Ncomp'))
         var[:] = ql_mean_comp[:,:]
-        var = prof_grp.createVariable('cf_comp', 'f8', ('nz', 'Ncomp'))
+        var = prof_grp.createVariable('cf_pdf', 'f8', ('nz', 'Ncomp'))
         var[:] = cf_comp[:,:]
 
         error_grp = rootgrp.createGroup('error')

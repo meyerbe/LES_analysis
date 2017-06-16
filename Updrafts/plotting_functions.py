@@ -122,50 +122,48 @@ def plot_labels(qt, ql, w, labels_, time, krange, dz, type_, path):
 
 
 
-
-
-def plot_labels_test(qt, ql, w, labels_, time, krange, dz, type_, path):
-    print('Plotting Test')
-    for k in range(len(krange)):
-        iz = krange[k]
-        if type_ == 'PDF':
-            k_ = k
-        else:
-            k_ = iz
-        # print('data size', qt.shape, 'labels size', labels_.shape, k_, iz)
-
-        plt.figure(figsize=(12, 8))
-
-        plt.subplot(2, 3, 1)
-        plt.imshow(labels_[:, :, k_])
-        plt.colorbar(shrink=0.6)
-        plt.title(type_ +' Labels')
-
-        plt.subplot(2, 3, 4)
-        # plt.imshow(qt[:, :, iz])
-        plt.contour(ql[:, :, iz], [1e-5], colors = 'k')
-        # plt.colorbar(shrink=0.6)
-        # if np.amax(np.abs(labels_[:,:,k])) != 0.0:
-        #     plt.contour(labels_[:, :, k],colors='w', levels=[0.9])
-        # plt.contour(labels_[:, :, k_] , [0.9],colors='w')
-        plt.title(r'$q_l$ cont')
-
-        plt.subplot(2, 3, 5)
-        # plt.imshow(ql[:, :, iz])
-        # plt.colorbar(shrink=0.6)
-        plt.contour(labels_[:, :, k_], [0.9], colors='k')
-        plt.title(r'labels cont')
-
-        plt.subplot(2, 3, 6)
-        plt.imshow(ql[:, :, iz])
-        plt.colorbar(shrink=0.6)
-        plt.contour(labels_[:, :, k_], [0.9],colors='w')
-        plt.title('ql (cont=labels)')
-
-        plt.savefig(os.path.join(path, 'Updrafts_figures', 'test_Labels_' + type_ + '_t' + str(time) + '_z' + str(iz*dz) + 'm.pdf'))
-        # # plt.show()
-        plt.close()
-    return
+# def plot_labels_test(qt, ql, w, labels_, time, krange, dz, type_, path):
+#     print('Plotting Test')
+#     for k in range(len(krange)):
+#         iz = krange[k]
+#         if type_ == 'PDF':
+#             k_ = k
+#         else:
+#             k_ = iz
+#         # print('data size', qt.shape, 'labels size', labels_.shape, k_, iz)
+#
+#         plt.figure(figsize=(12, 8))
+#
+#         plt.subplot(2, 3, 1)
+#         plt.imshow(labels_[:, :, k_])
+#         plt.colorbar(shrink=0.6)
+#         plt.title(type_ +' Labels')
+#
+#         plt.subplot(2, 3, 4)
+#         # plt.imshow(qt[:, :, iz])
+#         plt.contour(ql[:, :, iz], [1e-5], colors = 'k')
+#         # plt.colorbar(shrink=0.6)
+#         # if np.amax(np.abs(labels_[:,:,k])) != 0.0:
+#         #     plt.contour(labels_[:, :, k],colors='w', levels=[0.9])
+#         # plt.contour(labels_[:, :, k_] , [0.9],colors='w')
+#         plt.title(r'$q_l$ cont')
+#
+#         plt.subplot(2, 3, 5)
+#         # plt.imshow(ql[:, :, iz])
+#         # plt.colorbar(shrink=0.6)
+#         plt.contour(labels_[:, :, k_], [0.9], colors='k')
+#         plt.title(r'labels cont')
+#
+#         plt.subplot(2, 3, 6)
+#         plt.imshow(ql[:, :, iz])
+#         plt.colorbar(shrink=0.6)
+#         plt.contour(labels_[:, :, k_], [0.9],colors='w')
+#         plt.title('ql (cont=labels)')
+#
+#         plt.savefig(os.path.join(path, 'Updrafts_figures', 'test_Labels_' + type_ + '_t' + str(time) + '_z' + str(iz*dz) + 'm.pdf'))
+#         # # plt.show()
+#         plt.close()
+#     return
 
 
 

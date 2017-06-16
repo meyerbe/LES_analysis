@@ -105,7 +105,7 @@ cdef class PDF_conditional:
         cdef:
             int nz = self.nml['grid']['nz']
             int dz = self.nml['grid']['dz']
-        self.path_out = os.path.join(path, 'PDF_cond')
+        self.path_out = os.path.join(path, 'PDF_cond_log')
 
         '''Initialize Reference Pressure'''
         if case_name[0:8] == 'ZGILS_S6':
@@ -316,7 +316,7 @@ cdef class PDF_conditional:
                 cf_updraft = np.zeros(nk, dtype=np.double)
 
                 ''' (b) initialize Statistics File '''
-                nc_file_name_out = 'PDF_cond_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
+                nc_file_name_out = 'PDF_cond_log_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
                 self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
@@ -609,7 +609,7 @@ cdef class PDF_conditional:
 
                 count_ncomp += 1
 
-            error_file_name = 'PDF_cond_' + type_ + '_allcomp_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
+            error_file_name = 'PDF_cond_log_' + type_ + '_allcomp_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz)+'_time'+str(tt)+'.nc'
             self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                                  np.asarray(ql_mean_env), np.asarray(ql_mean_updraft), np.asarray(ql_mean_domain),
                                  np.asarray(cf_env), np.asarray(cf_updraft), np.asarray(cf_domain),

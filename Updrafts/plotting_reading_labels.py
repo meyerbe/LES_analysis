@@ -159,17 +159,17 @@ def plot_anomalies(qt_, ql_, w_, thetali_, labels_pdf, labels_tracers, type, tim
                 w_anomaly[i, j, k] = w_[i, j, k] - w_mean[k]
                 thetali_anomaly[i, j, k] = thetali_[i, j, k] - thetali_mean[k]
 
-    krange_plot = krange_pdf[0:-1:5]
-    print('krange plot: ', krange_plot)
-    for k in range(len(krange_plot)):
-        file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm_anomaly.pdf'
-        plot_labels_comparison_hor(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, np.int(krange_plot[k]), krange_pdf, dz, path_out,
-                               file_name)
+    # krange_plot = krange_pdf[0:-1:5]
+    # print('krange plot: ', krange_plot)
+    # for k in range(len(krange_plot)):
+    #     file_name = type + '_hor_t' + str(time) + '_z' + str(np.int(krange_plot[k]*dz)) + 'm_anomaly.pdf'
+    #     plot_labels_comparison_hor(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, np.int(krange_plot[k]), krange_pdf, dz, path_out,
+    #                            file_name)
 
-    # for y0 in [10, 50]:
-    #     file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly.pdf'
-    #     plot_labels_comparison_vert(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, y0, krange_pdf,
-    #                                 kmin, kmax, dz, path_out, file_name)
+    for y0 in [10, 50]:
+        file_name = type + '_vert_t' + str(time) + '_y' + str(y0) + 'm_anomaly.pdf'
+        plot_labels_comparison_vert(qt_anomaly, ql_anomaly, w_anomaly, thetali_anomaly, labels_pdf, labels_tracers, type, time, y0, krange_pdf,
+                                    kmin, kmax, dz, path_out, file_name)
 
 
     y0 = 10
@@ -545,7 +545,6 @@ def plot_variable_hor(var, var_name, labels_pdf, labels_tr, type_, time, k0, kra
     plt.close()
 
     return
-
 
 
 def plot_variable_vert(var, var_name, labels_pdf, labels_tr, type_, time, y0, krange, kmin, kmax, dz, path_out,

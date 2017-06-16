@@ -103,8 +103,8 @@ def main():
         time_stats = np.int((np.double(time_field)-1e6) / dt_stats)
     else:
         time_stats = np.int(np.double(time_field)/ dt_stats)
-    print('time field: '+ str(time_field))
-    print('time Stats file: ' + str(time_stats) + ' (dt_stats=' + str(dt_stats)+')')
+    print('time field:        '+ str(time_field))
+    print('time Stats file:   ' + str(time_stats) + ' (dt_stats=' + str(dt_stats)+')')
     root = nc.Dataset(os.path.join(path, 'Stats.'+case_name+'.nc'),'r')
     ql_mean_stats_ = root.groups['profiles'].variables['ql_mean'][:]
     cf_stats_ = root.groups['profiles'].variables['cloud_fraction'][:]
@@ -351,7 +351,7 @@ def plot_ql_fromsampling_allres(ql_mean_stats, ql_mean_field, ql_mean_pdf, zrang
     plt.close()
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -374,7 +374,7 @@ def plot_ql_fromsampling_allres(ql_mean_stats, ql_mean_field, ql_mean_pdf, zrang
     plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -442,7 +442,7 @@ def plot_cf_fromsampling_allres(cf_stats, cf_field, cf_pdf, zrange,
     plt.close()
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -465,7 +465,7 @@ def plot_cf_fromsampling_allres(cf_stats, cf_field, cf_pdf, zrange,
     plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -499,7 +499,7 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
     print('plot error ql')
     # data = (Lx x dz x nz x ncomp)
 
-    import netCDF4 as nc
+    # import netCDF4 as nc
     cm1 = plt.cm.get_cmap('viridis')
     cm2 = plt.cm.get_cmap('bone')
     cm3 = plt.cm.get_cmap('winter')
@@ -514,6 +514,7 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
     plt.figure(figsize=(9*n_lx, 10))
     for nl in range(n_lx):
         plt.subplot(1, n_lx, nl+1)
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         for ndz in range(n_dz):
             n_col = np.double(ndz) / n_dz
             plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
@@ -521,7 +522,6 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
                 n_col = np.double(nc) / ncomp_max
                 plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
                          label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
@@ -536,9 +536,10 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
 
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         for nl in range(n_lx):
             n_col = np.double(nl) / n_lx
             plt.plot(-ql_mean_field[nl, ndz, :], zrange[:], '--', color=cm2(n_col), label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
@@ -559,9 +560,10 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
     plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
+        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         for nl in range(n_lx):
             if Lx_range[nl]>1000:
                 n_col = np.double(nl) / n_lx
@@ -570,7 +572,6 @@ def plot_ql_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, error_
                     n_col = np.double(nc) / ncomp_max
                     plt.plot(error_ql[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
         plt.legend(loc=2)
         plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
@@ -627,7 +628,7 @@ def plot_ql_rel_error_allres_ncompmax(ql_mean_stats, ql_mean_field, error_ql, er
     plt.close()
 
     # # (2) one plot per dz (for all Lx)
-    # plt.figure(figsize=(9 * n_lx, 12))
+    # plt.figure(figsize=(9 * n_dz, 12))
     # for ndz in range(n_dz):
     #     plt.subplot(1, n_dz, ndz + 1)
     #     plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)
@@ -725,7 +726,7 @@ def plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zr
     plt.close()
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -748,7 +749,7 @@ def plot_cf_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel, zr
     plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         for nl in range(n_lx):
@@ -815,7 +816,7 @@ def plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel
     plt.close()
 
     # # (2) one plot per dz (for all Lx)
-    # plt.figure(figsize=(9 * n_lx, 12))
+    # plt.figure(figsize=(9 * n_dz, 12))
     # for ndz in range(n_dz):
     #     plt.subplot(1, n_dz, ndz + 1)
     #     for nl in range(n_lx):
@@ -836,7 +837,7 @@ def plot_cf_rel_error_allres_ncompmax(cf_stats, cf_field, error_cf, error_cf_rel
     # plt.close()
 
     # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_lx, 12))
+    plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
         plt.plot([0, 0], [zrange[0], zrange[-1]], 'k', linewidth=1)

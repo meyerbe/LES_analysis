@@ -83,37 +83,37 @@ def main():
     print('Selected Files: ', files_)
 
     max_height = 120
-    # plot_mean_profile('thetali', time_prof, zrange_stats, max_height, path_ref, path, False, 4)
-    # plot_mean_profile('thetali', time_prof, zrange_stats, max_height, path_ref, path, True, 4)
-    # plot_mean_profile('cloud_fraction', time_prof, zrange, max_height, path_ref, path, True)
+    plot_mean_profile('thetali', time_prof, zrange_stats, max_height, path_ref, path, False, 4)
+    plot_mean_profile('thetali', time_prof, zrange_stats, max_height, path_ref, path, True, 4)
+    plot_mean_profile('cloud_fraction', time_prof, zrange, max_height, path_ref, path, True)
     # plot_mean_profile('fraction_core', time_prof, zrange, max_height, path_ref, path, True)
     # plot_mean_profile('fraction_cloud', time_prof, zrange, max_height, path_ref, path, True)
-    # plot_mean_profile('qt', time_prof, zrange, max_height, path_ref, path, True)
-    # plot_mean_profile('ql', time_prof, zrange, max_height, path_ref, path, True)
+    plot_mean_profile('qt', time_prof, zrange, max_height, path_ref, path, True)
+    plot_mean_profile('ql', time_prof, zrange, max_height, path_ref, path, True)
     # plot_ql_n_all(files_, zrange, path, prof=False)
-    # plot_mean('qt', files_, zrange, levels, path)
-    # plot_mean('ql', files_, zrange, levels, path)
-    # plot_mean('s', files_, zrange, levels, path)
+    plot_mean('qt', files_, zrange, levels, path)
+    plot_mean('ql', files_, zrange, levels, path)
+    plot_mean('s', files_, zrange, levels, path)
     # try:
     #     plot_mean('thetali', files_, zrange, levels, path)
     #     plot_mean_var('thetali', files_, zrange, path)
     # except:
     #     print('thetali not in variables')
-    # plot_mean_levels('qt', files_cum, zrange, path)
-    # plot_mean_levels('ql', files_cum, zrange, path)
+    plot_mean_levels('qt', files_cum, zrange, path)
+    plot_mean_levels('ql', files_cum, zrange, path)
 
-    # plot_mean_var('ql', files_, zrange, path)
-    # plot_mean_var('qt', files_, zrange, path)
-    # plot_mean_var('s', files_, zrange, path)
+    plot_mean_var('ql', files_, zrange, path)
+    plot_mean_var('qt', files_, zrange, path)
+    plot_mean_var('s', files_, zrange, path)
 
 
-    # plot_mean_cumulated('ql', files_cum, zrange, levels, path)
-    # plot_mean_cumulated_BL('ql', files_cum, zrange, levels, path, 125)
-    # plot_mean_cumulated('s', files_cum, zrange, levels, path)
-    # plot_mean_cumulated_BL('ql', files_cum, zrange, levels, path, max_height)
-    # plot_mean_cumulated_BL('s', files_cum, zrange, levels, path, max_height)
+    plot_mean_cumulated('ql', files_cum, zrange, levels, path)
+    plot_mean_cumulated_BL('ql', files_cum, zrange, levels, path, 125)
+    plot_mean_cumulated('s', files_cum, zrange, levels, path)
+    plot_mean_cumulated_BL('ql', files_cum, zrange, levels, path, max_height)
+    plot_mean_cumulated_BL('s', files_cum, zrange, levels, path, max_height)
 
-    # plot_max_var('ql', zrange, path)
+    plot_max_var('ql', zrange, path)
 
     return
 
