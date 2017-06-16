@@ -22,8 +22,8 @@ plt.rcParams['axes.labelsize'] = 15
 plt.rcParams['xtick.direction']='out'
 plt.rcParams['ytick.direction']='out'
 plt.rcParams['legend.fontsize'] = label_size
-plt.rcParams['figure.titlesize'] = 70
-plt.rcParams['lines.linewidth'] = 2
+plt.rcParams['figure.titlesize'] = 42
+plt.rcParams['lines.linewidth'] = 1
 
 
 def main():
@@ -42,6 +42,7 @@ def main():
     else:
         if case_name == 'TRMM_LBA':
             var_list = ['ql', 'qt', 'qr', 'w', 's', 'temperature', 'u', 'v']
+            # var_list = ['ql']
         elif case_name == 'DYCOMS_RF01':
             var_list = ['w', 's', 'thetali', 'temperature', 'ql', 'qt', 'u', 'v']
             var_list = ['ql', 'qt', 'w', 's', 'temperature', 'u', 'v']
@@ -86,6 +87,19 @@ def main():
 
     # (1) Read in Test field
     field = read_in_netcdf_fields('w',os.path.join(path_fields,files[0]))
+    root = nc.Dataset(os.path.join(path, 'Stats.' + case_name + '.nc'), 'r')
+    # z_stats = root.groups['profiles'].variables['z_half'][:]
+    z_stats = root.groups['profiles'].variables['z'][:]
+    root.close()
+    try:
+        z_fields = read_in_netcdf_fields('z', os.path.join(path_fields,files[0]))
+        z_output = z_fields
+        if z_fields.any() != z_stats.any():
+            print('!!! difference in z_fields and z_stats !!!')
+    except:
+        z_output = z_stats
+
+
 
     # (2) read in grid dimensions
     #       ni:                   field dimensions
@@ -117,7 +131,7 @@ def main():
     # zrange = np.asarray([10])
     yrange = np.asarray(np.linspace(1, n[1] - 1, 10), dtype=np.int16)
     # yrange = np.asarray([10])
-    zrange, files = set_zrange(case_name)
+    krange, files = set_zrange(case_name)
     if args.files:
         files = ['']
         files[0] = args.files + '.nc'
@@ -140,7 +154,7 @@ def main():
                 except:
                     print('!! Problem reading in '+ var_name + ' in '+os.path.join(path_fields, file_name))
                     print " "
-                    sys.exit()
+                    # sys.exit()
                     continue
 
                 levels = np.linspace(np.amin(field), np.amax(field), 100)
@@ -152,27 +166,27 @@ def main():
                     # cont_name = 'qt'
                     if cont_name != var_name and cont_name != ' ':
                         cont_data = read_in_netcdf_fields(cont_name, os.path.join(path_fields, file_name))
-                    print('Contour variable: ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
-                    for k in zrange:
+                        print('Contour variable: ' + cont_name + ' in ' + os.path.join(path_fields, file_name))
+                    for k in krange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
-                        plot_field(var_name, field_data[:, :, k], k*dz, plot_name, tt, 'hor')
+                        plot_field(var_name, field_data[:, :, k], k*dz, plot_name, tt, z_output, 'hor')
                         if cont_name != var_name and cont_name != ' ':
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_z' + np.str(np.int(k*dz)) + 'm'
-                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, tt, 'hor')
+                            plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, tt, z_output, 'hor')
                     for k in yrange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_y' + np.str(np.int(k * dy)) + 'm'
-                        plot_field(var_name, field_data[:, k, :], k*dy, plot_name, tt, 'vert')
+                        plot_field(var_name, field_data[:, k, :], k*dy, plot_name, tt, z_output, 'vert')
                         if cont_name != var_name and cont_name != ' ':
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_y' + np.str(np.int(k*dy)) + 'm'
                             plot_field_cont(var_name, field_data[:, k, :], cont_name,
-                                            cont_data[:, k, :], k*dz, plot_name, tt, 'vert')
+                                            cont_data[:, k, :], k*dz, plot_name, tt, z_output, 'vert')
 
                 # (b) Visualize Fields plus 2 Contours
                 # cont_name1 = 'qt'
                 # cont_name2 = 'w'
                 # cont_data1 = read_in_netcdf_fields(cont_name1, os.path.join(path_fields, file_name))
                 # cont_data2 = read_in_netcdf_fields(cont_name2, os.path.join(path_fields, file_name))
-                # for k in zrange:
+                # for k in krange:
                 #     plot_name = var_name + '_' + cont_name1 + '-cont_' + cont_name2 + '-cont_t' \
                 #                 + np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
                 #     plot_field_cont1_cont2(var_name, field_data[:,:,k],
@@ -246,7 +260,7 @@ def set_zrange(case_name):
 
 
 # ----------------------------------
-def plot_field(field_name, field_data, level, file_name, tt, type):
+def plot_field(field_name, field_data, level, file_name, tt, z_output, type):
     print('plot field: ', field_name)
     global nml
     dx = nml['grid']['dx']
@@ -257,7 +271,7 @@ def plot_field(field_name, field_data, level, file_name, tt, type):
         ax1 = plt.contourf(field_data.T, cmap=cm.bwr)
     else:
         ax1 = plt.contourf(field_data.T, cmap=cm.viridis)
-    plt.colorbar(ax1)
+    plt.colorbar(ax1, shrink=0.8)
 
     max_field = np.amax(field_data)
     plt.title(field_name + ', max:' + "{0:.2f}".format(max_field), fontsize=35)
@@ -269,8 +283,12 @@ def plot_field(field_name, field_data, level, file_name, tt, type):
     elif type == 'vert':
         # plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=28)
         plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
-        plt.xlabel('x')
+        plt.xlabel(r'x ($\Delta $x=' + str(dx) + 'm)')
         plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
+        ax = plt.gca()
+        # lx, ly = set_ticks(ax.get_xticks(), ax.get_yticks(), z_output, z_output, 0, 0)
+        # # ax.set_xticklabels(lx)
+        # ax.set_yticklabels(ly)
 
     print('saving: ', fullpath_out + file_name+ '.png')
     plt.savefig(fullpath_out + file_name + '.png')
@@ -281,8 +299,13 @@ def plot_field(field_name, field_data, level, file_name, tt, type):
 
 
 
-def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name, tt, type):
+def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name, tt, z_output, type):
     print('plot field & cont: ', field_name, cont_name)
+    global nml
+    dx = nml['grid']['dx']
+    dy = nml['grid']['dy']
+    dz = nml['grid']['dz']
+
     plt.figure(figsize=(15,10))
     if field_name == 'w':
         ax1 = plt.contourf(field_data.T, cmap=cm.bwr)
@@ -294,23 +317,23 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name
     if np.amax(np.abs(cont_data)) > 0.0 and max != min:
         cont = np.linspace(min, max, 11)
         ax2 = plt.contour(cont_data.T, cont, cmap=cm.Greys)
-        plt.colorbar(ax2)
-    plt.colorbar(ax1)
+        plt.colorbar(ax2, shrink=0.8)
+    plt.colorbar(ax1, shrink=0.8)
 
     max_field = np.amax(field_data)
     max_data = np.amax(cont_data)
     if type == 'hor':
         plt.title(field_name + ', z=' + str(level) + 'm, t=' + str(tt) + 's (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
             max_data) + ')', fontsize=28)
-        plt.xlabel('x')
-        plt.ylabel('y')
+        plt.xlabel(r'x ($\Delta $x=' + str(dx) + 'm)')
+        plt.ylabel(r'y ($\Delta $y=' + str(dy) + 'm)')
     elif type == 'vert':
         # plt.title(field_name + ', y=' + str(level) + 'm  , (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
         #     max_data) + ')', fontsize=35)
         plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's (contours: ' + cont_name + ', max: ' + "{0:.2f}".format(
             max_data) + ')', fontsize=28)
-        plt.xlabel('x')
-        plt.ylabel('z')
+        plt.xlabel(r'x ($\Delta $x=' + str(dx) + 'm)')
+        plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
 
     # print('saving: ', fullpath_out + file_name + '.png')
     # print('')
@@ -323,6 +346,11 @@ def plot_field_cont(field_name, field_data,cont_name,cont_data, level, file_name
 
 def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_name2, cont_data2, file_name):
     # print('plot corr/cont: ', field_name, field_data.shape)
+    global nml
+    dx = nml['grid']['dx']
+    dy = nml['grid']['dy']
+    dz = nml['grid']['dz']
+
     plt.figure(figsize=(19,10))
     if field_name == 'w':
         levels=np.linspace(-6,6,250)
@@ -335,21 +363,48 @@ def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_
     ax2b = plt.contour(cont_data2.T, levels=cont2, colors='k', linewidths=0.6)
     plt.colorbar(ax2a,shrink=0.75)
     plt.colorbar(ax2b,shrink=0.75)
-    plt.colorbar(ax1)
+    plt.colorbar(ax1, shrink=0.75)
     max_field = np.amax(field_data)
     max_data1 = np.amax(cont_data1)
     max_data2 = np.amax(cont_data2)
     plt.title(field_name+', max:'+"{0:.2f}".format(max_field)+', (contours: '+cont_name1+', max: '+"{0:.2f}".format(max_data1)
               +', '+cont_name2+', max: '+"{0:.2f}".format(max_data2)+')')
-    plt.xlabel('x')
-    plt.ylabel('z')
+    plt.xlabel(r'x ($\Delta $x=' + str(dx) + 'm)')
+    plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
     # plt.savefig(fullpath_out + file_name + '.png')
     # print('')
     # print('saving: ', fullpath_out + file_name + '.png')
     # print('')
     plt.close()
 
+# ------------------------------------------------
+def set_ticks(labels_x,labels_y, x_range, y_range, round_x, round_y):
+    print('')
+    print('!!!!! ticking')
+    lab_x = [np.int(x_range[0])]
+    lab_y = [np.int(y_range[0])]
+    for i in range(1,labels_x.shape[0]):
+        if labels_x[i] < np.size(x_range):
+            lab_x= np.append(lab_x,np.round(x_range[int(labels_x[i])],round_x))
+    lab_x = lab_x.astype(int)
+    for i in range(1,labels_y.shape[0]):
+        if labels_y[i] < np.size(y_range):
+            lab_y = np.append(lab_y,np.round(y_range[int(labels_y[i])],round_y))
 
+
+
+    # lab_y = np.zeros(shape=0, dtype=np.int)
+    # i_range = np.zeros(shape=0, dtype=np.int)
+    # i = 0
+    # for y_ in y_range:
+    #     if np.mod(y_, 1000) < 50:
+    #         print('y_', y_)
+    #         i_range = np.append(i_range, i)
+    #         lab_y = np.append(lab_y, np.round(y_,round_y))
+    #     i += 1
+    # print('lab_y', lab_y)
+    # print(y_range)
+    return lab_x, lab_y
 
 
 # ----------------------------------
@@ -417,7 +472,7 @@ def plot_field_cont1_cont2(field_name, field_data, cont_name1, cont_data1, cont_
 
 # ----------------------------------
 def read_in_netcdf_fields(variable_name, fullpath_in):
-    print('.....', fullpath_in, variable_name)
+    # print('.....', fullpath_in, variable_name)
     rootgrp = nc.Dataset(fullpath_in, 'r')
     var = rootgrp.groups['fields'].variables[variable_name][:, :, :]
     rootgrp.close()

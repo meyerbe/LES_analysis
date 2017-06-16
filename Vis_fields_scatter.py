@@ -112,53 +112,60 @@ def main():
     ql_min = 0.0
     ql_max = np.amax(ql)
 
-    # plt.figure(figsize=(25,5))
-    # for k in range(nk):
-    #     plt.subplot(1, nk, k + 1)
-    #     plt.hist2d(thetali[k,:], qt[k,:], bins=100, normed=True)
-    #     plt.colorbar()
-    #     plt.title('z=' + str(zrange[k]) + 'm')
-    #     plt.xlabel(r'$\theta_l$')
-    #     plt.ylabel(r'$q_t$')
-    #     # plt.xlim([298, 305])
-    #     # plt.ylim([0.007,0.018])
-    # plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-    # plt.savefig(os.path.join(path, 'hist2d_plot.png'))
-    # plt.close()
-    #
-    # plt.figure(figsize=(25, 5))
-    # for k in range(nk):
-    #     plt.subplot(1, nk, k + 1)
-    #     plt.hist2d(thetali[k, :], qt[k, :], bins=100, norm = LogNorm(), normed = True)
-    #     plt.colorbar()
-    #     plt.title('z=' + str(zrange[k]) + 'm')
-    #     plt.xlabel(r'$\theta_l$')
-    #     plt.ylabel(r'$q_t$')
-    #     # plt.xlim([298, 305])
-    #     # plt.ylim([0.007,0.018])
-    # plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-    # plt.savefig(os.path.join(path, 'hist2d_plot_log.png'))
-    # plt.close()
+
 
     if case_name != 'TRMM_LBA':
+        hist_plot(thetali, qt, ql, zrange, krange, time_field, path)
         scatter_plot(thetali, qt, ql, krange, zrange, time_field, path)
     else:
-        # krange = np.asarray([0, 5, 10, 20, 30, 40, 50, 60, 68, 75, 85, 95, 105, 120, 130, 140], dtype=np.int32)
-        # krange1 = np.asarray([0, 5, 10, 20, 30, 40, 50, 68, 75, 85, 95, 105, 120, 130], dtype=np.int32)
+        # # krange = np.asarray([0, 5, 10, 20, 30, 40, 50, 60, 68, 75, 85, 95, 105, 120, 130, 140], dtype=np.int32)
+
+        # krange1_ = np.asarray([0, 5, 10, 20, 30, 40, 50, 68, 75, 85, 95, 105, 120, 130], dtype=np.int32)
         krange1 = [0,1,2,3,4,5,6,8,9,10,11,12,13,14]
         scatter_plot_trmm(thetali, qt, ql, zrange, krange, krange1, time_field, path)
-        krange = np.asarray([0, 5, 10, 20, 30, 40, 50, 60, 68, 75, 85, 95, 105, 120, 130], dtype=np.int32)
-        # krange2 = np.asarray([10, 20, 40, 50, 60, 68, 105, 120], dtype=np.int32)
+        # krange2_ = np.asarray([10, 20, 40, 50, 60, 68, 105, 120], dtype=np.int32)
         krange2 = np.asarray([2, 3, 5, 9, 12, 13], dtype=np.int32)
         scatter_plot_trmm_small(thetali, qt, ql, zrange, krange, krange2, time_field, path)
     return
 
 
 
+def hist_plot(thetali, qt, ql, zrange, krange, time_field, path):
+    nk = len(krange)
+    plt.figure(figsize=(25, 5))
+    for k in range(nk):
+        plt.subplot(1, nk, k + 1)
+        plt.hist2d(thetali[k, :], qt[k, :], bins=100, normed=True)
+        plt.colorbar()
+        plt.title('z=' + str(zrange[k]) + 'm')
+        plt.xlabel(r'$\theta_l$')
+        plt.ylabel(r'$q_t$')
+        # plt.xlim([298, 305])
+        # plt.ylim([0.007,0.018])
+    plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    plt.savefig(os.path.join(path, 'hist2d_plot_t' + str(time_field) + '.png'))
+    plt.close()
 
+    plt.figure(figsize=(25, 5))
+    for k in range(nk):
+        plt.subplot(1, nk, k + 1)
+        plt.hist2d(thetali[k, :], qt[k, :], bins=100, norm=LogNorm(), normed=True)
+        plt.colorbar()
+        plt.title('z=' + str(zrange[k]) + 'm')
+        plt.xlabel(r'$\theta_l$')
+        plt.ylabel(r'$q_t$')
+        # plt.xlim([298, 305])
+        # plt.ylim([0.007,0.018])
+    plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    plt.savefig(os.path.join(path, 'hist2d_plot_log_t' + str(time_field) + '.png'))
+    plt.close()
+    return
 
 def scatter_plot(thetali, qt, ql, krange, zrange, time_field, path):
     nk = len(krange)
+    ql_min = 0.0
+    ql_max = np.amax(ql)
+
     if nk <= 6:
         plt.figure(figsize=(5*nk,5))
         for k in range(nk):
@@ -170,8 +177,7 @@ def scatter_plot(thetali, qt, ql, krange, zrange, time_field, path):
             # plt.xlim([298, 305])
             # plt.ylim([0.007,0.018])
         plt.suptitle('LES Data (t='+str(np.round((time_field/3600),1))+'h)')
-        # plt.suptitle('LES Data (t=' + 'h)')
-        plt.savefig(os.path.join(path, 'scatter_plot.png'))
+        plt.savefig(os.path.join(path, 'scatter_plot_t'+str(time_field)+'.png'))
         plt.close()
 
         plt.figure(figsize=(25, 5))
@@ -188,42 +194,42 @@ def scatter_plot(thetali, qt, ql, krange, zrange, time_field, path):
             # plt.xlim([298, 305])
             # plt.ylim([0.007,0.018])
         plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-        plt.savefig(os.path.join(path, 'scatter_plot_ql.png'))
+        plt.savefig(os.path.join(path, 'scatter_plot_ql_t' + str(time_field) + '.png'))
         plt.close()
-
-    else:
-        plt.figure(figsize=(5 * nk/2, 15))
-        for k in range(nk):
-            print(nk, '2', nk/2, k+1)
-            plt.subplot(3, nk/2, k + 1)
-            plt.scatter(thetali[k, :], qt[k, :], s=3, alpha=0.1)
-            plt.title('z=' + str(np.int(zrange[k])) + 'm')
-            plt.xlabel(r'$\theta_l$')
-            plt.ylabel(r'$q_t$')
-            # plt.xlim([298, 305])
-            # plt.ylim([0.007,0.018])
-        plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-        # plt.suptitle('LES Data (t=' + 'h)')
-        plt.savefig(os.path.join(path, 'scatter_plot.png'))
-        plt.close()
-
-        plt.figure(figsize=(5*nk/2, 15))
-        for k in range(nk):
-            # ql_max = np.amax(ql[k,:])
-            # print('ql: ', ql_max)
-            plt.subplot(3, nk / 2, k + 1)
-            plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min,
-                        vmax=ql_max)  # , cmap = cm)
-            # plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none')
-            plt.colorbar(shrink=0.6)
-            plt.title('z=' + str(np.int(zrange[k])) + 'm')
-            plt.xlabel(r'$\theta_l$')
-            plt.ylabel(r'$q_t$')
-            # plt.xlim([298, 305])
-            # plt.ylim([0.007,0.018])
-        plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-        plt.savefig(os.path.join(path, 'scatter_plot_ql.png'))
-        plt.close()
+    #
+    # else:
+    #     plt.figure(figsize=(5 * nk/2, 15))
+    #     for k in range(nk):
+    #         print(nk, '2', nk/2, k+1)
+    #         plt.subplot(3, nk/2, k + 1)
+    #         plt.scatter(thetali[k, :], qt[k, :], s=3, alpha=0.1)
+    #         plt.title('z=' + str(np.int(zrange[k])) + 'm')
+    #         plt.xlabel(r'$\theta_l$')
+    #         plt.ylabel(r'$q_t$')
+    #         # plt.xlim([298, 305])
+    #         # plt.ylim([0.007,0.018])
+    #     plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    #     # plt.suptitle('LES Data (t=' + 'h)')
+    #     plt.savefig(os.path.join(path, 'scatter_plot_t' + str(time_field) + '.png'))
+    #     plt.close()
+    #
+    #     plt.figure(figsize=(5*nk/2, 15))
+    #     for k in range(nk):
+    #         # ql_max = np.amax(ql[k,:])
+    #         # print('ql: ', ql_max)
+    #         plt.subplot(3, nk / 2, k + 1)
+    #         plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min,
+    #                     vmax=ql_max)  # , cmap = cm)
+    #         # plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none')
+    #         plt.colorbar(shrink=0.6)
+    #         plt.title('z=' + str(np.int(zrange[k])) + 'm')
+    #         plt.xlabel(r'$\theta_l$')
+    #         plt.ylabel(r'$q_t$')
+    #         # plt.xlim([298, 305])
+    #         # plt.ylim([0.007,0.018])
+    #     plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    #     plt.savefig(os.path.join(path, 'scatter_plot_ql_t' + str(time_field) + '.png'))
+    #     plt.close()
 
     return
 
@@ -244,7 +250,7 @@ def scatter_plot_trmm_small(thetali, qt, ql, zrange, krange, krange_plot, time_f
         plt.ylabel(r'$q_t$')
     plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
     # plt.suptitle('LES Data (t=' + 'h)')
-    plt.savefig(os.path.join(path, 'scatter_plot_small.png'))
+    plt.savefig(os.path.join(path, 'scatter_plot_small_t' + str(time_field) + '.png'))
     plt.close()
 
     plt.figure(figsize=(5 * nk, 5))
@@ -258,7 +264,41 @@ def scatter_plot_trmm_small(thetali, qt, ql, zrange, krange, krange_plot, time_f
         plt.xlabel(r'$\theta_l$')
         plt.ylabel(r'$q_t$')
     plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
-    plt.savefig(os.path.join(path, 'scatter_plot_ql_small.png'))
+    plt.savefig(os.path.join(path, 'scatter_plot_ql_small_t' + str(time_field) + '.png'))
+    plt.close()
+
+
+    plt.figure(figsize=(5 * nk, 5))
+    thetali_mean = np.average(thetali, axis = 1)
+    qt_mean = np.average(qt, axis=1)
+    # th_min = 9999.9
+    # th_max = -9999.9
+    # qt_min = 9999.9
+    # qt_max = -9999.9
+    # for k in range(nk):
+    #     aux = np.amin(thetali[k,:] - thetali_mean[k])
+    #     if aux < th_min:
+    #         th_min = aux
+    #     elif aux > th_max:
+    #         th_max = aux
+    th_min = np.amin(thetali)
+    th_max = np.amax(thetali)
+    qt_min = np.amin(qt)
+    qt_max = np.amax(qt)
+    for k_ in range(nk):
+        plt.subplot(1, nk, k_ + 1)
+        k = krange_plot[k_]
+        plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min,vmax=ql_max)  # , cmap = cm)
+        # plt.scatter(thetali[k, :] - thetali_mean[k], qt[k, :] - qt_mean[k], c=ql[k, :], s=5, alpha=0.2,
+        #             edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
+        plt.colorbar(shrink=0.6)
+        plt.xlim(th_min, th_max)
+        plt.ylim(qt_min, qt_max)
+        plt.title('z=' + str(np.int(zrange[k])) + 'm')
+        plt.xlabel(r'$\theta_l$  ($<\theta_l>$=' + str(thetali_mean[k]))
+        plt.ylabel(r'$q_t$  ($<q_t>$=' + str(qt_mean[k]))
+    plt.suptitle('LES Data (t=' + str(np.round((time_field / 3600), 1)) + 'h)')
+    plt.savefig(os.path.join(path, 'scatter_plot_ql_small_lim_t' + str(time_field) + '.png'))
     plt.close()
     return
 
@@ -296,7 +336,7 @@ def scatter_plot_trmm(thetali, qt, ql, zrange, krange, krange_plot, time_field, 
 
     for k_ in range(nk):
         k = krange_plot[k_]
-        print(k_, krange_plot[k_], k, krange[k_], zrange[k_])
+        # print(k_, krange_plot[k_], k, krange[k_], zrange[k_])
         if zrange[k] < 600:
             plt.subplot(4, nplot, k_ + 1)
             # fig1.subplot(4, nplot, k + 1)
@@ -327,7 +367,7 @@ def scatter_plot_trmm(thetali, qt, ql, zrange, krange, krange_plot, time_field, 
             plt.ylabel(r'$q_t$')
             n_ft += 1
     plt.suptitle('LES Data (t=' + str(np.round(((time_field-1e6)/ 3600), 1)) + 'h)')
-    plt.savefig(os.path.join(path, 'scatter_plot.png'))
+    plt.savefig(os.path.join(path, 'scatter_plot_t' + str(time_field) + '.png'))
     plt.close()
     # fig1.close()
 
@@ -340,7 +380,6 @@ def scatter_plot_trmm(thetali, qt, ql, zrange, krange, krange_plot, time_field, 
         k = krange_plot[k_]
         if zrange[k] < 600:
             plt.subplot(4, nplot, k_ + 1)
-            # fig1.subplot(4, nplot, k + 1)
             plt.scatter(thetali[k, :], qt[k, :], c=ql[k, :], s=5, alpha=0.2, edgecolors='none', vmin=ql_min,vmax=ql_max)  # , cmap = cm)
             plt.title('z=' + str(np.int(zrange[k])) + 'm')
             plt.xlabel(r'$\theta_l$')
@@ -367,7 +406,7 @@ def scatter_plot_trmm(thetali, qt, ql, zrange, krange, krange_plot, time_field, 
             plt.ylabel(r'$q_t$')
             n_ft += 1
     plt.suptitle('LES Data (t=' + str(np.round(((time_field-1e6) / 3600), 1)) + 'h)')
-    plt.savefig(os.path.join(path, 'scatter_plot_ql.png'))
+    plt.savefig(os.path.join(path, 'scatter_plot_ql_t' + str(time_field) + '.png'))
     plt.close()
     return
 
