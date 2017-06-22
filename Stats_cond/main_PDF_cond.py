@@ -145,8 +145,10 @@ def set_zrange(case_name):
         ## Bomex (dz=20)
         # krange = np.asarray([50, 60], dtype=np.int32)
         krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
+        krange = np.asarray([10, 15, 17, 20, 22, 23, 25, 27, 28, 30, 32, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
         # files = ['18000.nc']
         files = ['21600.nc']
+        files = ['18000.nc', '19800.nc', '21600.nc']
 
         # Bomex test
         # files = ['21600.nc']

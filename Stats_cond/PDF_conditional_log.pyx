@@ -470,9 +470,9 @@ cdef class PDF_conditional:
                     error_ql_env[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                        rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
                         rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
                     if cf_env[k] > 0.0:
@@ -485,9 +485,9 @@ cdef class PDF_conditional:
                     error_ql_env_log[k,count_ncomp] = ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env_log[k,count_ncomp] = cf_comp_log[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                        rel_error_cf_domain_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_env[k]) / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
                         rel_error_ql_env_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
                     if cf_env[k] > 0.0:
@@ -500,16 +500,16 @@ cdef class PDF_conditional:
                     error_ql_env_loglog[k,count_ncomp] = ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env_loglog[k,count_ncomp] = cf_comp_loglog[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                        rel_error_cf_domain_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_env[k]) / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
                         rel_error_ql_env_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
                     if cf_env[k] > 0.0:
                         rel_error_cf_env_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_env[k]) / cf_env[k]
 
                     print('')
-                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
+                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp])
                     print('<ql> from ql fields (env):     ', ql_mean_env[k])
                     print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
                     print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
@@ -517,7 +517,7 @@ cdef class PDF_conditional:
                     print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
                     print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
                     print('')
-                    print('CF from Cloud Closure Scheme: ', cf_comp[k])
+                    print('CF from Cloud Closure Scheme: ', cf_comp[k, count_ncomp])
                     print('CF from ql fields (env):      ', cf_env[k])
                     print('CF from ql fields (domain):   ', cf_domain[k])
                     print('error env:    '+str(error_cf_env[k,count_ncomp]))
