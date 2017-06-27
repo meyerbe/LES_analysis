@@ -12,6 +12,8 @@ from sklearn.preprocessing import StandardScaler
 
 ''' OUTPUT '''
 '(1) Output per ncomp: PDF_cond_<type>_ncomp<x>_Lx<Lx>Ly<Ly>_dz<dz>_time<tt>.nc'
+# !!! l 466: sat_adj for log-models: need to take np.exp(qt) as input ?!?!?
+
 #     - PDF parameters:
 #         - means
 #         - covariances
@@ -316,7 +318,7 @@ cdef class PDF_conditional:
                 cf_updraft = np.zeros(nk, dtype=np.double)
 
                 ''' (b) initialize Statistics File '''
-                nc_file_name_out = 'PDF_cond_log_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(Lx_)+'Ly'+str(Ly_)+'_dz'+str((dk)*dz) \
+                nc_file_name_out = 'PDF_cond_log_' + type_ + '_ncomp'+str(ncomp)+'_Lx'+str(np.floor(Lx_))+'Ly'+str(np.floor(Ly_))+'_dz'+str((dk)*dz) \
                                    +'_time'+str(tt)+'.nc'
                 self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
@@ -341,9 +343,9 @@ cdef class PDF_conditional:
                     qt_log = np.ndarray(shape=(0), dtype=np.double)
                     ql = np.ndarray(shape=(0), dtype=np.double)
                     ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
-                    data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                    data_all_log = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                    data_all_loglog = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                    # data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                    # data_all_log = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
+                    # data_all_loglog = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
                     for k_ in range(0,dk):
                         print('----- k_='+str(k_), ' dk='+str(dk))
                         # k_ = 0
@@ -370,24 +372,33 @@ cdef class PDF_conditional:
                                     if ql_[i,j,iz+k_] > 0.0:
                                         cf_updraft[k] += 1.0
 
-                    print('n_env='+str(n_env[k]), theta_l.shape)
+                    # print('n_env='+str(n_env[k]), theta_l.shape)
                     # del s_, ql_, qt_, T_
-                    data = np.ndarray(shape=(n_env[k], nvar))
-                    print('..')
-                    print('n_up, n_env, dk', n_updraft[k], n_env[k], dk)
-                    print(n_env)
-                    print(theta_l.shape, qt.shape, data.shape)
-                    print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
+                    # print('..')
+                    # print('n_up, n_env, dk', n_updraft[k], n_env[k], dk)
+                    # print(n_env)
+                    # print(theta_l.shape, qt.shape, data.shape)
+                    # print('..', i, nx_, j, ny_, nx_*ny_, np.count_nonzero(labels_tracers[0:nx_,0:ny_,iz]))
+                    # data = np.ndarray(shape=(n_env[k], nvar))
+                    # data[:, 0] = theta_l[:]
+                    # data[:, 1] = qt[:]
+                    # data_all = np.append(data_all, data, axis=0)
+                    # data[:, 0] = theta_l[:]
+                    # data[:, 1] = qt_log[:]
+                    # data_all_log = np.append(data_all_log, data, axis=0)
+                    # data[:, 0] = theta_l_log[:]
+                    # data_all_loglog = np.append(data_all_loglog, data, axis=0)
+                    # del data
+                    data_all = np.ndarray(shape=(n_env[k], nvar))
+                    data_all_log = np.ndarray(shape=(n_env[k], nvar))
+                    data_all_loglog = np.ndarray(shape=(n_env[k], nvar))
                     ql_all = np.append(ql_all, ql[:], axis=0)
-                    data[:, 0] = theta_l[:]
-                    data[:, 1] = qt[:]
-                    data_all = np.append(data_all, data, axis=0)
-                    data[:, 0] = theta_l[:]
-                    data[:, 1] = qt_log[:]
-                    data_all_log = np.append(data_all_log, data, axis=0)
-                    data[:, 0] = theta_l_log[:]
-                    data_all_loglog = np.append(data_all_loglog, data, axis=0)
-                    del data
+                    data_all[:, 0] = theta_l[:]
+                    data_all[:, 1] = qt[:]
+                    data_all_log[:, 0] = theta_l[:]
+                    data_all_log[:, 1] = qt_log[:]
+                    data_all_loglog[:, 0] = theta_l_log[:]
+                    data_all_loglog[:, 1] = qt_log[:]
 
                     # ql_mean_domain[k] /= ( len(files)*dk*(nx_*ny_) )
                     # cf_domain[k] /= ( len(files)*dk*(nx_*ny_) )
@@ -395,8 +406,9 @@ cdef class PDF_conditional:
                     cf_domain[k] /= ( 1*dk*(nx_*ny_) )
                     ql_mean_env[k] /= n_env[k]
                     cf_env[k] /= n_env[k]
-                    ql_mean_updraft[k] /= n_updraft[k]
-                    cf_updraft[k] /= n_updraft[k]
+                    if n_updraft[k] > 0.0:
+                        ql_mean_updraft[k] /= n_updraft[k]
+                        cf_updraft[k] /= n_updraft[k]
 
                     '''(3) Normalise Data'''
                     scaler = StandardScaler()
@@ -454,11 +466,13 @@ cdef class PDF_conditional:
                         ql_mean_comp[k, count_ncomp] += ql_comp_thl[i]
                         if ql_comp_thl[i] > 0:
                             cf_comp[k, count_ncomp] += 1
-                        T_comp_thl_log[i], ql_comp_thl_log[i] = sat_adj_fromthetali(p_ref[iz], Th_l_log[i, 0], Th_l_log[i, 1], CC, LH)
+                        T_comp_thl_log[i], ql_comp_thl_log[i] = sat_adj_fromthetali(p_ref[iz],
+                                                Th_l_log[i, 0], np.exp(Th_l_log[i, 1]), CC, LH)
                         ql_mean_comp_log[k, count_ncomp] += ql_comp_thl_log[i]
                         if ql_comp_thl_log[i] > 0:
                             cf_comp_log[k, count_ncomp] += 1
-                        T_comp_thl_loglog[i], ql_comp_thl_loglog[i] = sat_adj_fromthetali(p_ref[iz], Th_l_loglog[i, 0], Th_l_loglog[i, 1], CC, LH)
+                        T_comp_thl_loglog[i], ql_comp_thl_loglog[i] = sat_adj_fromthetali(p_ref[iz],
+                                                np.exp(Th_l_loglog[i, 0]), np.exp(Th_l_loglog[i, 1]), CC, LH)
                         ql_mean_comp_loglog[k, count_ncomp] += ql_comp_thl_loglog[i]
                         if ql_comp_thl_loglog[i] > 0:
                             cf_comp_loglog[k, count_ncomp] += 1
@@ -470,13 +484,13 @@ cdef class PDF_conditional:
                     error_ql_env[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain[k,count_ncomp] = error_ql_domain[k, count_ncomp] / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_domain[k]
+                        rel_error_cf_domain[k,count_ncomp] = error_cf_domain[k, count_ncomp] / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
-                        rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                        rel_error_ql_env[k,count_ncomp] = error_ql_env[k, count_ncomp] / ql_mean_env[k]
                     if cf_env[k] > 0.0:
-                        rel_error_cf_env[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_env[k]
+                        rel_error_cf_env[k,count_ncomp] = error_cf_env[k, count_ncomp] / cf_env[k]
 
                     ql_mean_comp_log[k, count_ncomp] /= (n_sample-2)
                     cf_comp_log[k, count_ncomp] /= (n_sample-2)
@@ -485,13 +499,13 @@ cdef class PDF_conditional:
                     error_ql_env_log[k,count_ncomp] = ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env_log[k,count_ncomp] = cf_comp_log[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain_log[k,count_ncomp] = error_ql_domain_log[k, count_ncomp] / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_env[k]) / cf_domain[k]
+                        rel_error_cf_domain_log[k,count_ncomp] = error_cf_domain_log[k, count_ncomp] / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
-                        rel_error_ql_env_log[k,count_ncomp] = (ql_mean_comp_log[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                        rel_error_ql_env_log[k,count_ncomp] = error_ql_env_log[k, count_ncomp] / ql_mean_env[k]
                     if cf_env[k] > 0.0:
-                        rel_error_cf_env_log[k,count_ncomp] = (cf_comp_log[k, count_ncomp] - cf_env[k]) / cf_env[k]
+                        rel_error_cf_env_log[k,count_ncomp] = error_cf_env_log[k, count_ncomp] / cf_env[k]
 
                     ql_mean_comp_loglog[k, count_ncomp] /= (n_sample-2)
                     cf_comp_loglog[k, count_ncomp] /= (n_sample-2)
@@ -500,30 +514,39 @@ cdef class PDF_conditional:
                     error_ql_env_loglog[k,count_ncomp] = ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env_loglog[k,count_ncomp] = cf_comp_loglog[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain_loglog[k,count_ncomp] = error_ql_domain_loglog[k, count_ncomp] / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_env[k]) / cf_domain[k]
+                        rel_error_cf_domain_loglog[k,count_ncomp] = error_cf_domain_loglog[k, count_ncomp] / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
-                        rel_error_ql_env_loglog[k,count_ncomp] = (ql_mean_comp_loglog[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                        rel_error_ql_env_loglog[k,count_ncomp] = error_ql_env_loglog[k, count_ncomp] / ql_mean_env[k]
                     if cf_env[k] > 0.0:
-                        rel_error_cf_env_loglog[k,count_ncomp] = (cf_comp_loglog[k, count_ncomp] - cf_env[k]) / cf_env[k]
+                        rel_error_cf_env_loglog[k,count_ncomp] = error_cf_env_loglog[k, count_ncomp] / cf_env[k]
 
                     print('')
-                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp])
                     print('<ql> from ql fields (env):     ', ql_mean_env[k])
                     print('<ql> from ql fields (domain):  ', ql_mean_domain[k])
-                    print('error env (<ql>_CC - <ql>_env):       '+str(error_ql_env[k,count_ncomp]))
-                    print('error domain (<ql>_CC - <ql>_domain): '+str(error_ql_domain[k,count_ncomp]))
-                    print('rel err env:    '+ str(rel_error_ql_env[k,count_ncomp]))
-                    print('rel err domain: '+ str(rel_error_ql_domain[k,count_ncomp]))
+                    print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp],
+                          ql_mean_comp_log[k, count_ncomp], ql_mean_comp_loglog[k, count_ncomp])
+                    print('error env (<ql>_CC - <ql>_env):       ', error_ql_env[k,count_ncomp],
+                          error_ql_env_log[k,count_ncomp], error_ql_env_loglog[k,count_ncomp])
+                    print('error domain (<ql>_CC - <ql>_domain): ', error_ql_domain[k,count_ncomp],
+                          error_ql_domain_log[k,count_ncomp], error_ql_domain_loglog[k,count_ncomp])
+                    print('rel err env:    ', rel_error_ql_env[k,count_ncomp],
+                          rel_error_ql_env_log[k,count_ncomp], rel_error_ql_env_loglog[k,count_ncomp])
+                    print('rel err domain: ', rel_error_ql_domain[k,count_ncomp],
+                          rel_error_ql_domain_log[k,count_ncomp], rel_error_ql_domain_loglog[k,count_ncomp])
                     print('')
                     print('CF from Cloud Closure Scheme: ', cf_comp[k, count_ncomp])
                     print('CF from ql fields (env):      ', cf_env[k])
                     print('CF from ql fields (domain):   ', cf_domain[k])
-                    print('error env:    '+str(error_cf_env[k,count_ncomp]))
-                    print('error domain: '+str(error_cf_domain[k,count_ncomp]))
-                    print('rel error env:    ', rel_error_cf_env[k,count_ncomp])
-                    print('rel error domain: ', rel_error_cf_domain[k,count_ncomp])
+                    print('error env:    ', error_cf_env[k,count_ncomp],
+                          error_cf_env_log[k,count_ncomp], error_cf_env_loglog[k,count_ncomp])
+                    print('error domain: ', error_cf_domain[k,count_ncomp],
+                          error_cf_domain_log[k,count_ncomp], error_cf_domain_loglog[k,count_ncomp])
+                    print('rel error env:    ', rel_error_cf_env[k,count_ncomp],
+                          rel_error_cf_env_log[k,count_ncomp], rel_error_cf_env_loglog[k,count_ncomp])
+                    print('rel error domain: ', rel_error_cf_domain[k,count_ncomp],
+                          rel_error_cf_domain_log[k,count_ncomp], rel_error_cf_domain_loglog[k,count_ncomp])
                     print('')
 
                     '''(E) Plotting'''
@@ -566,7 +589,7 @@ cdef class PDF_conditional:
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'weights', weights_loglog_, 'qt_log_th_log', ncomp, nvar, nk)
 
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_env[:]), 'n_environment', ncomp, nvar, nk)
-                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraf', ncomp, nvar, nk)
+                dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(n_updraft[:]), 'n_updraft', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_domain[:]), 'ql_mean_domain', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_env[:]), 'ql_mean_environment', ncomp, nvar, nk)
                 dump_variable(os.path.join(self.path_out, nc_file_name_out), 'profiles', np.asarray(ql_mean_updraft[:]), 'ql_mean_updraft', ncomp, nvar, nk)
@@ -613,17 +636,20 @@ cdef class PDF_conditional:
             self.dump_error_file(self.path_out, error_file_name, str(tt), ncomp_range, nvar, nk,
                                  np.asarray(ql_mean_env), np.asarray(ql_mean_updraft), np.asarray(ql_mean_domain),
                                  np.asarray(cf_env), np.asarray(cf_updraft), np.asarray(cf_domain),
+
                                  np.asarray(ql_mean_comp), np.asarray(cf_comp),
-                                 np.asarray(ql_mean_comp_log), np.asarray(cf_comp_log),
-                                 np.asarray(ql_mean_comp_loglog), np.asarray(cf_comp_loglog),
                                  np.asarray(error_ql_env), np.asarray(error_ql_domain),
                                  np.asarray(rel_error_ql_env), np.asarray(rel_error_ql_domain),
                                  np.asarray(error_cf_env), np.asarray(error_cf_domain),
                                  np.asarray(rel_error_cf_env), np.asarray(rel_error_cf_domain),
+
+                                 np.asarray(ql_mean_comp_log), np.asarray(cf_comp_log),
                                  np.asarray(error_ql_env_log), np.asarray(error_ql_domain_log),
                                  np.asarray(rel_error_ql_env_log), np.asarray(rel_error_ql_domain_log),
                                  np.asarray(error_cf_env_log), np.asarray(error_cf_domain_log),
                                  np.asarray(rel_error_cf_env_log), np.asarray(rel_error_cf_domain_log),
+
+                                 np.asarray(ql_mean_comp_loglog), np.asarray(cf_comp_loglog),
                                  np.asarray(error_ql_env_loglog), np.asarray(error_ql_domain_loglog),
                                  np.asarray(rel_error_ql_env_loglog), np.asarray(rel_error_ql_domain_loglog),
                                  np.asarray(error_cf_env_loglog), np.asarray(error_cf_domain_loglog),
@@ -708,6 +734,11 @@ cdef class PDF_conditional:
         var = error_grp.createVariable('rel_error_cf_domain', 'f8', ('nz', 'Ncomp'))
         var[:,:] = rel_error_cf_domain[:,:]
 
+        var = prof_grp.createVariable('ql_mean_comp_log', 'f8', ('nz', 'Ncomp'))
+        var[:] = ql_mean_comp_log[:,:]
+        var = prof_grp.createVariable('cf_comp_log', 'f8', ('nz', 'Ncomp'))
+        var[:] = cf_comp[:,:]
+
         var = error_grp.createVariable('error_ql_env_log', 'f8', ('nz', 'Ncomp'))
         var[:,:] = error_ql_env_log[:,:]
         var = error_grp.createVariable('error_ql_domain_log', 'f8', ('nz', 'Ncomp'))
@@ -724,6 +755,11 @@ cdef class PDF_conditional:
         var[:,:] = rel_error_cf_env_log[:,:]
         var = error_grp.createVariable('rel_error_cf_domain_log', 'f8', ('nz', 'Ncomp'))
         var[:,:] = rel_error_cf_domain_log[:,:]
+
+        var = prof_grp.createVariable('ql_mean_comp_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:] = ql_mean_comp_loglog[:,:]
+        var = prof_grp.createVariable('cf_comp_loglog', 'f8', ('nz', 'Ncomp'))
+        var[:] = cf_comp[:,:]
 
         var = error_grp.createVariable('error_ql_env_loglog', 'f8', ('nz', 'Ncomp'))
         var[:,:] = error_ql_env_loglog[:,:]
