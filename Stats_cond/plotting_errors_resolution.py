@@ -165,9 +165,11 @@ def main():
     error_cf_rel_domain = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
     ql_mean_domain = np.zeros((len(Lx_range), len(dz_range), nz))
     ql_mean_env = np.zeros((len(Lx_range), len(dz_range), nz))
+    ql_mean_up = np.zeros((len(Lx_range), len(dz_range), nz))
     ql_mean_pdf = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
     cf_domain = np.zeros((len(Lx_range), len(dz_range), nz))
     cf_env = np.zeros((len(Lx_range), len(dz_range), nz))
+    cf_up = np.zeros((len(Lx_range), len(dz_range), nz))
     cf_pdf = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max))
 
     # print('shapes: ', error_ql_domain.shape, '#Lx: ', len(Lx_range), '#dz: ', len(dz_range), 'nz: ', nz, 'ncomp_max: ', ncomp_max)
@@ -234,17 +236,17 @@ def main():
     plot_cf_rel_error_allres_ncompmax(cf_les, cf_stats, cf_domain, cf_env, error_cf_env, error_cf_rel_env,
                                       zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
 
-    # plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-    #                               ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_ql_fromsampling_allres_domainmod(0.1, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-    #                             ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
-    #                             ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                  ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_ql_fromsampling_allres_domainmod(0.1, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
+                                ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
 
-    # plot_mean_ql_allres(ql_mean_les, ql_mean_domain, ql_mean_stats, ql_mean_env,
-    #                     zrange, ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
-    # plot_mean_cf_allres(cf_les, cf_domain, cf_stats, cf_env,
-    #                     zrange, ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_mean_ql_allres(ql_mean_les, ql_mean_domain, ql_mean_stats, ql_mean_env,
+                        zrange, ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, path_out)
+    plot_mean_cf_allres(cf_les, cf_domain, cf_stats, cf_env,
+                        zrange, ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, path_out)
 
     return
 
@@ -692,20 +694,21 @@ def plot_ql_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql
     plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
+        # plt.plot(-0.4*(1e6)*ql_mean_stats[:], zrange[:], 'k', linewidth=1, label=r'- 0.4$\cdot$ <ql> (stats)')
+        plt.plot(-0.4 * (1e6) * ql_mean_les[:], zrange[:], 'k', linewidth=1, label=r'- 0.4$\cdot$ <ql> (3D fields)')
         for nl in range(n_lx):
             n_col = np.double(nl) / n_lx
-            plt.plot(-ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+            plt.plot(-(1e6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
                      label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
-            plt.plot(-ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1, label='- <ql> env.')
+            plt.plot(-(1e6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1, label='- <ql> env.')
             for nc in range(ncomp_max):
                 n_col = np.double(nc) / ncomp_max
-                plt.plot(error_ql_env[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                plt.plot((1e6)*error_ql_env[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                          label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
         plt.legend(loc=2)
     #     plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql>)$')
+        plt.xlabel(r'$\epsilon(<ql>)\cdot 10^{-6}$')
         plt.ylabel('height z (m)')
     plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
     save_name = 'error_ql_allres_Lx__nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'
@@ -717,22 +720,23 @@ def plot_ql_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql
     plt.figure(figsize=(9 * n_dz, 12))
     for ndz in range(n_dz):
         plt.subplot(1, n_dz, ndz + 1)
-        plt.plot(-ql_mean_stats[:], zrange[:], 'k', linewidth=1, label='- <ql> (stats)')
+        # plt.plot(-0.4*(1e6)*ql_mean_stats[:], zrange[:], 'k', linewidth=1, label=r'- 0.4$\cdot$ <ql> (stats)')
+        plt.plot(-0.4 * (1e6) * ql_mean_les[:], zrange[:], 'k', linewidth=1, label=r'- 0.4$\cdot$ <ql> (3D fields)')
         for nl in range(n_lx):
             if Lx_range[nl]>1000:
                 n_col = np.double(nl) / n_lx
-                plt.plot(-ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                plt.plot(-(1e6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
                          label='- <ql> (Lx=' + str(Lx_range[nl]) + ')')
-                plt.plot(-ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                plt.plot(-(1e6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
                          label='- <ql> env.')
                 for nc in range(ncomp_max):
                     n_col = np.double(nc) / ncomp_max
-                    plt.plot(error_ql_env[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                    plt.plot((1e6)*error_ql_env[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
         plt.legend(loc=2)
         # plt.xlim(xlimits_ql)
         plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'$\epsilon(<ql>)$')
+        plt.xlabel(r'$\epsilon(<ql>)\cdot 10^{-6}$')
         plt.ylabel('height z (m)')
     plt.suptitle('error <ql>' + '(t=' + str(time) + ')')
     save_name = 'error_ql_allres_Lx_nc' + str(ncomp_max) + '_time' + str(time) + '.pdf'

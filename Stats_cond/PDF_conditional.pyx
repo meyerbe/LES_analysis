@@ -285,12 +285,7 @@ cdef class PDF_conditional:
                                    +'_time'+str(tt)+'.nc'
                 self.create_statistics_file(self.path_out, nc_file_name_out, str(tt), ncomp, nvar, nk)
 
-                d = files[0]
-                print('time: d='+str(d))
-                nc_file_name = d
-                path_fields = os.path.join(path, 'fields', nc_file_name)
-                print(path_fields)
-                s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+
 
 
                 '''(2) Compute liquid potential temperature from temperature and moisture'''
@@ -305,29 +300,39 @@ cdef class PDF_conditional:
                     ql = np.ndarray(shape=(0), dtype=np.double)
                     ql_all = np.ndarray(shape=(0))          # data averaged over all levels and time step
                     data_all = np.ndarray(shape=(0, nvar))  # data averaged over all levels and time step
-                    for k_ in range(0,dk):
-                        print('----- k_='+str(k_), ' dk='+str(dk))
-                        # k_ = 0
-                        for i in range(nx_):
-                            for j in range(ny_):
-                                ql_mean_domain[k] += ql_[i,j,iz+k_]
-                                if ql_[i,j,iz+k_] > 0.0:
-                                    cf_domain[k] += 1.0
-                                if labels_tracers[i,j,iz+k_] == 0:
-                                    n_env[k] += 1
-                                    Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
-                                    aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
-                                    theta_l = np.append(theta_l, aux)
-                                    qt = np.append(qt, qt_[i,j,iz+k_])
-                                    ql = np.append(ql, ql_[i,j,iz+k_])
-                                    ql_mean_env[k] += ql_[i,j,iz+k_]
+
+
+                    for d in files:
+                        # pass
+                        # d = files[0]
+                        print('time: d='+str(d))
+                        nc_file_name = d
+                        path_fields = os.path.join(path, 'fields', nc_file_name)
+                        print(path_fields)
+                        s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
+                        for k_ in range(0,dk):
+                            print('----- k_='+str(k_), ' dk='+str(dk))
+                            # k_ = 0
+                            for i in range(nx_):
+                                for j in range(ny_):
+                                    ql_mean_domain[k] += ql_[i,j,iz+k_]
                                     if ql_[i,j,iz+k_] > 0.0:
-                                        cf_env[k] += 1.0
-                                else:
-                                    n_updraft[k] += 1
-                                    ql_mean_updraft[k] += ql_[i,j,iz+k_]
-                                    if ql_[i,j,iz+k_] > 0.0:
-                                        cf_updraft[k] += 1.0
+                                        cf_domain[k] += 1.0
+                                    if labels_tracers[i,j,iz+k_] == 0:
+                                        n_env[k] += 1
+                                        Lv = LH.L(T_[i,j,iz+k_],LH.Lambda_fp(T_[i,j,iz+k_]))
+                                        aux = thetali_c(p_ref[iz+k_], T_[i,j,iz+k_], qt_[i,j,iz+k_], ql_[i,j,iz+k_], qi_, Lv)
+                                        theta_l = np.append(theta_l, aux)
+                                        qt = np.append(qt, qt_[i,j,iz+k_])
+                                        ql = np.append(ql, ql_[i,j,iz+k_])
+                                        ql_mean_env[k] += ql_[i,j,iz+k_]
+                                        if ql_[i,j,iz+k_] > 0.0:
+                                            cf_env[k] += 1.0
+                                    else:
+                                        n_updraft[k] += 1
+                                        ql_mean_updraft[k] += ql_[i,j,iz+k_]
+                                        if ql_[i,j,iz+k_] > 0.0:
+                                            cf_updraft[k] += 1.0
 
                     # print('n_env='+str(n_env[k]), theta_l.shape)
                     # del s_, ql_, qt_, T_
@@ -348,8 +353,9 @@ cdef class PDF_conditional:
                     cf_domain[k] /= ( 1*dk*(nx_*ny_) )
                     ql_mean_env[k] /= n_env[k]
                     cf_env[k] /= n_env[k]
-                    ql_mean_updraft[k] /= n_updraft[k]
-                    cf_updraft[k] /= n_updraft[k]
+                    if n_updraft[k] > 0.0:
+                        ql_mean_updraft[k] /= n_updraft[k]
+                        cf_updraft[k] /= n_updraft[k]
 
                     '''(3) Normalise Data'''
                     scaler = StandardScaler()
@@ -395,13 +401,13 @@ cdef class PDF_conditional:
                     error_ql_env[k,count_ncomp] = ql_mean_comp[k, count_ncomp] - ql_mean_env[k]
                     error_cf_env[k,count_ncomp] = cf_comp[k, count_ncomp] - cf_env[k]
                     if ql_mean_domain[k] > 0.0:
-                        rel_error_ql_domain[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_domain[k]) / ql_mean_domain[k]
+                        rel_error_ql_domain[k,count_ncomp] = error_ql_domain[k, count_ncomp] / ql_mean_domain[k]
                     if cf_domain[k] > 0.0:
-                        rel_error_cf_domain[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_domain[k]) / cf_domain[k]
+                        rel_error_cf_domain[k,count_ncomp] = error_cf_domain[k, count_ncomp] / cf_domain[k]
                     if ql_mean_env[k] > 0.0:
-                        rel_error_ql_env[k,count_ncomp] = (ql_mean_comp[k, count_ncomp] - ql_mean_env[k]) / ql_mean_env[k]
+                        rel_error_ql_env[k,count_ncomp] = error_ql_env[k, count_ncomp] / ql_mean_env[k]
                     if cf_env[k] > 0.0:
-                        rel_error_cf_env[k,count_ncomp] = (cf_comp[k, count_ncomp] - cf_env[k]) / cf_env[k]
+                        rel_error_cf_env[k,count_ncomp] = error_cf_env[k, count_ncomp] / cf_env[k]
 
                     print('')
                     print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k, count_ncomp])

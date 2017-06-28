@@ -40,7 +40,6 @@ def main():
     # parser.add_argument('--nargs-int-type', nargs='+', type=int)
 
     args = parser.parse_args()
-    time = 21600
     # if args.path:
     #     path = args.path
     # path = '/Volumes/Data/ClimatePhysics/LES/updrafts_colleen/'
@@ -82,16 +81,17 @@ def main():
     PDF_cond = PDF_conditional_log.PDF_conditional()
 
     files = os.listdir(os.path.join(path, 'fields'))
-    print('Found the follwing files: ' + str(files))
+    print('Found the following files: ' + str(files))
     krange, files = set_zrange(case_name)
     zrange = krange * dz
     N = len(files)
-    print('Use the following files' + str(files) + ', ' +str(N))
+    print('Use the following files: ' + str(files) + ', ' +str(N))
     print('')
     print('krange' + ', ' + str(type(krange)) + ', ' + str(type(krange[0])))
     print('zrange: ' + str(zrange))
     print('dkrange: ' + str(dk_range) + ', ' + str(type(dk_range)) + ', ' + str(type(dk_range[0])))
     print('dz: ' + str(dz))
+    print('Lx_range: ' + str(Lx_range))
     print('ncomp: ' + str(ncomp_range))
     print('')
     print(path)

@@ -127,7 +127,6 @@ def main():
             path_labels = os.path.join(path, 'tracer_fields')
             labels = read_in_updrafts_colleen(type_, time_field, path_labels)
 
-
         # (3) select the datapoints that are environemnt / updraft
         ini = time.time()
         qt = np.zeros(shape=(nx*ny,nk))
@@ -464,6 +463,45 @@ def plot_hist_all(data, data_env, data_up, xname_, xname_env, xname_up, z_, time
 
     return
 
+#----------------------------------------------------------------------
+
+def plot_hist2d(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql_, ql_env_tr, ql_up_tr,
+                                  n_tot, n_env_tr, n_up_tr, type_, z, t, path_, file_name):
+    # (B) Figure with ql-coloring
+    # ql_min = np.amin(ql_)
+    # ql_max = np.amax(ql_)
+    # x_min = np.amin(thetal_)
+    # x_max = np.amax(thetal_)
+    # y_min = np.amin(qt_)
+    # y_max = np.amax(qt_)
+
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 3, 1)
+    plt.hist2d(thetal_, qt_)#, c=ql_[:], s=5, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
+    labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
+    plt.colorbar(shrink=0.75)
+    plt.title('all data (n=' + str(n_tot) + ')')
+
+    # plt.subplot(1, 3, 2)
+    # plt.scatter(th_env_tr, qt_env_tr, c=ql_env_tr[:], s=5, alpha=0.5, edgecolors='none', vmin=ql_min,
+    #             vmax=ql_max)  # , cmap = cm)
+    # plt.colorbar(shrink=0.75)
+    # labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
+    # plt.title('environment (n=' + str(n_env_tr) + ')')
+    #
+    # plt.subplot(1, 3, 3)
+    # plt.scatter(th_up_tr, qt_up_tr, c=ql_up_tr, s=5, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
+    # plt.colorbar(shrink=0.75)
+    # labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
+    # plt.title('updrafts (n=' + str(n_up_tr) + ')')
+    #
+    # plt.suptitle('Updraft selection ' + type_ + ' (z=' + str(z) + 'm, t=' + str(t) + ')')
+    # print('save:', os.path.join(path_, file_name))
+    # plt.savefig(os.path.join(path_, file_name))
+    # plt.show()
+    # print('saved')
+    plt.close()
+    return
 
 #----------------------------------------------------------------------
 def plot_data_scatter(qt_, thetal_, name1a, name2a,
@@ -562,44 +600,8 @@ def plot_data_scatter_colored(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_u
 
 #----------------------------------------------------------------------
 
-def plot_hist2d(qt_, qt_env_tr, qt_up_tr, thetal_, th_env_tr, th_up_tr, ql_, ql_env_tr, ql_up_tr,
-                                  n_tot, n_env_tr, n_up_tr, type_, z, t, path_, file_name):
-    # (B) Figure with ql-coloring
-    # ql_min = np.amin(ql_)
-    # ql_max = np.amax(ql_)
-    # x_min = np.amin(thetal_)
-    # x_max = np.amax(thetal_)
-    # y_min = np.amin(qt_)
-    # y_max = np.amax(qt_)
-
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 3, 1)
-    plt.hist2d(thetal_, qt_)#, c=ql_[:], s=5, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
-    labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
-    plt.colorbar(shrink=0.75)
-    plt.title('all data (n=' + str(n_tot) + ')')
-
-    # plt.subplot(1, 3, 2)
-    # plt.scatter(th_env_tr, qt_env_tr, c=ql_env_tr[:], s=5, alpha=0.5, edgecolors='none', vmin=ql_min,
-    #             vmax=ql_max)  # , cmap = cm)
-    # plt.colorbar(shrink=0.75)
-    # labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
-    # plt.title('environment (n=' + str(n_env_tr) + ')')
-    #
-    # plt.subplot(1, 3, 3)
-    # plt.scatter(th_up_tr, qt_up_tr, c=ql_up_tr, s=5, alpha=0.5, edgecolors='none', vmin=ql_min, vmax=ql_max)  # , cmap = cm)
-    # plt.colorbar(shrink=0.75)
-    # labeling(r'$\theta_l$', r'$q_t$', x_min, x_max, y_min, y_max)
-    # plt.title('updrafts (n=' + str(n_up_tr) + ')')
-    #
-    # plt.suptitle('Updraft selection ' + type_ + ' (z=' + str(z) + 'm, t=' + str(t) + ')')
-    # print('save:', os.path.join(path_, file_name))
-    # plt.savefig(os.path.join(path_, file_name))
-    # plt.show()
-    # print('saved')
-    plt.close()
+def plot_hist_updraft_vs_bulk():
     return
-
 #----------------------------------------------------------------------
 
 def labeling(var_name1, var_name2, x_min, x_max, y_min, y_max):

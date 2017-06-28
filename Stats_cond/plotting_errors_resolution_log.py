@@ -172,14 +172,12 @@ def main():
     cf_up = np.zeros((len(Lx_range), len(dz_range), nz))
     cf_pdf = np.zeros((len(Lx_range), len(dz_range), nz, ncomp_max, 3))
 
-    print('!!!', error_ql_env.shape, error_ql_rel_env.shape)
-
     # print('shapes: ', error_ql_domain.shape, '#Lx: ', len(Lx_range), '#dz: ', len(dz_range), 'nz: ', nz, 'ncomp_max: ', ncomp_max)
-    n_log_type = 0
+    # n_log_type = 0
     type_list = ['', 'log', 'loglog']
-    for log_type in type_list:
+    for n_log_type, log_type in enumerate(type_list):
         print('')
-        print('--- PDF cond ' + log_type + ' ---')
+        print('--- PDF cond ' + log_type + ', ' + str(n_log_type)+' ---')
         # print(type(log_type))
         for i in range(len(Lx_range)):
             Lx = Lx_range[i]
@@ -247,6 +245,9 @@ def main():
                     except:
                         ql_mean_pdf[i, j, :, ncomp, n_log_type] = rootgrp.groups['profiles'].variables['ql_mean_comp'][:]
                         cf_pdf[i, j, :, ncomp, n_log_type] = rootgrp.groups['profiles'].variables['cf_comp'][:]
+                    print (ql_mean_pdf[i, j, :, ncomp, n_log_type])
+                    if not np.any(ql_mean_pdf[i,j,:,ncomp,n_log_type]):
+                        print('is zero ----------', i, j, ncomp, log_type,  ql_mean_pdf[i,j,:,ncomp,n_log_type])
 
                     if log_type != '':
                         error_ql_env[i, j, :, ncomp, n_log_type] = rootgrp.groups['error'].variables['error_ql_env' + '_' + log_type][:]
@@ -288,33 +289,41 @@ def main():
             path_out = os.path.join(path, 'PDF_cond_log_figures', 'error_profiles', log_type)
         print(path_out)
         save_name = 'error_ql_env'
-        plot_ql_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env,
-                                      error_ql_env[:,:,:,:,n_log_type], error_ql_rel_env[:,:,:,:,n_log_type],
-                                      zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
-                                      markers, time_field, log_type, path_out, save_name)
-    #     plot_ql_rel_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env,
-    #                                   error_ql_env[:,:,:,:,n_log_type], error_ql_rel_env[:,:,:,:,n_log_type],
-    #                                   zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
-    #                                       markers, time_field, log_type, path_out)
-        save_name = 'error_cf_env'
-        plot_cf_error_allres_ncompmax(cf_les, cf_stats, cf_domain, cf_env,
-                                      error_cf_env[:,:,:,:,n_log_type], error_cf_rel_env[:,:,:,:,n_log_type],
-                                      zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
-                                      markers, time_field, log_type, path_out, save_name)
-    #     plot_cf_rel_error_allres_ncompmax(cf_les, cf_stats, cf_domain, cf_env,
-    #                                       error_cf_env[:,:,:,:,n_log_type], error_cf_rel_env[:,:,:,:,n_log_type],
-    #                                       zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
-    #                                       markers, time_field, log_type, path_out)
-    #
-    #     plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-    #                                   ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
-    #     plot_ql_fromsampling_allres_domainmod(0.1, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-    #                                 ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
-    #     plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
-    #                                 ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
-    #
+        # plot_ql_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env,
+        #                               error_ql_env[:,:,:,:,n_log_type], error_ql_rel_env[:,:,:,:,n_log_type],
+        #                               zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
+        #                               markers, time_field, log_type, path_out, save_name)
+        # plot_ql_rel_error_allres_ncompmax(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env,
+        #                               error_ql_env[:,:,:,:,n_log_type], error_ql_rel_env[:,:,:,:,n_log_type],
+        #                               zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
+        #                                   markers, time_field, log_type, path_out)
+        # save_name = 'error_cf_env'
+        # plot_cf_error_allres_ncompmax(cf_les, cf_stats, cf_domain, cf_env,
+        #                               error_cf_env[:,:,:,:,n_log_type], error_cf_rel_env[:,:,:,:,n_log_type],
+        #                               zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
+        #                               markers, time_field, log_type, path_out, save_name)
+        # plot_cf_rel_error_allres_ncompmax(cf_les, cf_stats, cf_domain, cf_env,
+        #                                   error_cf_env[:,:,:,:,n_log_type], error_cf_rel_env[:,:,:,:,n_log_type],
+        #                                   zrange, ncomp_max, xlimits_ql, xlimits_cf, dz, Lx_range, dz_range,
+        #                                   markers, time_field, log_type, path_out)
+
+
+
         n_log_type += 1
 
+    path_out = os.path.join(path, 'PDF_cond_log_figures', 'error_profiles')
+    plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                    ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type,
+                                    path_out)
+    plot_ql_fromsampling_allres_env(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type,
+                                path_out)
+    # plot_ql_fromsampling_allres_domainmod(0.1, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+    #                             ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
+    plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
+                                ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
+    plot_cf_fromsampling_allres_env(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
+                                ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, log_type, path_out)
 
     # plotting ql_mean_domain, ql_mean_stats, ql_mean_les, ql_mean_env --> the same for all types
     path_out = os.path.join(path, 'PDF_cond_log_figures', 'error_profiles')
@@ -446,12 +455,14 @@ def plot_cf_allres(cf_les, cf_domain, cf_stats, cf_env,
     plt.close()
     return
 
+def plot_ql_fromsampling_allres_env(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                    ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type,
+                                    path_out):
 
-
-def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-                                  ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type, path_out):
     print('')
     print('plot error ql')
+    print(ql_mean_pdf.shape)
+
     # data = (Lx x dz x nz x ncomp)
 
     import netCDF4 as nc
@@ -467,26 +478,143 @@ def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_m
     # print('n_lx', n_lx, 'n_dz', n_dz)
 
     # (1) one plot per Lx (for all dz)
-    plt.figure(figsize=(9 * n_lx, 10))
-    for nl in range(n_lx):
-        plt.subplot(1, n_lx, nl + 1)
-        # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
-        plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+    type_list = ['normal', 'log', 'loglog']
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for nl in range(n_lx):
+            print('max ' + type_ + 'Lx=' + str(Lx_range[nl]) + ': ', np.amax(ql_mean_pdf[:, :, :, :, n_type]))
+            plt.subplot(3, n_lx, n_type * 3 + nl + 1)
+            # # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            # plt.plot((10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for ndz in range(n_dz):
+                n_col = np.double(ndz) / n_dz
+                # plt.plot((10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                #          label='<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    print(np.amax(ql_mean_pdf[nl, ndz, :, nc, n_type]))
+                    plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz],
+                             color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (Lx=' + str(Lx_range[nl]) + 'm')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
+    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'ql_sampling_env_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    # plt.show()
+    plt.savefig(os.path.join(path_out, save_name))
+    plt.close()
+
+    # (2) one plot per dz (for all Lx)
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
         for ndz in range(n_dz):
-            n_col = np.double(ndz) / n_dz
-            plt.plot((10**6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-                     label='<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            plt.plot((10**6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-                     label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(ncomp_max):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel(r'<ql> $\cdot 10^-{6}$')
-        plt.ylabel('height z (m)')
+            plt.subplot(3, n_dz, n_type * 3 + ndz + 1)
+            # # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            # plt.plot((10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for nl in range(n_lx):
+                n_col = np.double(nl) / n_lx
+                # plt.plot((10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                #          label='<ql> (Lx=' + str(Lx_range[nl]) + ')')
+                plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl],
+                             color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
+    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'ql_sampling_env_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    # (2) one plot per dz (for all Lx>1000m)
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type * 3 + ndz + 1)
+            # # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            # plt.plot((10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for nl in range(n_lx):
+                if Lx_range[nl] > 1000:
+                    n_col = np.double(nl) / n_lx
+                    # plt.plot((10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                    #          label='<ql> (Lx=' + str(Lx_range[nl]) + ')')
+                    plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                             label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    for nc in range(ncomp_max):
+                        n_col = np.double(nc) / ncomp_max
+                        plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl],
+                                 color=cm1(n_col),
+                                 label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
+    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + ')')
+    save_name = 'ql_sampling_env_Lx_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    return
+
+def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+                                  ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type, path_out):
+    print('')
+    print('plot error ql')
+    print(ql_mean_pdf.shape)
+
+    # data = (Lx x dz x nz x ncomp)
+
+    import netCDF4 as nc
+
+    cm1 = plt.cm.get_cmap('viridis')
+    cm2 = plt.cm.get_cmap('bone')
+    cm3 = plt.cm.get_cmap('winter')
+
+    # path_out = os.path.join(path, 'error_profiles')
+
+    n_lx = len(Lx_range)
+    n_dz = len(dz_range)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
+
+    # (1) one plot per Lx (for all dz)
+    type_list = ['normal', 'log', 'loglog']
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for nl in range(n_lx):
+            print('max '+type_ + 'Lx='+str(Lx_range[nl]) + ': ', np.amax(ql_mean_pdf[:, :, :, :, n_type]))
+            plt.subplot(3, n_lx, n_type*3 + nl + 1)
+            # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for ndz in range(n_dz):
+                n_col = np.double(ndz) / n_dz
+                plt.plot((10**6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                         label='<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                plt.plot((10**6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    print(np.amax(ql_mean_pdf[nl, ndz, :, nc, n_type]))
+                    plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (Lx=' + str(Lx_range[nl]) + 'm')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
     plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
     save_name = 'ql_sampling_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
     # plt.show()
@@ -494,40 +622,13 @@ def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_m
     plt.close()
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_dz, 12))
-    for ndz in range(n_dz):
-        plt.subplot(1, n_dz, ndz + 1)
-        # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
-        plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
-        for nl in range(n_lx):
-            n_col = np.double(nl) / n_lx
-            plt.plot((10**6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-                     label='<ql> (Lx=' + str(Lx_range[nl]) + ')')
-            plt.plot((10**6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-                     label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(ncomp_max):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'<ql> $\cdot 10^-{6}$')
-        plt.ylabel('height z (m)')
-    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
-    save_name = 'ql_sampling_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
-    plt.savefig(os.path.join(path_out, save_name))
-    # plt.show()
-    plt.close()
-
-    # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_dz, 12))
-    for ndz in range(n_dz):
-        plt.subplot(1, n_dz, ndz + 1)
-        # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
-        plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
-        for nl in range(n_lx):
-            if Lx_range[nl] > 1000:
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type * 3 + ndz + 1)
+            # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for nl in range(n_lx):
                 n_col = np.double(nl) / n_lx
                 plt.plot((10**6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
                          label='<ql> (Lx=' + str(Lx_range[nl]) + ')')
@@ -535,13 +636,42 @@ def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_m
                          label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
                 for nc in range(ncomp_max):
                     n_col = np.double(nc) / ncomp_max
-                    plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                    plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel(r'<ql> $\cdot 10^-{6}$')
-        plt.ylabel('height z (m)')
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
+    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'ql_sampling_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    # (2) one plot per dz (for all Lx>1000m)
+    plt.figure(figsize=(9 * n_lx, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type * 3 + ndz+ 1)
+            # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+            plt.plot((10**6)*ql_mean_les[:], zrange[:], 'b', linewidth=1, label='<ql> (LES)')
+            for nl in range(n_lx):
+                if Lx_range[nl] > 1000:
+                    n_col = np.double(nl) / n_lx
+                    plt.plot((10**6)*ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                             label='<ql> (Lx=' + str(Lx_range[nl]) + ')')
+                    plt.plot((10**6)*ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                             label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    for nc in range(ncomp_max):
+                        n_col = np.double(nc) / ncomp_max
+                        plt.plot((10**6)*ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                                 label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.legend(loc=1)
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+            plt.ylabel('height z (m)')
     plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + ')')
     save_name = 'ql_sampling_Lx_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
@@ -550,79 +680,82 @@ def plot_ql_fromsampling_allres(ql_mean_les, ql_mean_stats, ql_mean_domain, ql_m
 
     return
 
-def plot_ql_fromsampling_allres_domainmod(factor, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
-                                    ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type,path_out):
-    print('')
-    # data = (Lx x dz x nz x ncomp)
+# def plot_ql_fromsampling_allres_domainmod(factor, ql_mean_les, ql_mean_stats, ql_mean_domain, ql_mean_env, ql_mean_pdf, zrange,
+#                                     ncomp_max, xlimits_ql, dz, Lx_range, dz_range, markers, time_field, log_type,path_out):
+#     print('')
+#     # data = (Lx x dz x nz x ncomp)
+#
+#     import netCDF4 as nc
+#
+#     cm1 = plt.cm.get_cmap('viridis')
+#     cm2 = plt.cm.get_cmap('bone')
+#     cm3 = plt.cm.get_cmap('winter')
+#     # path_out = os.path.join(path, 'error_profiles')
+#     n_lx = len(Lx_range)
+#     n_dz = len(dz_range)
+#     # print('n_lx', n_lx, 'n_dz', n_dz)
+#
+#     type_list = ['normal', 'log', 'loglog']
+#     plt.figure(figsize=(9 * n_lx, 3*9))
+#     for n_type, type_ in enumerate(type_list):
+#         for nl in range(n_lx):
+#             plt.subplot(3, n_lx, n_type * 3 + nl + 1)
+#             # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+#             # plt.plot(factor * (10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1,
+#             #          label=str(factor) + r'$\cdot$<ql> (LES)')
+#             for ndz in range(n_dz):
+#                 n_col = np.double(ndz) / n_dz
+#                 # plt.plot(factor * (10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+#                 #          label=str(factor) + r'$\cdot$<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+#                 # plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+#                 #          label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+#                 for nc in range(1):
+#                     n_col = np.double(nc) / ncomp_max
+#                     plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
+#                              label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+#         plt.legend(loc=1)
+#         # plt.xlim(0,1.5)
+#         plt.title('Lx=' + str(Lx_range[nl]) + 'm')
+#         plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+#         plt.ylabel('height z (m)')
+#     plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+#     save_name = 'ql_sampling_scaled__dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+#     # plt.show()
+#     plt.savefig(os.path.join(path_out, save_name))
+#     plt.close()
+#
+#     # (1) one plot per Lx (for all dz)
+#     plt.figure(figsize=(9 * n_lx, 3 * 9))
+#     for n_type, type_ in enumerate(type_list):
+#         for nl in range(n_lx):
+#             plt.subplot(3, n_lx, n_type * 3 + nl + 1)
+#             # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
+#             plt.plot(factor*(10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1, label=str(factor)+r'$\cdot$<ql> (LES)')
+#             for ndz in range(n_dz):
+#                 n_col = np.double(ndz) / n_dz
+#                 plt.plot(factor*(10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+#                          label=str(factor)+r'$\cdot$<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+#                 plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+#                          label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+#                 for nc in range(ncomp_max):
+#                     n_col = np.double(nc) / ncomp_max
+#                     plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
+#                              label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+#             plt.legend(loc=1)
+#             # plt.xlim(0,1.5)
+#             plt.title('Lx=' + str(Lx_range[nl]) + 'm')
+#             plt.xlabel(r'<ql> $\cdot 10^-{6}$')
+#             plt.ylabel('height z (m)')
+#     plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+#     save_name = 'ql_sampling_scaled_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+#     # plt.show()
+#     plt.savefig(os.path.join(path_out, save_name))
+#     plt.close()
+#
+#     return
 
-    import netCDF4 as nc
 
-    cm1 = plt.cm.get_cmap('viridis')
-    cm2 = plt.cm.get_cmap('bone')
-    cm3 = plt.cm.get_cmap('winter')
-    # path_out = os.path.join(path, 'error_profiles')
-    n_lx = len(Lx_range)
-    n_dz = len(dz_range)
-    # print('n_lx', n_lx, 'n_dz', n_dz)
-
-    plt.figure(figsize=(9 * n_lx, 10))
-    for nl in range(n_lx):
-        plt.subplot(1, n_lx, nl + 1)
-        # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
-        # plt.plot(factor * (10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1,
-        #          label=str(factor) + r'$\cdot$<ql> (LES)')
-        for ndz in range(n_dz):
-            n_col = np.double(ndz) / n_dz
-            # plt.plot(factor * (10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-            #          label=str(factor) + r'$\cdot$<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            # plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-            #          label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(1):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-        plt.legend(loc=1)
-        # plt.xlim(0,1.5)
-        plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel(r'<ql> $\cdot 10^-{6}$')
-        plt.ylabel('height z (m)')
-    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
-    save_name = 'ql_sampling_scaled__dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
-    # plt.show()
-    plt.savefig(os.path.join(path_out, save_name))
-    plt.close()
-
-    # (1) one plot per Lx (for all dz)
-    plt.figure(figsize=(9 * n_lx, 10))
-    for nl in range(n_lx):
-        plt.subplot(1, n_lx, nl + 1)
-        # plt.plot((10**6)*ql_mean_stats[:], zrange[:], 'k', label='<ql> (stats)')
-        plt.plot(factor*(10 ** 6) * ql_mean_les[:], zrange[:], 'b', linewidth=1, label=str(factor)+r'$\cdot$<ql> (LES)')
-        for ndz in range(n_dz):
-            n_col = np.double(ndz) / n_dz
-            plt.plot(factor*(10 ** 6) * ql_mean_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-                     label=str(factor)+r'$\cdot$<ql> (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            plt.plot((10 ** 6) * ql_mean_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-                     label='<ql>_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(ncomp_max):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot((10 ** 6) * ql_mean_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-        plt.legend(loc=1)
-        # plt.xlim(0,1.5)
-        plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel(r'<ql> $\cdot 10^-{6}$')
-        plt.ylabel('height z (m)')
-    plt.suptitle('<ql> from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
-    save_name = 'ql_sampling_scaled_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
-    # plt.show()
-    plt.savefig(os.path.join(path_out, save_name))
-    plt.close()
-
-    return
-
-
-def plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
+def plot_cf_fromsampling_allres_env(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
                                 ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, log_type, path_out):
     print('')
     print('plot cf from sampling')
@@ -641,26 +774,138 @@ def plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zra
     # print('n_lx', n_lx, 'n_dz', n_dz)
 
     # (1) one plot per Lx (for all dz)
-    plt.figure(figsize=(9 * n_lx, 10))
-    for nl in range(n_lx):
-        plt.subplot(1, n_lx, nl + 1)
-        plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
-        plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+    plt.figure(figsize=(9 * n_lx, 3*10))
+    type_list = ['normal', 'log', 'loglog']
+    for n_type, type_ in enumerate(type_list):
+        print('000', type_, n_type, cf_pdf.shape)
+        for nl in range(n_lx):
+            plt.subplot(3, n_lx, n_type*n_lx + nl + 1)
+            # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            # plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for ndz in range(n_dz):
+                n_col = np.double(ndz) / n_dz
+                # plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                #          label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+            plt.legend(loc='best')
+            # plt.xlim(xlimits_ql)
+            plt.title(type_+ ' (Lx=' + str(Lx_range[nl]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
+    plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'cf_sampling_env_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    # plt.show()
+    plt.savefig(os.path.join(path_out, save_name))
+    plt.close()
+
+    # (2) one plot per dz (for all Lx)
+    plt.figure(figsize=(9 * n_dz, 3*9))
+    for n_type, type_ in enumerate(type_list):
         for ndz in range(n_dz):
-            n_col = np.double(ndz) / n_dz
-            plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-                     label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-                     label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(ncomp_max):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot(cf_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('Lx=' + str(Lx_range[nl]) + 'm')
-        plt.xlabel('CF')
-        plt.ylabel('height z (m)')
+            plt.subplot(3, n_dz, n_type*n_lx + ndz + 1)
+            # # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            # plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for nl in range(n_lx):
+                n_col = np.double(nl) / n_lx
+                # plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                #          label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+                    plt.legend(loc='best')
+            # plt.xlim(xlimits_ql)
+            plt.title(type_+' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
+    plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'cf_sampling_env_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    # (2) one plot per dz (for all Lx>1000m)
+    plt.figure(figsize=(9 * n_dz, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type*n_lx + ndz + 1)
+            # # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            # plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for nl in range(n_lx):
+                if Lx_range[nl] > 1000:
+                    n_col = np.double(nl) / n_lx
+                    # plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                    #          label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                             label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    for nc in range(ncomp_max):
+                        n_col = np.double(nc) / ncomp_max
+                        plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                                 label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.legend(loc='best')
+    #         # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
+    plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'cf_sampling_env_Lx_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    return
+
+def plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zrange,
+                                    ncomp_max, xlimits_cf, dz, Lx_range, dz_range, markers, time_field, log_type,
+                                    path_out):
+
+
+    print('')
+    print('plot cf from sampling')
+    # data = (Lx x dz x nz x ncomp)
+
+    import netCDF4 as nc
+
+    cm1 = plt.cm.get_cmap('viridis')
+    cm2 = plt.cm.get_cmap('bone')
+    cm3 = plt.cm.get_cmap('winter')
+
+    # path_out = os.path.join(path, 'error_profiles')
+
+    n_lx = len(Lx_range)
+    n_dz = len(dz_range)
+    # print('n_lx', n_lx, 'n_dz', n_dz)
+
+    # (1) one plot per Lx (for all dz)
+    plt.figure(figsize=(9 * n_lx, 3 * 10))
+    type_list = ['normal', 'log', 'loglog']
+    for n_type, type_ in enumerate(type_list):
+        for nl in range(n_lx):
+            plt.subplot(3, n_lx, n_type * n_lx + nl + 1)
+            plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for ndz in range(n_dz):
+                n_col = np.double(ndz) / n_dz
+                plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                         label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                         label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                for nc in range(ncomp_max):
+                    n_col = np.double(nc) / ncomp_max
+                    plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[ndz], color=cm1(n_col),
+                             label='ncomp=' + str(nc + 1) + ', dz=' + str(dz_range[ndz]))
+            plt.legend(loc='best')
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (Lx=' + str(Lx_range[nl]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
     plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
     save_name = 'cf_sampling_dz_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
     # plt.show()
@@ -668,40 +913,13 @@ def plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zra
     plt.close()
 
     # (2) one plot per dz (for all Lx)
-    plt.figure(figsize=(9 * n_dz, 12))
-    for ndz in range(n_dz):
-        plt.subplot(1, n_dz, ndz + 1)
-        # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
-        plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
-        for nl in range(n_lx):
-            n_col = np.double(nl) / n_lx
-            plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
-                     label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
-                     label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
-            for nc in range(ncomp_max):
-                n_col = np.double(nc) / ncomp_max
-                plt.plot(cf_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
-                         label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel('CF')
-        plt.ylabel('height z (m)')
-    plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
-    save_name = 'cf_sampling_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
-    plt.savefig(os.path.join(path_out, save_name))
-    # plt.show()
-    plt.close()
-
-    # (2) one plot per dz (for all Lx>1000m)
-    plt.figure(figsize=(9 * n_dz, 12))
-    for ndz in range(n_dz):
-        plt.subplot(1, n_dz, ndz + 1)
-        # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
-        plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
-        for nl in range(n_lx):
-            if Lx_range[nl] > 1000:
+    plt.figure(figsize=(9 * n_dz, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type * n_lx + ndz + 1)
+            # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for nl in range(n_lx):
                 n_col = np.double(nl) / n_lx
                 plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
                          label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
@@ -709,13 +927,42 @@ def plot_cf_fromsampling_allres(cf_les, cf_stats, cf_domain, cf_env, cf_pdf, zra
                          label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
                 for nc in range(ncomp_max):
                     n_col = np.double(nc) / ncomp_max
-                    plt.plot(cf_pdf[nl, ndz, :, nc], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                    plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
                              label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
-        plt.legend(loc=1)
-        # plt.xlim(xlimits_ql)
-        plt.title('dz=' + str(dz_range[ndz]) + 'm')
-        plt.xlabel('CF')
-        plt.ylabel('height z (m)')
+                    plt.legend(loc='best')
+            # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
+    plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
+    save_name = 'cf_sampling_Lx__nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
+    plt.savefig(os.path.join(path_out, save_name))
+    # plt.show()
+    plt.close()
+
+    # (2) one plot per dz (for all Lx>1000m)
+    plt.figure(figsize=(9 * n_dz, 3 * 9))
+    for n_type, type_ in enumerate(type_list):
+        for ndz in range(n_dz):
+            plt.subplot(3, n_dz, n_type * n_lx + ndz + 1)
+            # plt.plot(cf_stats[:], zrange[:], 'k', label='CF (stats)')
+            plt.plot(cf_les[:], zrange[:], 'b', label='CF (LES)')
+            for nl in range(n_lx):
+                if Lx_range[nl] > 1000:
+                    n_col = np.double(nl) / n_lx
+                    plt.plot(cf_domain[nl, ndz, :], zrange[:], '--', color=cm2(n_col),
+                             label='CF (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    plt.plot(cf_env[nl, ndz, :], zrange[:], '-', color=cm2(n_col), linewidth=1,
+                             label='CF_env (Lx=' + str(Lx_range[nl]) + ' dz=' + str(dz_range[ndz]) + ')')
+                    for nc in range(ncomp_max):
+                        n_col = np.double(nc) / ncomp_max
+                        plt.plot(cf_pdf[nl, ndz, :, nc, n_type], zrange[:], '-', marker=markers[nl], color=cm1(n_col),
+                                 label='ncomp=' + str(nc + 1) + ', Lx=' + str(Lx_range[nl]))
+            plt.legend(loc='best')
+            #         # plt.xlim(xlimits_ql)
+            plt.title(type_ + ' (dz=' + str(dz_range[ndz]) + 'm)')
+            plt.xlabel('CF')
+            plt.ylabel('height z (m)')
     plt.suptitle('CF from PDF sampling ' + '(t=' + str(time_field) + '), Model: ' + log_type)
     save_name = 'cf_sampling_Lx_nc' + str(ncomp_max) + '_time' + str(time_field) + '_' + log_type + '.pdf'
     plt.savefig(os.path.join(path_out, save_name))
