@@ -41,6 +41,15 @@
 
 
 # Cloud Closure
+__Repositories:__
+- _CloudClosure_: test version, in python
+- _CloudClosure_unsat_: test of unsaturated thermodynamics, to verify LES output
+- _CloudClosure_sat_: base version for all versions that are in use
+- _CloudClosure_zlayer_: based on CloudClosure_sat with accumulation over multiple levels
+- ___CloudClosure_resolution___: current version; based on CloudClosure_sat with accumulation over multiple levels and variable computational domain `Lx`
+
+
+
 __CloudClosure_sat:__
 - `check_ql_file.py`: compute and plot statistics from a single 3D field output or cumulated over several output fields
 corresponding to several timesteps (mean profiles of liquid  water, entropy and thetali; maximum liquid water)
@@ -58,10 +67,17 @@ __CloudClosure_zlayer:__
 - additional accumulation of data points (LES fields as training data) over _several levels_ to take into account the
 box height of large-scale models
 
-__Repositories:__
-- _CloudClosure_: test version, in python
-- _CloudClosure_unsat_: test of unsaturated thermodynamics, to verify LES output
-- ___CloudClosure_sat___: current version
+
+__CloudClosure_resolution:__
+- based on `CloudClosure_zlayer`
+- chosing computational domain size `Lx`
+- accumulation over layers `dz` and files / timesteps
+- __`CloudClosure_res`__: normal file
+- `CloudClosure_res_acc`: (!!! not in use)
+for Lx (compuational domain) is smaller than the LES domain size, it accumulates over all columns of size Lx*Lx
+- `CloudClosure_res_anomaly`: use anomalies of liquid potential temperature and total water for computing the PDF
+
+
 
 
 

@@ -135,6 +135,9 @@ def main():
     if args.files:
         files = ['']
         files[0] = args.files + '.nc'
+    print('')
+    print('Use the following files: ', files)
+    print('')
 
 
 
@@ -170,6 +173,9 @@ def main():
                     for k in krange:
                         plot_name = var_name + '_t'+ np.str(tt) + '_z' + np.str(np.int(k * dz)) + 'm'
                         plot_field(var_name, field_data[:, :, k], k*dz, plot_name, tt, z_output, 'hor')
+                        if var_name == 'ql':
+                            levels = 1e-4 * np.arange(0,15.0,0.5)
+                            plot_field_levels(var_name, field_data[:, :, k], k*dz, levels, plot_name, tt, z_output, 'hor')
                         if cont_name != var_name and cont_name != ' ':
                             plot_name = var_name + '_' + cont_name + '-cont_t' + np.str(tt) + '_z' + np.str(np.int(k*dz)) + 'm'
                             plot_field_cont(var_name, field_data[:, :, k], cont_name,cont_data[:, :, k], k*dz, plot_name, tt, z_output, 'hor')
@@ -237,7 +243,7 @@ def set_zrange(case_name):
         # krange = np.asarray([10, 12, 15, 18, 20, 22, 25, 40, 50])
         # files = ['21600.nc']
         ## Bomex (dz=20)
-        krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 125], dtype=np.int32)
+        krange = np.asarray([15, 20, 25, 30, 35, 40, 50, 60, 70, 75, 80, 85, 90, 100, 125], dtype=np.int32)
         files = ['21600.nc']
         files = ['18000.nc']
         files = ['19800.nc']
@@ -290,6 +296,45 @@ def plot_field(field_name, field_data, level, file_name, tt, z_output, type):
         # # ax.set_xticklabels(lx)
         # ax.set_yticklabels(ly)
 
+    print('saving: ', fullpath_out + file_name+ '.png')
+    plt.savefig(fullpath_out + file_name + '.png')
+    # # plt.show()
+    plt.close()
+    return
+
+
+
+
+def plot_field_levels(field_name, field_data, level, plot_levels, file_name, tt, z_output, type):
+    print('plot field: ', field_name)
+    global nml
+    dx = nml['grid']['dx']
+    dy = nml['grid']['dy']
+    dz = nml['grid']['dz']
+    plt.figure(figsize=(12,10))
+    if field_name == 'w':
+        ax1 = plt.contourf(field_data.T, levels = plot_levels, cmap=cm.bwr)
+    else:
+        ax1 = plt.contourf(field_data.T, levels = plot_levels, cmap=cm.viridis)
+    plt.colorbar(ax1, shrink=0.8)
+
+    max_field = np.amax(field_data)
+    plt.title(field_name + ', max:' + "{0:.2f}".format(max_field), fontsize=35)
+    if type == 'hor':
+        # plt.title(field_name + ', z='+ str(level) + 'm (max:' + "{0:.2f}".format(max_field), fontsize=28)
+        plt.title(field_name + ', (z=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
+        plt.xlabel(r'x ($\Delta $x='+str(dx)+'m)')
+        plt.ylabel(r'y ($\Delta $y='+str(dy)+'m)')
+    elif type == 'vert':
+    # plt.title(field_name + ', y=' + str(level) + 'm  (max:' + "{0:.2f}".format(max_field), fontsize=28)
+        plt.title(field_name + ', y=' + str(level) + 'm, t=' + str(tt) + 's)', fontsize=28)
+        plt.xlabel(r'x ($\Delta $x=' + str(dx) + 'm)')
+        plt.ylabel(r'z ($\Delta $z=' + str(dz) + 'm)')
+        ax = plt.gca()
+    # lx, ly = set_ticks(ax.get_xticks(), ax.get_yticks(), z_output, z_output, 0, 0)
+    # # ax.set_xticklabels(lx)
+    # ax.set_yticklabels(ly)
+    
     print('saving: ', fullpath_out + file_name+ '.png')
     plt.savefig(fullpath_out + file_name + '.png')
     # # plt.show()

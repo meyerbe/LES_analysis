@@ -196,10 +196,8 @@ cdef class CloudClosure:
                     path_fields = os.path.join(path, 'fields', nc_file_name)
                     # print('fields: ', path_fields)
                     s_, qt_, T_, ql_ = read_in_fields('fields', var_list, path_fields)
-                    '''(2) Compute liquid potential temperature from temperature and moisture'''
 
-                    # for k_ in dk_range:
-                    # for k_ in range(-dk+1,dk):
+                    '''(2) Compute liquid potential temperature from temperature and moisture'''
                     for k_ in range(0,dk):
                         print('layer: k_='+str(k_), str(iz), str(iz+k_))
 
@@ -287,7 +285,7 @@ cdef class CloudClosure:
 
                 print('')
                 print('<ql> from CloudClosure Scheme: ', ql_mean_comp[k])
-                print('<ql> from ql fields: ', ql_mean_field[k])
+                print('<ql> from ql fields:           ', ql_mean_field[k])
                 print('error (<ql>_CC - <ql>_field): '+str(error_ql[k,count_ncomp]))
                 print('rel err: '+ str(rel_error_ql[k,count_ncomp]))
                 print('')

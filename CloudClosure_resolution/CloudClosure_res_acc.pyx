@@ -11,7 +11,6 @@ from sklearn.preprocessing import StandardScaler
 
 # TODO
 # - compute ql_mean_field only once for all components (do in intialisation)
-# - make nml --> self.nml
 # - output  / dump statistics file
 # - include labeling
 
@@ -31,11 +30,12 @@ cdef class CloudClosure:
         self.p_ref = None
         self.z_ref = None
         self.zrange = None
+        self.krange = None
         return
 
 
 
-    cpdef initialize(self, krange, path, case_name):
+    cpdef initialize(self, krange, zrange, path, case_name):
         print('')
         print('--- Cloud Closure Scheme (accumulating) ---')
         print('nml: ', os.path.join(path, case_name+'.in'))
@@ -59,8 +59,12 @@ cdef class CloudClosure:
             print('no p0_half profile')
             self.p_ref = read_in_netcdf('p0', 'reference', self.path_ref)[:]
 
-        self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
-        self.zrange = np.double(krange) * dz
+        self.krange = krange
+        try:
+            self.z_ref = read_in_netcdf('z_half', 'profiles', self.path_ref)
+        except:
+            self.z_ref = read_in_netcdf('z', 'reference', self.path_ref)
+        self.zrange = zrange
         print('')
         print('zrange', np.double(krange) * dz)
         print('')
@@ -74,7 +78,6 @@ cdef class CloudClosure:
         #     ClausiusClapeyron CC = CC_thermodynamics_c.ClausiusClapeyron()
         self.CC.initialize(self.nml, self.LH)
         print('')
-
 
         return
 
